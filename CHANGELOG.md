@@ -3,6 +3,19 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.5.2]
+
+### Fixed
+- **Failure-memory digest no longer over-reports omissions.** The "(N older entries omitted)" note counted skipped template placeholders; it now counts only real dropped entries (was firing on the shipped sample). [dogfood review]
+- **Failure-memory digest never collapses to an empty note.** An oversized newest entry previously dropped every entry via an early `break`; the newest entry is now always kept (bounded) and the note is suppressed when nothing is shown.
+- **Plan-gate exemption is anchored to the user home.** Previously any path containing `/.claude/plans/` (incl. a repo-local one) bypassed the plan-mode write block; it now requires the resolved path under `~/.claude/plans/`. `NotebookEdit` is now gated too.
+- Prevention-rule extraction regex anchored (won't capture a stray body line); `validate-structure.mjs` now fails explicitly on a plugin name mismatch / missing marketplace version instead of silently comparing the wrong entry.
+
+### Added
+- Committed hook test suite (`test/hooks.test.mjs`, `node --test`) locking in the above fixes; CI now `node --check`s both hooks and runs the tests (previously CI never executed the hook JS).
+- `ai/FAILURE_MEMORY.md` recording the three lessons from this review.
+- Injected failure-memory content is now fenced as untrusted reference data (prompt-injection mitigation); CI workflow adds `permissions: contents: read` and concurrency.
+
 ## [0.5.1]
 
 ### Changed

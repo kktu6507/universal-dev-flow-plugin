@@ -1,0 +1,10 @@
+{
+  "name": "udflow",
+  "private": true,
+  "version": "0.5.2",
+  "description": "Universal Dev Flow — Claude Code plugin. Tests cover the session hooks.",
+  "license": "MIT",
+  "scripts": {
+    "test": "node --test"
+  }
+}

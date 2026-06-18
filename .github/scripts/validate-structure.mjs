@@ -34,8 +34,10 @@ if (market) {
   if (!Array.isArray(market.plugins) || market.plugins.length === 0) {
     fail(`marketplace.json must list at least one plugin`);
   } else {
-    const entry = market.plugins.find((p) => p.name === (plugin && plugin.name)) || market.plugins[0];
-    marketPluginVersion = entry.version;
+    const entry = market.plugins.find((p) => p.name === (plugin && plugin.name));
+    if (!entry) fail(`marketplace.json has no plugin entry matching plugin.json name "${plugin && plugin.name}"`);
+    else if (entry.version == null) fail(`marketplace entry "${entry.name}" missing "version"`);
+    else marketPluginVersion = entry.version;
   }
 }
 
