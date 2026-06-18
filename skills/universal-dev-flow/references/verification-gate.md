@@ -80,6 +80,29 @@ Do not replace failure memory with a silent fallback. If the original method cou
 
 Prefer project-specific memory for repo-specific lessons and global memory for cross-project workflow/tooling/reviewer coordination lessons. When both apply, write the project-specific lesson and also update the global lesson if the prevention rule is reusable across repositories.
 
+## Failure Memory Entry Template
+
+Use the target file's existing template when it defines one. If the target `FAILURE_MEMORY.md` is new or has no template yet, seed it with the structure below and use this format for the first entry, so later entries stay consistent:
+
+```markdown
+# FAILURE_MEMORY
+
+Reusable failure lessons. Newest first. Keep entries concise and prevention-oriented.
+
+## Entry Template
+
+### <YYYY-MM-DD> — <short title>
+- **Context / intended method**: what was being attempted and the original approach that could not proceed.
+- **What blocked it**: the abnormality, error, or rejection (command, runtime, tool, encoding, reviewer blocker, etc.).
+- **Root cause**: why it actually failed.
+- **Fix applied**: what made the repaired path valid.
+- **Prevention rule**: the reusable rule that avoids this next time.
+- **Scope**: project-specific or cross-project.
+- **Recurrence**: note and increment if this lesson recurs (e.g. "seen again 2026-06-19").
+```
+
+When appending to an existing file, reuse its headings exactly; do not introduce a competing schema. Mark recurrences on the existing entry instead of creating a duplicate.
+
 ## Final Output Contract
 
 For substantial tasks, end with:

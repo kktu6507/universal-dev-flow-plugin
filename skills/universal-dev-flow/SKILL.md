@@ -1,6 +1,6 @@
 ---
 name: universal-dev-flow
-description: Use for non-trivial software work that requires implementation, verification, selected review, repair loops, or release-readiness judgment. Triggers on feature work, bug fixes, API or business-logic changes, test changes, behavioral refactors, frontend/UI changes, data-flow changes, and production-quality validation. Do not use for simple factual Q&A, pure brainstorming with no implementation intent, or trivial edits with no meaningful verification need.
+description: Use for non-trivial software work needing implementation, verification, selected review, repair loops, or release-readiness judgment. Triggers: feature work, bug fixes, API or business-logic changes, test changes, behavioral refactors, frontend/UI changes, data-flow changes, production-quality validation. Do not use for simple factual Q&A, pure brainstorming with no implementation intent, or trivial edits with no meaningful verification need.
 metadata:
   short-description: Risk-proportional engineering workflow (plan-gated)
 ---
@@ -35,6 +35,7 @@ If the task is borderline, prefer this workflow.
 Keep `SKILL.md` as the lightweight entry point. Read these references only when needed:
 
 - `references/review-packet.md`: before spawning reviewers or handing work to a reviewer.
+- `references/reviewer-common.md`: the shared reviewer contract (severity vocabulary, scope discipline, base output) referenced by every reviewer.
 - `references/reviewer-selection.md`: before selecting or re-running a review panel.
 - `references/runtime-policy.md`: before using subagents, waiting on agents, or closing agents.
 - `references/verification-gate.md`: before verification, final delivery, or failure-memory updates.

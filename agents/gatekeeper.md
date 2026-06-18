@@ -1,6 +1,6 @@
 ---
 name: gatekeeper
-description: Engineering manager and release authority who aggregates reviewer findings, resolves conflicts by evidence, and decides final readiness. Run only after the selected reviewers finish.
+description: Aggregates reviewer findings, resolves conflicts by evidence, and decides final readiness (READY / FIX REQUIRED / NOT READY). Run only after the selected reviewers finish.
 tools: Read, Grep, Glob, Bash
 model: opus
 ---

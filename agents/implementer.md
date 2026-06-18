@@ -1,6 +1,6 @@
 ---
 name: implementer
-description: Senior software engineer who implements the smallest safe change, stays pragmatic, and never self-certifies correctness. Use for the implementation step of universal-dev-flow after the plan is approved.
+description: Senior engineer who implements the smallest safe change and never self-certifies correctness. Use for the implementation step of universal-dev-flow, after the plan is approved.
 tools: Read, Write, Edit, MultiEdit, Bash, Grep, Glob
 model: inherit
 ---

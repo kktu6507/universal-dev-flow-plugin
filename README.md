@@ -47,6 +47,36 @@
 
 ---
 
+## 範例:一次完整流程長怎樣
+
+以下用「修登入流程在 token 過期時不會重整」這個任務,示意實際一次跑起來的樣子(摘要,非逐字輸出):
+
+```
+你> /udflow:run 幫我修正登入流程在 token 過期時不會重整的 bug
+
+udflow> [理解] 重述需求:token 過期後前端未觸發 refresh,導致畫面停在過期狀態。
+        釐清:是要靜默 refresh 還是導回登入頁?→ 以 AskUserQuestion 詢問。
+你> 靜默 refresh,失敗才導回登入頁。
+
+udflow> [計劃 / plan mode]（此時為唯讀,不會改任何檔案)
+        - 影響檔案:src/auth/useAuth.ts、src/api/client.ts
+        - 做法:攔截 401 → 嘗試 refresh → 成功重送請求 / 失敗導向 /login
+        - 驗證:auth 單元測試 + 手動瀏覽器驗證
+        透過 ExitPlanMode 呈現計劃,等你核准。
+你> 核准
+
+udflow> [實作] implementer 依計劃修改上述兩檔（最小變更)。
+        [驗證] 跑 test/lint/typecheck,通過;瀏覽器手動驗證 token 過期可靜默 refresh。
+        [選 reviewer] 風險集中在認證流程與行為 → spec / test / security（+ code)。
+        [審查] security:401 重送需防無限迴圈(major);test:缺 refresh 失敗導回的測試(major)。
+        [修復迴圈] 補上限重試與測試 → 重跑相關 reviewer 全數通過。
+        [gatekeeper] READY:核心需求達成、認證風險已處理、驗證充分。
+```
+
+重點:**計劃核准前完全不動檔案**;reviewer **依風險挑選**而非全跑;有 major 發現會**自動修復再複審**,直到 `gatekeeper` 判定 `READY`。
+
+---
+
 ## 元件
 
 - `skills/universal-dev-flow/` — 自動觸發的編排器(含 `references/`)。
