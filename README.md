@@ -79,6 +79,36 @@
 
 ---
 
+## 失敗記憶(Failure Memory)
+
+udflow 會把「讓原訂做法受阻、中斷或被迫修復的執行異常」記成純文字 Markdown,讓未來的 session 一開始就讀過去的教訓。用兩個檔(擇一或並用):
+
+- 專案層級:`ai/FAILURE_MEMORY.md`
+- 全域層級:`~/.claude/FAILURE_MEMORY.md`
+
+### 讀(由 hook 自動執行)
+
+`SessionStart` hook(`hooks/load-failure-memory.js`)在每次開啟/恢復/清除 session 時,依「**專案優先 → 全域備援**」順序自動載入:
+
+1. 先找 `ai/FAILURE_MEMORY.md`,存在就注入 context(上限約 12000 字,超過截斷);
+2. 專案檔不存在才改用 `~/.claude/FAILURE_MEMORY.md`;
+3. 兩者都沒有就靜默跳過,不報錯。
+
+### 寫(由工作流規則驅動,依教訓性質分流)
+
+寫入目標**不是固定順序,而是看這條教訓的性質**:
+
+- **專案專屬**的教訓(只跟這個 repo 有關)→ 寫 `ai/FAILURE_MEMORY.md`。
+- **跨專案通用**的教訓(工具、流程、reviewer 協作等換個專案也適用)→ 寫 `~/.claude/FAILURE_MEMORY.md`。
+- **兩者皆成立**→ 寫進專案檔,並在預防規則可跨 repo 重用時**同步更新全域檔**。
+- `gatekeeper` 在裁決時決定是否需要記錄:優先寫專案檔(存在/適用時),否則寫全域檔。
+
+不論寫哪一邊,**寫入前一律先重讀全域 `~/.claude/FAILURE_MEMORY.md`**,比對是否已有類似條目;有就在同一段落更新或補充(同一錯誤重複發生時標記 recurrence),避免散落的重複條目。
+
+> 一句話:**讀 = 專案優先、全域備援;寫 = 依教訓性質分流(專案專屬寫專案、通用寫全域、皆有則兩邊都寫),且寫前一律先重讀全域。**
+
+---
+
 ## 選用的外部能力(Detect → Use → Else-Disclose)
 
 MCP 工具、外部 subagent、外部 skill 都是**選用**的。有就用、沒有就在本地完成並如實揭露缺口。詳見 `skills/universal-dev-flow/references/external-capabilities.md`。
