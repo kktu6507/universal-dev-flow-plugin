@@ -21,7 +21,7 @@ What you're opting into:
   - `plan-gate` (PreToolUse) is **invisible during normal work**; it only blocks `Write`/`Edit`/`MultiEdit` **while you are in plan mode** — for any session while the plugin is installed, not just udflow tasks (Claude Code's own plan files are exempt, so the native plan flow still works).
   - `load-failure-memory` (SessionStart) reads your recorded past-mistake notes at the start of every session and injects a short **digest** so Claude avoids repeating them; if there is no such file, it does nothing.
 - **It writes files.** The workflow may create `ai/FAILURE_MEMORY.md` in your repo (a new `ai/` folder) and `~/.claude/FAILURE_MEMORY.md` in your home directory. Decide whether to commit `ai/FAILURE_MEMORY.md` or add it to `.gitignore`.
-- **Optional Codex use (only if you installed it).** If the Codex plugin is installed, udflow *may* — when a fix is stuck — delegate one independent diagnosis to **Codex**, which runs an **external (OpenAI) model** and sends the relevant code/context to a **third party**, at **extra cost**. If Codex is not installed, udflow never calls it and does not error.
+- **Codex is off by default (opt-in).** udflow does **not** use Codex unless you explicitly ask for it in a task (e.g. say to use Codex when stuck). When you enable it, it *may* — on a stuck fix — delegate one independent diagnosis to **Codex**, which runs an **external (OpenAI) model** and sends the relevant code/context to a **third party**, at **extra cost**. If you don't enable it (or it isn't installed), udflow never calls it and does not error.
 - **It can engage on its own.** udflow auto-starts for non-trivial engineering work even if you don't call `/udflow:run`, and stays out of trivial edits and plain Q&A. Use `/udflow:run` to force the full workflow.
 
 ---
@@ -176,7 +176,7 @@ MCP tools, external subagents, and external skills are all **optional**. If pres
 
 - **MCP per reviewer**: disabled by default. To enable, copy a server from `mcp.example.json` into `.mcp.json`, then uncomment the matching `mcp__*` line in that reviewer's `tools:`. Keep reviewers read-only.
 - **ui-ux-pro-max**: if the `ui-ux-pro-max` skill is installed, udflow uses it first for UI design decisions and in `ui-ux-reviewer`; otherwise it falls back to built-in guidance and discloses that.
-- **Codex (second opinion / rescue)**: if the Codex plugin is installed, udflow may delegate an independent diagnosis when a fix is stuck — same Detect → Use → Else-Disclose protocol. It is optional, never a hard dependency, and sends code/context to an external (OpenAI) model at extra cost (see the disclosure above). If absent, udflow continues locally without error.
+- **Codex (second opinion / rescue)**: **off by default** — used only when you explicitly enable it for a task. When enabled and installed, udflow may delegate an independent diagnosis on a stuck fix (Detect → Use → Else-Disclose). It is optional, never a hard dependency, and sends code/context to an external (OpenAI) model at extra cost (see the disclosure above). If not enabled or not installed, udflow continues locally without error.
 
 ---
 

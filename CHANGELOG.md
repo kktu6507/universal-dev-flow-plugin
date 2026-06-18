@@ -3,6 +3,11 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.5.1]
+
+### Changed
+- **Codex is now off by default (explicit per-task opt-in).** udflow no longer escalates to Codex on its own; it only delegates when the user explicitly enables Codex for the task — even if Codex is installed and the repair loop is stuck. This makes third-party (OpenAI) code/context egress a conscious, consented choice. A missing opt-in or absent Codex never errors.
+
 ## [0.5.0]
 
 ### Added
