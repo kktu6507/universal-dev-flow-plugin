@@ -53,6 +53,20 @@
 
 ---
 
+## 安裝前須知
+
+在你正式依賴 udflow 前,有幾件事值得先知道:
+
+- **它比一般對話更耗 token。** 一次任務可能 spawn `implementer`、數個審查員與 `gatekeeper`,而且 `security-reviewer`、`gatekeeper` 跑 `opus`。請預期用量/成本明顯高於單次修改。(審查員是依風險挑選,所以簡單任務花費較少。)
+- **`opus` 存取權:** `security-reviewer` 與 `gatekeeper` 會要求 `opus`;若你的帳號/session 無法使用,這兩步會退回當前可用模型,裁決品質可能因此浮動。
+- **安裝後會新增兩個 hook,在*每一個* session 都會跑——不只 udflow 任務:**
+  - `plan-gate`(PreToolUse):只要你在 plan mode,就會擋下 `Write`/`Edit`/`MultiEdit`——只要 plugin 還裝著,對你*所有*工作都生效(會放行 Claude Code 自己的 plan 檔)。
+  - `load-failure-memory`(SessionStart):每次開啟/恢復/清除 session 都會把 FAILURE_MEMORY 注入 context。
+- **它會寫檔。** 工作流可能在你的 repo 建立 `ai/FAILURE_MEMORY.md`(會多一個 `ai/` 資料夾),以及家目錄的 `~/.claude/FAILURE_MEMORY.md`。請自行決定要 commit `ai/FAILURE_MEMORY.md` 還是把它加進 `.gitignore`。
+- **它會自己介入。** 遇到非瑣碎工程工作,即使你沒呼叫 `/udflow:run`,udflow 也會自動接手;瑣碎修改與純問答則不介入。想強制走完整流程就用 `/udflow:run`。
+
+---
+
 ## 範例:一次大概長怎樣
 
 假設你說:「幫我在登入頁加一個『記住我』的勾選框。」udflow 會這樣陪你走:

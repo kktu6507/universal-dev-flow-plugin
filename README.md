@@ -53,6 +53,20 @@ understand → plan (plan mode) → you approve → implement → verify → sel
 
 ---
 
+## Good to know
+
+A few things worth knowing before you rely on udflow:
+
+- **It uses more tokens than a normal chat.** One task can spawn the `implementer`, several reviewers, and the `gatekeeper`, and `security-reviewer` + `gatekeeper` run on `opus`. Expect noticeably higher token/cost usage than a one-shot edit. (Reviewers are chosen by risk, so simple tasks cost less.)
+- **`opus` access:** `security-reviewer` and `gatekeeper` request `opus`; if your account/session can't use it, those steps fall back to the available model and verdict quality may vary.
+- **Installing adds two hooks that run in *every* session — not only on udflow tasks:**
+  - `plan-gate` (PreToolUse) blocks `Write`/`Edit`/`MultiEdit` whenever you are in plan mode, for *all* your work while the plugin is installed (it exempts Claude Code's own plan files).
+  - `load-failure-memory` (SessionStart) injects your FAILURE_MEMORY into context on every start / resume / clear.
+- **It writes files.** The workflow may create `ai/FAILURE_MEMORY.md` in your repo (a new `ai/` folder) and `~/.claude/FAILURE_MEMORY.md` in your home directory. Decide whether to commit `ai/FAILURE_MEMORY.md` or add it to `.gitignore`.
+- **It can engage on its own.** udflow auto-starts for non-trivial engineering work even if you don't call `/udflow:run`, and stays out of trivial edits and plain Q&A. Use `/udflow:run` to force the full workflow.
+
+---
+
 ## Example: roughly what a run looks like
 
 Say you ask: "Add a *Remember me* checkbox to the login page." udflow walks you through it like this:

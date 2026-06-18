@@ -13,6 +13,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/), and this pro
 ### Added
 - English `README.md` (primary) and `README.zh-TW.md` (Traditional Chinese), cross-linked.
 - A realistic example transcript and a "stays out of the way for small tasks" note in the README.
+- A "Good to know" section disclosing token/cost, `opus` use, the always-on hooks, file writes, and auto-trigger behavior.
 - CI workflow that validates plugin structure on push/PR, plus a status badge.
 - This `CHANGELOG.md`.
 - `keywords` in `plugin.json` for discoverability.
