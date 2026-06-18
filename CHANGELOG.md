@@ -3,6 +3,18 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.6.0]
+
+### Changed
+- **Plugin moved into the `udflow/` subdirectory; only that subdir is distributed.** The marketplace `source` is now `./udflow`, so installs no longer pull dev/CI files (`test/`, `.github/`, `package.json`) into the user's plugin cache. Install/update commands are unchanged.
+
+### Removed
+- `ai/FAILURE_MEMORY.md` — it was a runtime output accidentally committed during dogfooding and should never ship in a distributed plugin. Added `.gitignore` so workflow runtime output and scratch/process files can't be committed again.
+
+### Added
+- Distribution-hygiene checks in CI (`validate-structure.mjs` fails if runtime/dev artifacts or scratch files appear in the shipped tree).
+- An "Artifact Hygiene" rule in the workflow: delete temporary verification scaffolding before finishing, and never commit the workflow's runtime output (e.g. `FAILURE_MEMORY.md`) into a distributed tool/plugin repo.
+
 ## [0.5.2]
 
 ### Fixed

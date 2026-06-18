@@ -118,6 +118,14 @@ Reusable failure lessons. Newest first. Keep entries concise and prevention-orie
 
 When appending to an existing file, reuse its headings exactly; do not introduce a competing schema. Mark recurrences on the existing entry instead of creating a duplicate.
 
+## Artifact Hygiene
+
+Leave the working tree clean. A run must not leave behind intermediate or process artifacts:
+
+- Delete any temporary scaffolding created only to verify (one-off scripts, scratch files, temp directories) before finishing. Only intentional deliverables remain: the source changes, committed tests, and recorded failure memory.
+- Distinguish throwaway artifacts (remove) from permanent assets (keep): a committed regression test suite or a documented config is an asset, not scratch.
+- Do not commit the workflow's own runtime output (e.g. `FAILURE_MEMORY.md`) into a tool/library/plugin repository that gets distributed. Failure memory belongs in the project that *uses* the tool, not in the tool's own source tree; in a distributed package it is residue that ships to every user.
+
 ## Final Output Contract
 
 For substantial tasks, end with:

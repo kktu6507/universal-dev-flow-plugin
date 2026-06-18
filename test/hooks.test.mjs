@@ -12,8 +12,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const MEM = path.join(root, "hooks", "load-failure-memory.js");
-const GATE = path.join(root, "hooks", "plan-gate.js");
+const HOOKS = path.join(root, "udflow", "hooks");
+const MEM = path.join(HOOKS, "load-failure-memory.js");
+const GATE = path.join(HOOKS, "plan-gate.js");
 const globalMemExists = fs.existsSync(path.join(os.homedir(), ".claude", "FAILURE_MEMORY.md"));
 
 function runHook(hookPath, input) {
@@ -133,7 +134,7 @@ test("malformed stdin fails open (no deny, no crash)", () => {
 });
 
 test("hooks.json PreToolUse matcher actually covers every gated tool", () => {
-  const hj = JSON.parse(fs.readFileSync(path.join(root, "hooks", "hooks.json"), "utf8"));
+  const hj = JSON.parse(fs.readFileSync(path.join(HOOKS, "hooks.json"), "utf8"));
   const matcher = hj.hooks.PreToolUse[0].matcher;
   for (const tool of ["Write", "Edit", "MultiEdit", "NotebookEdit"]) {
     assert.ok(new RegExp(`^(?:${matcher})$`).test(tool), `${tool} must be in the matcher (else the gate never fires for it)`);

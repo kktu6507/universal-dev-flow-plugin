@@ -128,4 +128,5 @@ When touching human-readable text, check for mojibake, replacement characters, b
 
 9. Final delivery
    - Follow the final output contract in `references/verification-gate.md`.
+   - Leave the working tree clean: remove temporary verification scaffolding and do not commit the workflow's runtime output (e.g. `FAILURE_MEMORY.md`) into a distributed tool/plugin repo — see Artifact Hygiene in `references/verification-gate.md`.
    - Include what changed, files changed, assumptions, verification, findings, missing tests, risks, external-capability disclosures, failure-memory decision, and final verdict.

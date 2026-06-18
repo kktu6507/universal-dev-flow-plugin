@@ -32,8 +32,8 @@ jobs:
       # would otherwise be invisible. Syntax-check and behaviorally test them.
       - name: Syntax-check hooks
         run: |
-          node --check hooks/plan-gate.js
-          node --check hooks/load-failure-memory.js
+          node --check udflow/hooks/plan-gate.js
+          node --check udflow/hooks/load-failure-memory.js
 
       - name: Run hook tests
         run: |

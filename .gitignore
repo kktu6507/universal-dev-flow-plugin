@@ -1,0 +1,16 @@
+# Workflow runtime output — failure memory belongs in the consuming project,
+# never committed into this plugin's own source tree.
+/ai/
+**/ai/FAILURE_MEMORY.md
+
+# One-off verification scaffolding / scratch / process files
+_*.js
+_*.mjs
+_*.cjs
+*.tmp
+*.log
+*.bak
+*~
+
+# Node
+node_modules/

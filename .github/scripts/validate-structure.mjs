@@ -18,8 +18,12 @@ function readJSON(rel) {
   }
 }
 
+// The plugin itself lives in ./udflow (only that subdir ships); the marketplace
+// manifest stays at the repo root.
+const PLUGIN = "udflow";
+
 // 1. plugin.json
-const plugin = readJSON(".claude-plugin/plugin.json");
+const plugin = readJSON(`${PLUGIN}/.claude-plugin/plugin.json`);
 if (plugin) {
   for (const k of ["name", "version", "description"]) {
     if (!plugin[k]) fail(`plugin.json missing "${k}"`);
@@ -47,7 +51,7 @@ if (plugin && marketPluginVersion && plugin.version !== marketPluginVersion) {
 }
 
 // 4. hooks.json parses (if present)
-if (fs.existsSync(path.join(root, "hooks/hooks.json"))) readJSON("hooks/hooks.json");
+if (fs.existsSync(path.join(root, `${PLUGIN}/hooks/hooks.json`))) readJSON(`${PLUGIN}/hooks/hooks.json`);
 
 // 5. every agent and SKILL has YAML frontmatter with name + description
 function checkFrontmatter(rel) {
@@ -70,8 +74,33 @@ function walk(dir, fn) {
   }
 }
 
-walk("agents", (rel) => { if (rel.endsWith(".md")) checkFrontmatter(rel); });
-walk("skills", (rel) => { if (path.basename(rel) === "SKILL.md") checkFrontmatter(rel); });
+walk(`${PLUGIN}/agents`, (rel) => { if (rel.endsWith(".md")) checkFrontmatter(rel); });
+walk(`${PLUGIN}/skills`, (rel) => { if (path.basename(rel) === "SKILL.md") checkFrontmatter(rel); });
+
+// 6. distribution hygiene: runtime/process artifacts must never ship in the
+// plugin subdir, and scratch/temp files must not be committed anywhere.
+const forbidden = [
+  "ai/FAILURE_MEMORY.md",        // workflow runtime output — belongs in the consuming project, not here
+  `${PLUGIN}/ai`,
+  `${PLUGIN}/test`,
+  `${PLUGIN}/.github`,
+  `${PLUGIN}/node_modules`,
+  `${PLUGIN}/package.json`,
+];
+for (const rel of forbidden) {
+  if (fs.existsSync(path.join(root, rel))) fail(`distribution hygiene: "${rel}" must not exist (runtime/dev artifact in the shipped tree)`);
+}
+function scanScratch(dir) {
+  const abs = path.join(root, dir);
+  if (!fs.existsSync(abs)) return;
+  for (const e of fs.readdirSync(abs, { withFileTypes: true })) {
+    if (e.name === ".git" || e.name === "node_modules") continue;
+    const rel = path.join(dir, e.name);
+    if (e.isDirectory()) scanScratch(rel);
+    else if (/^_|\.(tmp|bak|log)$|~$/.test(e.name)) fail(`scratch/process file should not be committed: ${rel}`);
+  }
+}
+scanScratch(".");
 
 if (errors.length) {
   console.error("Plugin structure validation FAILED:");

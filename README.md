@@ -112,11 +112,13 @@ Three things worth remembering:
 
 ## Components
 
-- `skills/universal-dev-flow/` — the auto-invoked orchestrator (with `references/`).
-- `skills/run/` — manual entry point: `/udflow:run <task>`.
-- `agents/` — 9 subagents: `implementer` (writes) + 7 read-only reviewers + `gatekeeper`. `security-reviewer` and `gatekeeper` run on `opus`; the rest inherit the current session model.
-- `hooks/` — `plan-gate.js` (PreToolUse: blocks writes while in plan mode, but exempts Claude Code's own plan files under `~/.claude/plans/` so it doesn't interfere with the native plan flow) and `load-failure-memory.js` (SessionStart: injects FAILURE_MEMORY). Both are Node scripts, so they behave the same on Windows PowerShell, macOS, and Linux.
-- `.mcp.json` — empty by default (zero context cost). `mcp.example.json` is a copy-in template.
+The plugin lives in the [`udflow/`](udflow/) subdirectory (only that subdir is installed; `test/`, `.github/`, and `package.json` stay at the repo root and are not shipped).
+
+- `udflow/skills/universal-dev-flow/` — the auto-invoked orchestrator (with `references/`).
+- `udflow/skills/run/` — manual entry point: `/udflow:run <task>`.
+- `udflow/agents/` — 9 subagents: `implementer` (writes) + 7 read-only reviewers + `gatekeeper`. `security-reviewer` and `gatekeeper` run on `opus`; the rest inherit the current session model.
+- `udflow/hooks/` — `plan-gate.js` (PreToolUse: blocks writes while in plan mode, but exempts Claude Code's own plan files under `~/.claude/plans/` so it doesn't interfere with the native plan flow) and `load-failure-memory.js` (SessionStart: injects FAILURE_MEMORY). Both are Node scripts, so they behave the same on Windows PowerShell, macOS, and Linux.
+- `udflow/.mcp.json` — empty by default (zero context cost). `udflow/mcp.example.json` is a copy-in template.
 
 ### The 9 subagents
 
@@ -151,7 +153,7 @@ udflow records "execution abnormalities that blocked, disrupted, or forced repai
 
 ### How it's loaded and used (three stages)
 
-1. **Startup digest (automatic, via hook).** The `SessionStart` hook (`hooks/load-failure-memory.js`) runs on every start/resume/clear and injects a **condensed digest** — each entry's title + prevention rule + tags, newest first, capped — using **project first → global fallback**. It's a small index, not the whole file; if neither file exists it skips silently. (Files that don't follow the template fall back to an entry-aware excerpt of the newest content.)
+1. **Startup digest (automatic, via hook).** The `SessionStart` hook (`udflow/hooks/load-failure-memory.js`) runs on every start/resume/clear and injects a **condensed digest** — each entry's title + prevention rule + tags, newest first, capped — using **project first → global fallback**. It's a small index, not the whole file; if neither file exists it skips silently. (Files that don't follow the template fall back to an entry-aware excerpt of the newest content.)
 2. **Targeted recall (during planning).** Once the task is known, the workflow searches the file for entries relevant to the affected files / area / language / `Tags` and reads those full entries — so only relevant lessons surface, not the entire history or a blind dump.
 3. **Consolidation (keeps the file small).** Size is controlled by merging duplicates, folding recurrences, and pruning obsolete entries — by entry count, not by truncation. The startup cap is only a safety net.
 
@@ -164,7 +166,7 @@ The write target depends on **what kind of lesson it is**, not a fixed order:
 - **Both apply** → write the project file and also update the global file when the prevention rule is reusable across repos.
 - `gatekeeper` decides whether an entry is needed: prefer the project file when it exists/applies, otherwise the global file.
 
-Whichever side it writes, it **rereads the global `~/.claude/FAILURE_MEMORY.md` first** to merge with a similar existing entry (marking recurrences) instead of creating scattered duplicates. A filled-in example lives at [`examples/FAILURE_MEMORY.sample.md`](examples/FAILURE_MEMORY.sample.md).
+Whichever side it writes, it **rereads the global `~/.claude/FAILURE_MEMORY.md` first** to merge with a similar existing entry (marking recurrences) instead of creating scattered duplicates. A filled-in example lives at [`udflow/examples/FAILURE_MEMORY.sample.md`](udflow/examples/FAILURE_MEMORY.sample.md).
 
 > In one line: **read = a small digest at startup + targeted recall during planning (project-first, global-fallback); write = routed by the lesson's nature (project-specific → project, general → global, both → both), always rereading global first; size is kept down by consolidation, not truncation.**
 
@@ -172,9 +174,9 @@ Whichever side it writes, it **rereads the global `~/.claude/FAILURE_MEMORY.md` 
 
 ## Optional external capabilities (Detect → Use → Else-Disclose)
 
-MCP tools, external subagents, and external skills are all **optional**. If present, they're used; if absent, the work is done locally and the gap is disclosed. See `skills/universal-dev-flow/references/external-capabilities.md`.
+MCP tools, external subagents, and external skills are all **optional**. If present, they're used; if absent, the work is done locally and the gap is disclosed. See `udflow/skills/universal-dev-flow/references/external-capabilities.md`.
 
-- **MCP per reviewer**: disabled by default. To enable, copy a server from `mcp.example.json` into `.mcp.json`, then uncomment the matching `mcp__*` line in that reviewer's `tools:`. Keep reviewers read-only.
+- **MCP per reviewer**: disabled by default. To enable, copy a server from `udflow/mcp.example.json` into `udflow/.mcp.json`, then uncomment the matching `mcp__*` line in that reviewer's `tools:`. Keep reviewers read-only.
 - **ui-ux-pro-max**: if the `ui-ux-pro-max` skill is installed, udflow uses it first for UI design decisions and in `ui-ux-reviewer`; otherwise it falls back to built-in guidance and discloses that.
 - **Codex (second opinion / rescue)**: **off by default** — used only when you explicitly enable it for a task. When enabled and installed, udflow may delegate an independent diagnosis on a stuck fix (Detect → Use → Else-Disclose). It is optional, never a hard dependency, and sends code/context to an external (OpenAI) model at extra cost (see the disclosure above). If not enabled or not installed, udflow continues locally without error.
 

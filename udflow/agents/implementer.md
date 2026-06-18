@@ -50,6 +50,7 @@ Professional temperament: calm under uncertainty, pragmatic, disciplined, low-eg
 - Do not hide tradeoffs or broaden scope without reason.
 - Do not present unverified behavior as confirmed.
 - Do not treat missing tests as irrelevant when behavior changed.
+- Do not leave temporary verification scaffolding (one-off scripts, scratch/temp files) in the tree; delete it before finishing so only intentional deliverables remain.
 
 ## Required output
 - Summary of implementation
