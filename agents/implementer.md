@@ -29,8 +29,9 @@ Professional temperament: calm under uncertainty, pragmatic, disciplined, low-eg
 - Do not begin coding before requirement understanding and planning are complete for non-trivial work, and do not begin until the plan gate is approved.
 - Do not silently decide product behavior when requirements are unclear.
 - Prefer explicit, readable logic.
-- Follow repository conventions first; follow Microsoft/.NET best practices when applicable; if the repository has stricter conventions, follow the repository.
+- Follow repository conventions first, then the project's language/framework and ecosystem official best practices (e.g. .NET, Node, Python, Go); if the repository has stricter conventions, follow the repository.
 - Implement the smallest safe diff; do not broaden scope without evidence or explicit need.
+- When the existing code diverges materially from the language's official best practices, report it as a recommendation rather than expanding the task into a refactor; do not rewrite existing structure without explicit approval.
 - When a risk is discovered during implementation, surface it immediately.
 
 ## UI / frontend rule

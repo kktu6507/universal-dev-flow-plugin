@@ -66,23 +66,26 @@ Non-trivial work must pass an explicit plan gate before implementation begins:
 - Do not mark work ready while blocker or unresolved major findings remain.
 - For any optional external capability (MCP / external subagent / external skill), detect availability first; if unavailable, do the work locally and disclose the gap. See `references/external-capabilities.md`.
 - Record failure memory for any execution abnormality that blocks, disrupts, or forces repair of the originally intended method; follow `references/verification-gate.md` before writing.
+- Identify the repository's architecture and primary language/framework first, then implement to that language/framework's official best practices and the repo's existing conventions. When the existing code diverges materially from those best practices, surface it at the plan gate with concrete correction suggestions rather than refactoring beyond the requested scope; broad refactors require explicit user approval and are not bundled into the current task.
 
 ## Language And Text Integrity
 
-For human-readable repository content, default to Traditional Chinese unless the file, repo convention, or user request clearly requires another language. Preserve technical contracts such as identifiers, API fields, database objects, configuration keys, file names, protocol values, and reviewer names.
+For human-readable repository content, follow the file's and repository's existing language and the user's language; default to English when none is determinable. Preserve technical contracts such as identifiers, API fields, database objects, configuration keys, file names, protocol values, and reviewer names.
 
-When touching human-readable text, check for mojibake, replacement characters, broken mixed encodings, unsafe localization of technical contracts, and inconsistent Traditional Chinese rendering. Prefer the smallest safe text fix and do not force broad encoding conversion unless the root cause and compatibility risk are understood.
+When touching human-readable text, check for mojibake, replacement characters, broken mixed encodings, unsafe localization of technical contracts, and inconsistent rendering of the target language. Prefer the smallest safe text fix and do not force broad encoding conversion unless the root cause and compatibility risk are understood.
 
 ## Lifecycle
 
 1. Requirement understanding
    - Restate the requirement.
+   - Identify the repository's overall architecture and primary language/framework, plus existing conventions (analyzers, formatter/lint config, project style).
    - Identify inputs, outputs, business rules, constraints, edge cases, dependencies, affected users, systems, and runtime paths.
    - State assumptions and ambiguity.
    - Stop for user input (AskUserQuestion) when ambiguity materially affects business behavior, contracts, destructive operations, security posture, or user-visible UX flow.
 
 2. Planning (plan mode)
    - Define affected modules or files, implementation approach, data/control-flow impact, risks, verification commands, expected tests, and rollout or rollback concerns when relevant.
+   - Plan to the project language/framework's official best practices and the repo's conventions. If the existing code diverges materially from those best practices, state the gap here and propose concrete corrections; do not silently refactor beyond the requested scope.
    - For UI work, include target screens, states, responsive/accessibility concerns, and browser verification target or blocker. If the `ui-ux-pro-max` skill is available, consult it for design decisions (styles, palettes, font pairings, UX guidelines) during planning; if unavailable, fall back to internal `ui-ux-reviewer` guidance and note that ui-ux-pro-max was not used (see `references/external-capabilities.md`).
    - Before non-trivial implementation, review project-specific `ai/FAILURE_MEMORY.md` when it exists; otherwise review `~/.claude/FAILURE_MEMORY.md`. Before any failure-memory write, reread the global `~/.claude/FAILURE_MEMORY.md` and merge with a similar existing section when one exists.
    - Present the plan via ExitPlanMode and wait for approval (Plan Gate).
@@ -90,7 +93,7 @@ When touching human-readable text, check for mojibake, replacement characters, b
 3. Implementation
    - Use the `implementer` subagent (only after plan approval).
    - Keep the diff scoped and traceable.
-   - Follow repository conventions first, then platform conventions.
+   - Follow repository conventions first, then the project language/framework's official best practices.
    - For UI/frontend work, prefer `ui-ux-pro-max` design tokens/guidance when available before writing UI; otherwise implement for usability and maintainability and disclose the fallback.
    - Surface newly discovered risk immediately.
 

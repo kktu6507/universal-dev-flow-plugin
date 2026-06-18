@@ -6,7 +6,7 @@ Verification is required before final readiness claims. A statement like "should
 
 Run the narrowest meaningful checks for the task:
 
-- .NET/backend: `dotnet restore`, `dotnet build`, `dotnet test`, or repo-specific focused commands when stricter.
+- Backend/general: the repo's build, test, and lint commands for its stack — e.g. `dotnet build`/`dotnet test` (.NET), `npm`/`pnpm` scripts (Node), `pytest`/`ruff` (Python), `go build`/`go test` (Go) — or repo-specific focused commands when stricter.
 - Frontend/UI: package install when needed, build, test, lint, typecheck, and browser evidence when browser-visible.
 - Data/config/deployment: migration validation, schema guard, config checks, deployment or rollback evidence when feasible.
 - Additional focused tests when the changed path has targeted suites or scripts.
@@ -43,7 +43,7 @@ Treat an unavailable required external capability as a verification gap, not a s
 
 When touching human-readable content, check:
 
-- required Traditional Chinese when applicable
+- required target language (per repo/user convention) when applicable
 - mojibake and replacement characters
 - broken or mixed character sets
 - unsafe localization of technical contracts

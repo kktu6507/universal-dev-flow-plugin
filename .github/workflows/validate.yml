@@ -1,0 +1,30 @@
+name: Validate
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # Reliable, auth-free structural gate: manifests parse, required fields
+      # exist, versions agree, and every agent/skill has frontmatter.
+      - name: Validate plugin structure
+        run: node .github/scripts/validate-structure.mjs
+
+      # Best-effort: the official validator. Non-blocking because it requires
+      # the Claude Code CLI, which may not run fully headless in CI.
+      - name: claude plugin validate (best-effort)
+        continue-on-error: true
+        run: |
+          npm install -g @anthropic-ai/claude-code || exit 0
+          claude plugin validate . || echo "claude plugin validate could not run headless; structural check above is the gate."

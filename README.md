@@ -1,136 +1,162 @@
-# udflow — Universal Dev Flow（Claude Code plugin）
+# udflow — Universal Dev Flow (Claude Code plugin)
 
-風險比例、計劃閘門的多代理工程工作流。
-理解 → 計劃 → **核准** → 實作 → 驗證 → 選擇性審查 → gatekeeper 就緒裁決,並附帶失敗記憶與選用的外部能力。
+[![Validate](https://github.com/simba6507/universal-dev-flow-plugin/actions/workflows/validate.yml/badge.svg)](https://github.com/simba6507/universal-dev-flow-plugin/actions/workflows/validate.yml)
 
-> 一句話:讓 Claude Code 在動手改程式碼**之前**先把計劃攤開給你核准,實作後再由一組合適的審查員把關,最後由 gatekeeper 給出「能不能交付」的裁決——而不是寫完就說「好了」。
+**English** · [繁體中文](README.zh-TW.md)
+
+A risk-proportional, plan-gated multi-agent engineering workflow.
+Understand → plan → **approve** → implement → verify → selected review → gatekeeper readiness verdict, with failure memory and optional external capabilities.
+
+> In one line: udflow makes Claude Code lay out a plan and get your approval **before** it touches any code, then has the right specialist reviewers check the work, and finishes with a gatekeeper verdict on whether it's shippable — instead of just saying "done."
 
 ---
 
-## 快速開始
+## Quick start
 
-前置需求:已安裝 **Claude Code**。
+Prerequisite: **Claude Code** installed.
 
-**1. 🪟 在 PowerShell 進到專案並啟動 Claude Code**
+**1. 🪟 In your terminal, go to your project and launch Claude Code**
 
-    cd D:\github\你的專案
+    cd path/to/your-project
     claude
 
-**2. 🤖 在 Claude Code 裡安裝(依序輸入三行)**
+**2. 🤖 Inside Claude Code, install (run these three lines in order)**
 
     /plugin marketplace add simba6507/universal-dev-flow-plugin
     /plugin install udflow@kktmarketplace
     /reload-plugins
 
-**3. 🤖 交付任務**
+**3. 🤖 Hand it a task**
 
-    /udflow:run 幫我修正登入流程在 token 過期時不會重整的 bug
+    /udflow:run Fix the login flow so it refreshes when the token expires
 
-也可以直接用自然語言描述任務,udflow 判斷是非瑣碎工程工作時會自動接手。
+You can also just describe the task in plain language — udflow takes over automatically when it judges the work to be non-trivial engineering.
 
-接著它會:理解需求 → 規劃 → 用 **ExitPlanMode** 請你核准 → 核准後才實作 → 驗證 → 審查 → `gatekeeper` 裁決。**計劃核准前不會動任何檔案。**
+It then runs: understand → plan → present via **ExitPlanMode** for your approval → implement only after approval → verify → review → `gatekeeper` verdict. **No files are changed before the plan is approved.**
+
+> **Stays out of the way for small stuff.** udflow only engages for non-trivial engineering work; trivial edits and plain Q&A are left alone. Want to force the full workflow on anything? Use `/udflow:run`.
 
 ---
 
-## 運作流程
+## How it works
 
 ```
-理解需求 → 規劃(plan mode) → 你核准 → 實作 → 驗證 → 選擇性審查 → gatekeeper 裁決
-                                                          ↑________ 修復迴圈 ________↓
+understand → plan (plan mode) → you approve → implement → verify → selected review → gatekeeper verdict
+                                                                  ↑________ repair loop ________↓
 ```
 
-- **理解 / 規劃**在 plan mode(唯讀)進行,規劃結果用 ExitPlanMode 呈現給你核准。
-- **核准後**才會交給 `implementer` 寫程式。
-- **驗證**跑 build / test / lint / typecheck / 瀏覽器佐證等適用檢查。
-- **審查**只挑與本次風險相關的審查員(不為儀式硬湊)。
-- **gatekeeper** 給出 `READY` / `FIX REQUIRED` / `NOT READY`;若需修復則進入修復迴圈,直到就緒或明確受阻。
+- **Understand / plan** happen in plan mode (read-only); the plan is presented via ExitPlanMode for your approval.
+- **Only after approval** does the `implementer` write code.
+- **Verify** runs build / test / lint / typecheck / browser evidence as applicable.
+- **Review** selects only the reviewers relevant to this change's risk (no ceremony).
+- **gatekeeper** returns `READY` / `FIX REQUIRED` / `NOT READY`; if a fix is needed it enters a repair loop until ready or clearly blocked.
 
 ---
 
-## 範例:一次大概長怎樣
+## Example: roughly what a run looks like
 
-假設你說:「幫我在登入頁加一個『記住我』的勾選框。」udflow 會這樣陪你走:
+Say you ask: "Add a *Remember me* checkbox to the login page." udflow walks you through it like this:
 
-1. **先聽懂你要什麼** — 把需求重述一次,不清楚就反問你(例如:記住多久?)。
-2. **先給計劃、等你點頭** — 它列出「要改哪些檔、打算怎麼做、怎麼驗證」,**這個階段不會動任何檔案**,你看過按核准才繼續。
-3. **動手做** — 核准後才開始改程式,而且只做必要的最小修改。
-4. **自己驗證** — 跑測試、開畫面確認勾選框真的能用。
-5. **找對的人來檢查** — 依這次的風險,挑相關的審查員把關(這個任務會找需求、測試、UI 三類)。
-6. **發現問題就自動修** — 例如審查員說「少了一個測試」,它補好、再請審查員複查一次。
-7. **最後給結論** — `gatekeeper` 判定 `READY`(可交付)、`FIX REQUIRED`(還要修)或 `NOT READY`(有嚴重問題)。
+```
+you> /udflow:run Add a "Remember me" checkbox to the login page
 
-三個你最該記住的重點:
-- **核准前不動你的檔案** —— 計劃你說了算。
-- **審查員是按需要挑的** —— 不會每次都把全部都叫出來。
-- **有問題會自己修再複查** —— 直到判定 `READY` 或明確卡住為止。
+udflow> [understand] Restating: add a persisted "remember me" option on the login form.
+        Clarifying: how long should the session be remembered? → asks via AskUserQuestion.
+you> 30 days.
 
----
+udflow> [plan / plan mode]  (read-only — no files changed yet)
+        - Affected: login form component + the auth/session module
+        - Approach: add checkbox → on submit, set a longer-lived session when checked
+        - Verify: auth unit tests + open the page and confirm the checkbox works
+        Presents the plan via ExitPlanMode and waits for approval.
+you> approve
 
-## 元件
+udflow> [implement] implementer makes the smallest change for the plan.
+        [verify] runs tests/lint; opens the page and confirms the checkbox persists the session.
+        [review] risk is UI + auth behavior → spec / test / ui-ux (+ security).
+        [findings] test: missing a test for the unchecked default (major).
+        [repair loop] adds the test → re-runs the affected reviewers → all pass.
+        [gatekeeper] READY: requirement met, behavior verified, tests cover both paths.
+```
 
-- `skills/universal-dev-flow/` — 自動觸發的編排器(含 `references/`)。
-- `skills/run/` — 手動入口:`/udflow:run <task>`。
-- `agents/` — 9 個 subagent:`implementer`(可寫)+ 7 個唯讀審查員 + `gatekeeper`。其中 `security-reviewer` 與 `gatekeeper` 跑 `opus`,其餘沿用當前 session 模型。
-- `hooks/` — `plan-gate.js`(PreToolUse:plan mode 期間阻擋寫入,但放行 Claude Code 自己的 plan 檔 `~/.claude/plans/`,不干擾原生 plan 工作流)與 `load-failure-memory.js`(SessionStart:注入 FAILURE_MEMORY)。兩者都是 Node 腳本,所以在 Windows PowerShell、macOS、Linux 上行為一致。
-- `.mcp.json` — 預設為空(零 context 成本)。`mcp.example.json` 是可複製套用的範本。
-
-### 9 個 subagent 一覽
-
-| Agent | 角色 | 何時加入 | 模型 |
-|-------|------|----------|------|
-| `implementer` | 實作最小安全變更,不自我認證正確性 | 計劃核准後 | inherit |
-| `spec-reviewer` | 需求/業務規則/契約是否真的吻合 | 核心,非瑣碎工作必開 | inherit |
-| `test-reviewer` | 缺測試、弱驗證、回歸風險、邊界 | 核心,非瑣碎工作必開 | inherit |
-| `code-reviewer` | 本地實作品質、可維護性、框架用法、效率 | 有非瑣碎程式碼變更時 | inherit |
-| `security-reviewer` | 驗證/授權、輸入處理、機密、信任邊界 | 有安全風險時 | opus |
-| `architecture-reviewer` | 分層、邊界、依賴方向、結構放置 | 有結構/邊界疑慮時 | inherit |
-| `operability-reviewer` | 可觀測性、重試/逾時、部署、回滾 | 影響執行期/上線行為時 | inherit |
-| `ui-ux-reviewer` | 可用性、互動、版面、狀態、無障礙 | 有 UI 影響時 | inherit |
-| `gatekeeper` | 彙整裁決:READY / FIX REQUIRED / NOT READY | 選定審查員跑完後 | opus |
+Three things worth remembering:
+- **Your files aren't touched before approval** — the plan is yours to approve.
+- **Reviewers are selected by risk** — it doesn't spawn all of them every time.
+- **Findings are auto-fixed and re-reviewed** — until the verdict is `READY` or it's clearly blocked.
 
 ---
 
-## 計劃閘門(動手前先核准)
+## Components
 
-步驟 1–2 在 plan mode 進行,計劃以 ExitPlanMode 呈現,**核准後才會執行 `implementer`**。PreToolUse hook 會在 plan mode 期間強制唯讀(僅放行 Claude Code 自己的 plan 檔,以免擋到原生 plan 工作流)。
+- `skills/universal-dev-flow/` — the auto-invoked orchestrator (with `references/`).
+- `skills/run/` — manual entry point: `/udflow:run <task>`.
+- `agents/` — 9 subagents: `implementer` (writes) + 7 read-only reviewers + `gatekeeper`. `security-reviewer` and `gatekeeper` run on `opus`; the rest inherit the current session model.
+- `hooks/` — `plan-gate.js` (PreToolUse: blocks writes while in plan mode, but exempts Claude Code's own plan files under `~/.claude/plans/` so it doesn't interfere with the native plan flow) and `load-failure-memory.js` (SessionStart: injects FAILURE_MEMORY). Both are Node scripts, so they behave the same on Windows PowerShell, macOS, and Linux.
+- `.mcp.json` — empty by default (zero context cost). `mcp.example.json` is a copy-in template.
 
-若你希望**每個 session 預設都從 plan mode 開始**,請在自己的 `~/.claude/settings.json` 或專案的 `.claude/settings.json` 設定預設模式(本 plugin 不會強制設定)。
+### The 9 subagents
 
----
-
-## 失敗記憶(Failure Memory)
-
-udflow 會把「讓原訂做法受阻、中斷或被迫修復的執行異常」記成純文字 Markdown,讓未來的 session 一開始就讀過去的教訓。用兩個檔(擇一或並用):
-
-- 專案層級:`ai/FAILURE_MEMORY.md`
-- 全域層級:`~/.claude/FAILURE_MEMORY.md`
-
-### 讀(由 hook 自動執行)
-
-`SessionStart` hook(`hooks/load-failure-memory.js`)在每次開啟/恢復/清除 session 時,依「**專案優先 → 全域備援**」順序自動載入:
-
-1. 先找 `ai/FAILURE_MEMORY.md`,存在就注入 context(上限約 12000 字,超過截斷);
-2. 專案檔不存在才改用 `~/.claude/FAILURE_MEMORY.md`;
-3. 兩者都沒有就靜默跳過,不報錯。
-
-### 寫(由工作流規則驅動,依教訓性質分流)
-
-寫入目標**不是固定順序,而是看這條教訓的性質**:
-
-- **專案專屬**的教訓(只跟這個 repo 有關)→ 寫 `ai/FAILURE_MEMORY.md`。
-- **跨專案通用**的教訓(工具、流程、reviewer 協作等換個專案也適用)→ 寫 `~/.claude/FAILURE_MEMORY.md`。
-- **兩者皆成立**→ 寫進專案檔,並在預防規則可跨 repo 重用時**同步更新全域檔**。
-- `gatekeeper` 在裁決時決定是否需要記錄:優先寫專案檔(存在/適用時),否則寫全域檔。
-
-不論寫哪一邊,**寫入前一律先重讀全域 `~/.claude/FAILURE_MEMORY.md`**,比對是否已有類似條目;有就在同一段落更新或補充(同一錯誤重複發生時標記 recurrence),避免散落的重複條目。
-
-> 一句話:**讀 = 專案優先、全域備援;寫 = 依教訓性質分流(專案專屬寫專案、通用寫全域、皆有則兩邊都寫),且寫前一律先重讀全域。**
+| Agent | Role | When it's added | Model |
+|-------|------|-----------------|-------|
+| `implementer` | Implements the smallest safe change; never self-certifies | after the plan is approved | inherit |
+| `spec-reviewer` | Requirement / business-rule / contract fidelity | core; always for non-trivial work | inherit |
+| `test-reviewer` | Missing tests, weak verification, regression risk, edges | core; always for non-trivial work | inherit |
+| `code-reviewer` | Local implementation quality, maintainability, framework usage, efficiency | non-trivial code changes | inherit |
+| `security-reviewer` | Auth/authz, input handling, secrets, trust boundaries | security-relevant risk | opus |
+| `architecture-reviewer` | Layering, boundaries, dependency direction, placement | structural/boundary concerns | inherit |
+| `operability-reviewer` | Observability, retries/timeouts, deploy, rollback | runtime/production impact | inherit |
+| `ui-ux-reviewer` | Usability, interaction, layout, states, accessibility | UI impact | inherit |
+| `gatekeeper` | Aggregates and decides: READY / FIX REQUIRED / NOT READY | after selected reviewers finish | opus |
 
 ---
 
-## 選用的外部能力(Detect → Use → Else-Disclose)
+## Plan gate (approve before any change)
 
-MCP 工具、外部 subagent、外部 skill 都是**選用**的。有就用、沒有就在本地完成並如實揭露缺口。詳見 `skills/universal-dev-flow/references/external-capabilities.md`。
+Steps 1–2 run in plan mode; the plan is presented via ExitPlanMode and **`implementer` only runs after approval**. A PreToolUse hook enforces read-only during plan mode (it only exempts Claude Code's own plan files so it never blocks the native plan flow).
 
-- **每位審查員的 MCP**:預設停用。要啟用時,把 `mcp.example.json` 裡的某個 server 複製進 `.mcp.json`,再把該審查員 `tools:` 中對應的 `mcp__*` 行取消註解。審查員務必保持唯讀。
-- **ui-ux-pro-max**:若已安裝 `ui-ux-pro-max` skill,udflow 在 UI 設計決策與 `ui-ux-reviewer` 會優先使用它;若未安裝則退回內建指引並揭露。
+To start every session in plan mode, set a default mode in your own `~/.claude/settings.json` or the project's `.claude/settings.json` (the plugin does not force it).
+
+---
+
+## Failure memory
+
+udflow records "execution abnormalities that blocked, disrupted, or forced repair of the intended method" as plain Markdown, so future sessions read past lessons on startup. It uses two files (either or both):
+
+- Project-level: `ai/FAILURE_MEMORY.md`
+- Global: `~/.claude/FAILURE_MEMORY.md`
+
+### Read (automatic, via hook)
+
+The `SessionStart` hook (`hooks/load-failure-memory.js`) loads memory on every start/resume/clear, **project first → global fallback**:
+
+1. Look for `ai/FAILURE_MEMORY.md`; if present, inject it into context (capped ~12000 chars, truncated beyond that).
+2. If the project file is absent, fall back to `~/.claude/FAILURE_MEMORY.md`.
+3. If neither exists, skip silently — no error.
+
+### Write (driven by the workflow, routed by the lesson's nature)
+
+The write target depends on **what kind of lesson it is**, not a fixed order:
+
+- **Project-specific** lesson (only relevant to this repo) → `ai/FAILURE_MEMORY.md`.
+- **Cross-project** lesson (tooling, process, reviewer coordination — applies elsewhere too) → `~/.claude/FAILURE_MEMORY.md`.
+- **Both apply** → write the project file and also update the global file when the prevention rule is reusable across repos.
+- `gatekeeper` decides whether an entry is needed: prefer the project file when it exists/applies, otherwise the global file.
+
+Whichever side it writes, it **rereads the global `~/.claude/FAILURE_MEMORY.md` first** to merge with a similar existing entry (marking recurrences) instead of creating scattered duplicates. A filled-in example lives at [`examples/FAILURE_MEMORY.sample.md`](examples/FAILURE_MEMORY.sample.md).
+
+> In one line: **read = project-first, global-fallback; write = routed by the lesson's nature (project-specific → project, general → global, both → both), always rereading global first.**
+
+---
+
+## Optional external capabilities (Detect → Use → Else-Disclose)
+
+MCP tools, external subagents, and external skills are all **optional**. If present, they're used; if absent, the work is done locally and the gap is disclosed. See `skills/universal-dev-flow/references/external-capabilities.md`.
+
+- **MCP per reviewer**: disabled by default. To enable, copy a server from `mcp.example.json` into `.mcp.json`, then uncomment the matching `mcp__*` line in that reviewer's `tools:`. Keep reviewers read-only.
+- **ui-ux-pro-max**: if the `ui-ux-pro-max` skill is installed, udflow uses it first for UI design decisions and in `ui-ux-reviewer`; otherwise it falls back to built-in guidance and discloses that.
+
+---
+
+## License
+
+[MIT](LICENSE) · See [CHANGELOG.md](CHANGELOG.md) for version history.
