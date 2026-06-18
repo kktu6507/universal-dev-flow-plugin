@@ -124,7 +124,7 @@ When touching human-readable text, check for mojibake, replacement characters, b
 8. Auto-fix loop
    - If verdict is `FIX REQUIRED` or `NOT READY`, fix concrete findings, rerun relevant verification, rerun only affected reviewers, rerun `gatekeeper`, and repeat until `READY` or clearly blocked.
    - If a fix introduces a new risk category, add the corresponding conditional reviewer.
-   - If the same blocker category persists across two consecutive iterations, produce a Stuck Summary.
+   - If the same blocker category persists across two consecutive iterations, produce a Stuck Summary. Before declaring stuck, if an optional independent second-opinion capability (e.g. Codex) is available, you may escalate one independent diagnosis; if it is unavailable, continue locally and disclose. Detecting it as absent must not error. See `references/external-capabilities.md`.
 
 9. Final delivery
    - Follow the final output contract in `references/verification-gate.md`.

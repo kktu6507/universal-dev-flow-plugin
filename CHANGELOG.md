@@ -3,6 +3,14 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.5.0]
+
+### Added
+- **Optional Codex escalation.** When the auto-fix loop is stuck, udflow may delegate one independent cross-model diagnosis to Codex (the OpenAI GPT-family rescue plugin) — strictly optional, detected via Detect → Use → Else-Disclose. If Codex is not installed it is never called and does not error.
+
+### Docs
+- README (EN + zh-TW): disclosed that Codex use sends code/context to an external (OpenAI) model at extra cost and only runs if the Codex plugin is installed; listed Codex under optional external capabilities.
+
 ## [0.4.0]
 
 ### Changed
