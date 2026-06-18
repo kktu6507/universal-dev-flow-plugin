@@ -24,4 +24,4 @@ Try `/udflow:run <task>`, confirm agents in `/agents`, edit + `/reload-plugins` 
 
 ## Validate / distribute
     claude plugin validate .
-Push to GitHub, then others: `/plugin marketplace add kktu/universal-dev-flow-plugin` then `/plugin install udflow@kktmarketplace`.
+Push to GitHub, then others: `/plugin marketplace add simba6507/universal-dev-flow-plugin` then `/plugin install udflow@kktmarketplace`.
