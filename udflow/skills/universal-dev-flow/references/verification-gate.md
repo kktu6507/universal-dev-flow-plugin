@@ -176,3 +176,22 @@ For substantial tasks, end with:
 ```
 
 If blocked, also include a Stuck Summary with unresolved blocker, attempted remedies, why progress is blocked, and what is needed next.
+
+## Evidence Record (real runs only)
+
+When udflow actually ran the workflow on a **real task in an actual project** (not a throwaway demo or a benchmark experiment), also emit one compact, paste-ready record the user can drop into the project's `EVIDENCE.md` *Real-world runs* section — or a [`Verified udflow run`](.github/ISSUE_TEMPLATE/verified-run.yml) issue — with no reformatting. This is the only way real-use evidence gets logged: udflow ships no telemetry, so a run that isn't written down does not count.
+
+```markdown
+### Live run — <YYYY-MM-DD> · <project / stack> (<language>) · verified live task
+- Task: <one line: what udflow was asked to do>
+- Intent given: <the requirement / contract handed in — and how specific it was>
+- Reviewers: <which reviewers ran> · Verdict: <READY / FIX REQUIRED / NOT READY>
+- Verification: <commands / browser checks / tests actually run>
+- Caught: <real, valid findings udflow raised that were acted on>
+- Missed: <none known at finish — to confirm in follow-up use>
+- False alarms: <none, or describe any finding that was not a real defect>
+- Outcome after follow-up: <to be confirmed by the user once the change has lived in the codebase>
+- Cost: <~tokens / wall-clock> · Evidence: <commit / PR / sanitized log>
+```
+
+Rules: emit it only when the workflow genuinely ran and verification was attempted; report findings and the verdict exactly as they were. **Never fabricate an outcome.** The *Missed* and *Outcome after follow-up* fields are honestly left for the user to fill later — udflow cannot know at finish time what (if anything) escaped the verdict. Omit this record for trivial edits, pure Q&A, and benchmark runs.

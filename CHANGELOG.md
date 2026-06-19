@@ -3,6 +3,15 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.9.3]
+
+Makes real-world usage loggable as evidence, so udflow's track record can grow from actual runs (not just the controlled benchmark). Docs + workflow output only — no hook or reviewer behavior change.
+
+### Added
+- **Evidence Record in the Final Output Contract** (`verification-gate.md`): after a real task on an actual project, udflow emits one compact, paste-ready record (task / intent / reviewers / verdict / verification / caught / missed / false alarms / outcome / cost / commit) that the user can drop straight into a project's `EVIDENCE.md` *Real-world runs* section or a "Verified udflow run" issue. Real-runs-only; never fabricates an outcome; the *missed* / *outcome-after-follow-up* fields are left for the user to confirm once the change has lived in the codebase. Emitted for substantial real runs, omitted for trivial edits, Q&A, and benchmark runs.
+
+Note: the repo also gained `CONTRIBUTING.md`, a "Verified udflow run" issue template, and a restructured `EVIDENCE.md` (real-world runs are now the headline / graduation gate; the blind benchmarks are reframed as capability validation). Those are repo-root docs, not part of the shipped `udflow/` tree.
+
 ## [0.9.2]
 
 Two gatekeeper improvements targeting the two biggest addressable failure categories found in a 77-bug / 12-repo / 6-language automated benchmark. Language-neutral.
