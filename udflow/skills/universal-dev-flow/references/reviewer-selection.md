@@ -73,6 +73,16 @@ Do not rerun unrelated reviewers merely for ceremony. If a fix introduces a new 
 
 Most agents inherit the session model. Two run on `opus` because they are the highest-leverage, hardest-to-get-right roles: `security-reviewer` (adversarial reasoning where a miss is most costly) and `gatekeeper` (the release authority aggregating and adjudicating). If `opus` is unavailable, those steps fall back to the available model and must state the model used and that confidence may be reduced. Other files should reference this section rather than restating the rationale.
 
+## Recall vs precision (benchmark-informed)
+
+An internal cross-language blind benchmark indicates a consistent profile: the review is **precise** (near-zero false positives), but a **single** reviewer catches only a minority of subtle defects — language idioms (value/identity/receiver semantics, encoding, ownership/lifetimes, overflow), **omissions** ("what is missing vs the intent"), and spec/domain-dependent bugs. Recall improved materially only with **structure**, not with stronger wording to one reviewer:
+
+- For correctness-critical changes, do not rely on a lone reviewer — include the directly-relevant **multi-lens panel** (a defect one discipline rationalizes as "fine", another flags).
+- Give each reviewer the **requirement/intent**, not just the diff — omission and spec-dependent defects are invisible without it.
+- Use **Deep Mode** (adversarial verification) for the hardest changes.
+
+Breadth of lenses and intent context are what lift recall; precision stays high regardless. Do not try to raise recall by making a single reviewer "try harder" — that was measured to not help.
+
 ## Deep Mode
 
 Deep mode (see `references/deep-mode.md`) does **not** change reviewer selection — the panel is still the smallest sufficient set chosen above. It only makes the selected panel run deterministically (as a Workflow `parallel` barrier), adds adversarial verification of blocker/major findings, runs the repair loop as loop-until-dry (still under the Auto-fix loop's hard iteration cap), and raises `gatekeeper`/`security-reviewer` to maximum reasoning effort. Depth, not breadth.

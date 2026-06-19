@@ -49,6 +49,10 @@ External-capability notes:
 Shared reviewer contract:
 - Report findings as `blocker` / `major` / `minor`; do NOT emit a PASS/CONCERNS/BLOCK verdict — only `gatekeeper` issues `READY` / `FIX REQUIRED` / `NOT READY`.
 - Review only the selected scope; be thorough within it but do not invent unrelated concerns; if your discipline has no material impact, mark it not applicable.
+- Judge code on its merits, not its pedigree: do NOT assume it is correct because it looks idiomatic/canonical/"intentional"/like a well-known library. A defect is real if you can name a concrete input or condition that yields a wrong result, leak, crash, or contract violation — then report it.
+- Rate severity by the impact of that failure case (data loss / security / crash / wrong result ⇒ `blocker`/`major`); do not downgrade a demonstrated defect to `minor` just because the code looks established or "accepted".
+- Look for omissions, not only wrong lines: compare behavior to what the name/signature/docstring/requirement imply, and flag what is missing (unhandled case, cleanup that should pair with a create/delete, a required guard/limit/validation, a value like length/default/header that should be set) — anchored to that implied contract, not speculation.
+- Reason in the target language's real semantics (truthiness/equality, value-vs-reference and receiver semantics, string/byte/encoding, ownership/lifetimes, numeric overflow), not as generic pseudocode.
 - Output at least: scope reviewed; findings by severity with exact file/method/contract/component/path evidence and the smallest safe fix; recommended corrections.
 ```
 

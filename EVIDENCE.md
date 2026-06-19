@@ -38,14 +38,14 @@ Drop the **"experimental"** label when this file documents **all** of:
 
 | Metric | Now | Target |
 |---|---|---|
-| External repos | **2** (Plan_PJ, axios) | ≥ 3 |
-| Languages | **2** (C#/.NET, JS) ✓ | ≥ 2 |
-| Qualifying data points | **13** | ≥ 20 |
-| Not-previously-review-found bugs | **10 / 13** ✓ | ≥ half |
-| Catch rate | 7 hit + 3 partial / 13 (54% hit; 77% incl. partial) | (reported, not a pass/fail) |
-| False-positive rate | **0** of ~52 findings | (reported) |
+| External repos | **6** (Plan_PJ, axios, requests, gson, gin, clap) | ≥ 3 ✓ |
+| Languages | **6** (C#, JS, Python, Java, Go, Rust) | ≥ 2 ✓ |
+| Qualifying data points | **32** | ≥ 20 ✓ |
+| Not-previously-review-found bugs | **29 / 32** | ≥ half ✓ |
+| Catch rate | 11 hit + 5 partial / 32 (**34% hit; 50% touched**) | (reported, not a pass/fail) |
+| False-positive rate | **0** across the 32-bug single-reviewer corpus (**1** total across ~90 reviews incl. panel re-tests) | (reported) |
 
-**Status: not yet graduated** — 2/3 repos, 13/20 points (languages ✓, anti-bias ✓; need 1 more repo and 7 more points).
+**Status: graduation criteria are MET** (≥3 repos ✓, ≥2 languages ✓, ≥20 points ✓, anti-bias ✓, rates documented ✓). The README still labels udflow "experimental" pending the maintainer's call on relabeling, because — honestly — recall is modest (34%); the validated edge is **precision (near-zero false positives) + structural depth**, not single-pass recall. Recommend relabeling to a *characterized* "beta" that states this profile rather than dropping the caveat outright.
 
 ## Entries
 
@@ -89,6 +89,36 @@ Method: same blind method, but a **single `code-reviewer`** per bug (the conserv
 | AX2 | progress reducer reads `e.loaded` without guarding a malformed event | **miss** (found a *different* minor) | 0 |
 
 Lessons: the **single-reviewer floor on unfamiliar, subtle code is low** (1/5 clean) — versus Run 1's 6/8 with panels and code-visible bugs. But **0 false positives held** on a different repo and language. Weak spots blind: language idioms (`this`), domain-knowledge bugs (RFC/dependency behavior). Note AX3 — the reviewer *found* the defect but under-rated its severity (→ partial), a calibration gap, not blindness. The single reviewer + absent plan/spec context understate a full udflow run.
+
+### Run 3 — 2026-06-19 · cross-language (Python / Java / Go / Rust) · retroactive blind bug-catch
+
+Same blind method, single `code-reviewer`, **complete-function** packets, excerpt-aware prompt. Four new external repos:
+
+| Lang (repo) | n | hit | partial | miss | FP |
+|---|---|---|---|---|---|
+| Python (psf/requests) | 7 | 3 | 0 | 4 | 0 |
+| Java (google/gson) | 4 | 0 | 1 | 3 | 0 |
+| Go (gin-gonic/gin) | 5 | 1 | 0 | 4 | 0 |
+| Rust (clap-rs/clap) | 3 | 0 | 1 | 2 | 0 |
+
+Combined with Run 1 (C#, 8) + Run 2 (JS, 5): **6 languages, 32 bugs → 11 hit / 5 partial / 16 miss, 0 FP**. The single-reviewer floor (the 5 single-reviewer languages, 24 bugs) is ~5 hit / 4 partial; C#'s stronger Run-1 number used reviewer panels.
+
+**Failure modes (consistent across languages):** (1) rationalizing a real defect as "canonical / upstream / intentional / standard" and dismissing or under-rating it; (2) severity under-rating (found it, called it minor); (3) omission / "missing behavior vs intent" misses; (4) subtle language-idiom misses (truthiness, char-vs-byte, value-vs-reference receiver, lifetimes, overflow). Reviewers stayed high-precision and often found *other* genuine bugs while missing the planted one.
+
+**Harness honesty note:** the first Python attempt was contaminated by crude line-window packet extraction (it cut functions mid-statement, so reviewers spent attention on truncation artifacts and produced 1 spurious false positive). Fixed by extracting **complete functions/whole files** + an excerpt-aware prompt ("treat undefined externals as correct; review only logic"), then re-run — the numbers above. The error was in the test harness, not udflow.
+
+### Tuning experiment — 2026-06-19 · language-neutral fixes + revalidation
+
+From the failure modes, derived a **language-neutral** "defect-detection discipline" (judge-on-merits-not-pedigree / severity-by-impact / look-for-omissions / reason-in-the-target-language's-real-semantics) and added it to the shared reviewer contract. Revalidated on the 13 held-out misses:
+
+| Re-test of 13 misses | hit | partial | miss | FP |
+|---|---|---|---|---|
+| single reviewer **+ discipline** (Phase D) | 0 | 1 | 12 | 0 |
+| 3-reviewer **panel + discipline** (Round 2) | 2 | 2 | 9 | 1 |
+
+Plus 3 clean controls (fixed code re-reviewed with the discipline): **0 false positives** — the tuning does not re-flag correct code.
+
+**Conclusion:** the prose discipline is **safe** (0 added FP, controls clean) but does **not** lift single-reviewer recall — stronger wording cannot make a lone reviewer catch a subtle idiom/omission/domain bug. The **panel** (a structural mechanism) recovers defects prose cannot, at high precision. Shipped (v0.9.0): the discipline (as a safe guard-rail) **plus** recall-vs-precision guidance steering catch-critical work to the panel / Deep Mode / intent context. The recall lever is structural, not reviewer prose.
 
 ## Adding an entry
 

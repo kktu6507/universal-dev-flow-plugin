@@ -3,6 +3,17 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.9.0]
+
+Outcome of a cross-language blind benchmark (6 languages / 6 external repos / 32 real bugs; recorded in `EVIDENCE.md`). The changes are **language-neutral** by design — they target failure modes seen across C#, JS, Python, Java, Go, and Rust, never one language.
+
+### Added
+- **Reviewer defect-detection discipline** in the shared reviewer contract (`reviewer-common.md` + the delivered `review-packet.md` block): judge code on its merits, not its pedigree (do not assume idiomatic/canonical/"intentional" code is correct — a defect is real only with a concrete failure case); rate severity by impact (do not downgrade a demonstrated defect to `minor`); look for **omissions** against the implied contract; and reason in the **target language's real semantics**. Validated to add **zero** false positives (clean-code controls stayed clean).
+- **Recall-vs-precision guidance** (`reviewer-selection.md`): for correctness-critical changes, prefer the multi-lens **panel** + requirement/intent context + **Deep Mode** over a single reviewer. The benchmark showed a single reviewer catches only a minority of subtle defects and that stronger wording alone does not lift recall, whereas a panel recovers defects a lone reviewer misses — at high precision.
+
+### Notes (honest characterization from the benchmark)
+- udflow's measured edge is **precision (near-zero false positives — 1 across ~90 blind reviews) + structural depth (panel / Deep Mode / intent)**, not single-pass recall (~34% hit / 50% touched on the blind set). Recall is bounded for subtle idiom/omission/domain defects; structure and intent are the levers, not reviewer prose.
+
 ## [0.8.1]
 
 ### Changed

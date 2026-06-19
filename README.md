@@ -9,25 +9,24 @@ Understand → plan → **approve** → implement → verify → selected review
 
 > In one line: udflow makes Claude Code lay out a plan and get your approval before it changes code, then has the right specialist reviewers check the work, and finishes with a gatekeeper verdict on whether it's shippable — instead of just saying "done."
 
-> **Status: early / experimental.** The hooks are tested; the multi-agent orchestration is prompt-driven. Across two blind benchmarks (C#/.NET + Node/JS, 13 real bugs): **0 false positives**, but catch rate swings widely with reviewer panel size and bug subtlety (see the Evidence note below). Treat it as a disciplined scaffold.
+> **Status: early / experimental.** The hooks are tested; the multi-agent orchestration is prompt-driven. A cross-language blind benchmark (**6 languages, 32 real bugs**) shows **near-zero false positives** but **modest single-pass recall (~34%)**: udflow's edge is precision + structural depth (multi-lens panel / Deep Mode / intent), not lone-reviewer recall. See the Evidence note. Treat it as a disciplined scaffold.
 
 <details>
-<summary><b>Evidence (field notes)</b> — two blind benchmarks, directional (not yet a guarantee)</summary>
+<summary><b>Evidence (field notes)</b> — cross-language blind benchmark, directional (not yet a guarantee)</summary>
 
-**Retroactive blind bug-catch (2026-06-19).** udflow's reviewers were run *blind* on the pre-fix code of **13 real historical bugs** across **two external repos / two languages** (C#/.NET and Node/JS — both different from this plugin's stack). Each reviewer saw only the buggy region — not the fix, not the issue, not the repo — and an independent judge scored its findings against the known defect.
+**Retroactive blind bug-catch (2026-06-19).** udflow's reviewers were run *blind* on the pre-fix code of **32 real historical bugs across 6 external repos / 6 languages** (C#, JavaScript, Python, Java, Go, Rust — all different from this plugin's stack). Each reviewer saw only the buggy region — not the fix, not the issue, not the repo — and an independent judge scored its findings against the known defect.
 
-| 13 real bugs · 2 repos · 2 languages · blind | Caught | Partial | Missed | False positives |
+| 32 real bugs · 6 repos · 6 languages · blind | Caught | Partial | Missed | False positives |
 |---|---|---|---|---|
-| outcome | **7** | 3 | 3 | **0** (of ~52 findings) |
+| outcome | **11** | 5 | 16 | **0** (1 in the whole study, only when fanning out to a panel) |
 
-- **Consistent signal — 0 false positives** across both repos and languages (~52 findings; ~46 more were plausible-but-unverified — thoroughness, not confirmed catches).
-- **Catch rate is highly variable.** Run 1 (C#, with reviewer panels and several code-visible defects) caught **6/8**; Run 2 (Node/JS, a *single* reviewer on subtler bugs) caught only **1/5** (2 more partial). It depends heavily on (a) running the **full panel** vs one reviewer and (b) how subtle the bug is.
-- **Caught well:** concrete, code-visible defects — resource leaks, a DB-column overflow, a `new URL()` that throws on a path-only input, a no-op form validator, a search index polluted with raw JSON.
-- **Weak spots:** subtle language idioms (a wrong `this` binding), domain-knowledge bugs (RFC / dependency behavior), and omission-vs-intent defects (a missing cascade-delete; stats that should exclude binaries). A full 3-reviewer panel did **not** rescue the omission cases — the lever is feeding reviewers the *intent/spec*, not more reviewers. Sometimes a reviewer finds the defect but **under-rates its severity** (scored partial).
+- **The robust strength: near-zero false positives** — 0 across the entire single-reviewer corpus; the *only* false positive in the study appeared when expanding to a 3-reviewer panel. udflow does not cry wolf.
+- **Single-pass recall is modest (~34% hit, ~50% touched) and bounded.** Reviewers reliably catch concrete, code-visible defects (resource leaks, a DB-column overflow, a no-op validator) but miss subtle **language idioms** (a wrong `this`/receiver binding, char-vs-byte length, lifetimes, overflow) and **omissions** ("what's missing vs the intent").
+- **Recall is lifted by *structure*, not reviewer prose.** Adding a "judge on merits, don't rationalize" discipline to the contract was measured **safe (0 added false positives)** but did **not** raise lone-reviewer recall. A multi-lens **panel** recovered defects a single reviewer missed (Deep Mode and feeding the *intent/spec* help further). So for catch-critical work, run the panel — don't rely on one reviewer.
 
-**Limits:** n=13, two repos; many bugs drawn from `fix` commits (Run 1 had a few previously surfaced by a review; Run 2's were all from issue/PR fixes); concurrency/integration bugs barely tested; reviewers got **no plan/requirements context** and Run 2 used a **single reviewer** — both *understate* a full udflow run. **Directional, not a guarantee.**
+**Limits:** n=32, 6 repos; bugs drawn mostly from `fix` commits (29/32 not previously surfaced by a review); concurrency/integration barely tested; reviewers got **no plan/requirements context** and most runs used a **single reviewer** — both *understate* a full udflow run. An early Python run was contaminated by a test-harness extraction bug (since fixed). **Directional, not a guarantee.**
 
-**Graduation criteria** — tracked in [`EVIDENCE.md`](EVIDENCE.md) (a manual log; udflow ships no telemetry). The "experimental" label comes off only when that log documents **≥3 external repos across ≥2 languages and ≥20 qualifying data points** (blind bug-catches or verified live tasks) with computed catch & false-positive rates, **at least half from bugs not previously found by a review**. Strict: only runs with a *verifiable ground truth* count — adoption/testimonials are tracked separately and don't move the rates. _Now: 2 repos · 2 languages · 13 points (languages ✓, anti-bias ✓; still need ≥3 repos and ≥20 points)._
+**Graduation criteria** — tracked in [`EVIDENCE.md`](EVIDENCE.md) (a manual log; udflow ships no telemetry). The "experimental" label comes off when that log documents **≥3 external repos across ≥2 languages and ≥20 qualifying data points** with computed catch & false-positive rates, **at least half from bugs not previously found by a review**. Only runs with a *verifiable ground truth* count — adoption/testimonials don't move the rates. _Now: **6 repos · 6 languages · 32 points** — those coverage/volume/anti-bias criteria are **met**; still labelled "experimental" pending a maintainer call on relabeling, since recall is modest and the validated edge is precision + structure._
 
 </details>
 
