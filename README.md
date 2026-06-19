@@ -16,6 +16,7 @@ Understand → plan → **approve** → implement → verify → selected review
 What you're opting into:
 
 - **It uses more tokens than a normal chat.** One task can spawn the `implementer`, several reviewers, and the `gatekeeper`, and `security-reviewer` + `gatekeeper` run on `opus`. Expect noticeably higher token/cost usage than a one-shot edit. (Reviewers are chosen by risk, so simple tasks cost less.)
+  - *Rough ballpark, from real runs — varies a lot by task size, risk, and how many fix iterations are needed:* a light task (core reviewers only) ≈ **100–250k tokens / a few minutes**; a typical task (3–5 reviewers + one repair pass) ≈ **300–700k tokens / ~5–15 min**; a deep review with several repair loops can exceed **1M tokens / 20–40 min**. Parallel reviewers shorten wall-clock; `opus` reviewers and extra fix iterations raise both. Treat these as orders of magnitude, not guarantees.
 - **`opus` access:** `security-reviewer` and `gatekeeper` request `opus`; if your account/session can't use it, those steps fall back to the available model and verdict quality may vary.
 - **Installing adds two hooks that run in *every* session — not only on udflow tasks:**
   - `plan-gate` (PreToolUse) is **invisible during normal work**; it only blocks `Write`/`Edit`/`MultiEdit` **while you are in plan mode** — for any session while the plugin is installed, not just udflow tasks (Claude Code's own plan files are exempt, so the native plan flow still works).

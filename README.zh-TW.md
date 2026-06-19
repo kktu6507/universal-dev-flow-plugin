@@ -16,6 +16,7 @@
 你裝了之後會得到/承受什麼:
 
 - **它比一般對話更耗 token。** 一次任務可能 spawn `implementer`、數個審查員與 `gatekeeper`,而且 `security-reviewer`、`gatekeeper` 跑 `opus`。請預期用量/成本明顯高於單次修改。(審查員依風險挑選,簡單任務花費較少。)
+  - *以下為實際執行的經驗粗估,差異很大(取決於任務規模、風險、需要幾輪修復):* 輕量任務(只開核心審查員)約 **10–25 萬 token / 數分鐘**;一般任務(3–5 個審查員 + 一輪修復)約 **30–70 萬 token / 約 5–15 分鐘**;多輪修復的深度審查可能超過 **100 萬 token / 20–40 分鐘**。審查員並行可縮短實際耗時;`opus` 審查員與多次修復會拉高兩者。請當成數量級參考,而非保證值。
 - **`opus` 存取權:** `security-reviewer` 與 `gatekeeper` 會要求 `opus`;若你的帳號/session 無法使用,這兩步會退回當前可用模型,裁決品質可能浮動。
 - **安裝後會新增兩個 hook,在*每一個* session 都會跑——不只 udflow 任務:**
   - `plan-gate`(PreToolUse)**平常工作時完全隱形**;**只有當你在 plan mode 時**才擋 `Write`/`Edit`/`MultiEdit`——只要 plugin 還裝著就對所有 session 生效(非僅 udflow),且放行 Claude Code 自己的 plan 檔,不影響原生 plan 流程。
