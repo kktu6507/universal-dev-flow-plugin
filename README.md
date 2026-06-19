@@ -4,29 +4,33 @@
 
 **English** · [繁體中文](README.zh-TW.md)
 
-A risk-proportional, plan-gated multi-agent engineering workflow.
-Understand → plan → **approve** → implement → verify → selected review → gatekeeper readiness verdict.
+**A plan-gated, risk-proportional code-review & release-readiness workflow for Claude Code.**
+Understand → plan → **approve** → implement → verify → selected review → **gatekeeper verdict** (`READY` / `FIX REQUIRED` / `NOT READY`).
 
-> In one line: udflow makes Claude Code lay out a plan and get your approval before it changes code, then has the right specialist reviewers check the work, and finishes with a gatekeeper verdict on whether it's shippable — instead of just saying "done."
+> In one line: udflow makes Claude lay out a plan and get your approval before it touches code, has the right specialist reviewers check the work against your intent, auto-fixes what they raise, and ends with a ship/no-ship verdict — instead of just saying "done."
 
-> **Status: early / experimental.** The hooks are tested; the multi-agent orchestration is prompt-driven. A cross-language benchmark (**6 languages, 32 real bugs**) shows **near-zero false positives** throughout; recall depends heavily on the **intent** the reviewer is given — **~34% with none (diff only)** up to **~84% with very specific contract-level intent** (an optimistic upper bound: a stricter bug-blind test with only a function's own docs scored far lower). Real-use recall sits in between, scaling with how good the Review Packet's intent is. See the Evidence note. Treat it as a disciplined scaffold.
+**What it is — and what it isn't.** udflow is a **review & release-readiness workflow**, not a bug scanner. Its measured edge (see Evidence) is **near-zero false positives + process discipline + a readiness gate** — *not* maximal bug recall. It does catch real, code-visible defects, but treat it as a low-noise reviewer plus a ship/no-ship gate, not a tool that finds every bug. For exhaustive scanning, pair it with linters / static analysis / a dedicated deep review.
+
+> **Status: early / experimental.** The hooks are tested; the multi-agent orchestration is prompt-driven. A cross-language benchmark (6 languages, 100+ real bugs) shows a clear profile: **near-zero false positives throughout** (≈1 in ~110 reviews), and recall that **scales with how specifically you state the change's intent** — ~30% when a reviewer sees only the code, up to ~84% with contract-level intent (real udflow hands reviewers that intent via its Review Packet). See the Evidence note. Treat it as a disciplined scaffold, not a guarantee.
 
 <details>
-<summary><b>Evidence (field notes)</b> — cross-language blind benchmark, directional (not yet a guarantee)</summary>
+<summary><b>Evidence (field notes)</b> — measured, directional, and honest about its limits</summary>
 
-**Retroactive blind bug-catch (2026-06-19).** udflow's reviewers were run *blind* on the pre-fix code of **32 real historical bugs across 6 external repos / 6 languages** (C#, JavaScript, Python, Java, Go, Rust — all different from this plugin's stack). Each reviewer saw only the buggy region — not the fix, not the issue, not the repo — and an independent judge scored its findings against the known defect.
+udflow's reviewers were run *blind* on the pre-fix code of real historical bugs across **6 languages / many external repos** (C#, JavaScript, Python, Java, Go, Rust — all different from this plugin's own stack). Each reviewer saw only the buggy code; an independent judge scored its findings against the known fix.
 
-| 32 real bugs · 6 repos · 6 languages · blind | Caught | Partial | Missed | False positives |
-|---|---|---|---|---|
-| outcome | **11** | 5 | 16 | **0** (1 in the whole study, only when fanning out to a panel) |
+**Headline numbers (two condition-controlled runs + one larger automated run):**
 
-- **The robust strength: near-zero false positives** — 0 across the entire single-reviewer corpus; the *only* false positive in the study appeared when expanding to a 3-reviewer panel. udflow does not cry wolf.
-- **Diff-only single-reviewer recall is modest (~34% hit, ~50% touched).** Given *only* the buggy code, reviewers reliably catch concrete, code-visible defects (resource leaks, a DB-column overflow, a no-op validator) but miss subtle **language idioms** (a wrong `this`/receiver binding, char-vs-byte length, lifetimes, overflow) and **omissions** ("what's missing vs the intent") — largely because the intent was withheld (see next point).
-- **The biggest recall lever is the *intent* the reviewer is given — but it must be specific.** Re-running the **same 32 bugs** with a **specific, contract-level intent note** (the required behavior, never the defect) took recall from **11→27 hit (34% → 84%)**, false positives still **0**. **But that 84% is an optimistic upper bound**: a stricter author-bias check — where a *bug-blind* agent wrote the intent from only each function's own signature/docs — scored **far lower** (generic "what it does" intent didn't lift recall; the contract-specific intent, "must be the exact byte count", did). So recall scales with *how contract-specific* the Review Packet's intent is, not merely with having intent; real-use recall sits between ~34% and ~84%. A **clean, larger automated re-run** (77 bugs · 12 repos · 6 languages · bug-blind intent · judged against the real fix diff) confirmed the low end: **~29% hit, ~39% touched, 1 false positive in 77** — bug-blind recall really does sit near the diff-only floor, with precision intact at scale. (A multi-lens **panel** and Deep Mode also recover misses; a prose "don't rationalize" discipline *alone* did **not** move recall.) That 77-bug corpus also drove two v0.9.2 gatekeeper fixes: re-rating found-but-undersold defects to their real severity, and treating a missing edge/boundary test as a verification gap.
+| Condition | Caught (hit) | Touched | False positives |
+|---|---|---|---|
+| Blind, **no intent** given (32 bugs) | ~34% | ~50% | **0** |
+| Blind, **specific contract-level intent** given (same 32 bugs) | ~84% | — | **0** |
+| Automated, **bug-blind native intent** (77 bugs, 12 repos) | ~29% | ~39% | **1 in 77** |
 
-**Limits:** n=32, 6 repos; bugs drawn mostly from `fix` commits (29/32 not previously surfaced by a review); concurrency/integration barely tested; reviewers got **no plan/requirements context** and most runs used a **single reviewer** — both *understate* a full udflow run. An early Python run was contaminated by a test-harness extraction bug (since fixed). **Directional, not a guarantee.**
+- **The robust, condition-independent strength is precision.** Across ~110 blind reviews there was **about one false positive** total. udflow does not cry wolf — when it raises a major/blocker, it is almost always real.
+- **Recall depends on the *intent* you give it, and on how specific it is.** Given only code, reviewers catch concrete code-visible defects (resource leaks, a column overflow, a no-op validator) but miss subtle **language idioms** (a wrong `this`/receiver binding, char-vs-byte length, lifetimes, overflow) and **omissions** ("what's missing vs the intent"). Adding a *specific* contract-level intent took the same 32 bugs from 34% to 84% — but a stricter bug-blind check (intent written only from a function's own docs) scored far lower, so **84% is an optimistic upper bound** that needed contract-specific intent. Real-use recall sits in between and tracks the quality of your Review Packet.
+- **Where the misses go (77-bug corpus):** omissions 36% (the #1 gap) · "found a *different* real bug" 18% (real-world value above the hit rate) · language idioms 16% · found-but-under-rated 15% · needs-external-spec 15%. The last two drove the v0.9.2 gatekeeper fixes (re-rate severity by impact; require an edge/boundary test for behavior changes). Subtle idiom/spec defects remain a genuine ceiling for any static review.
 
-**Graduation criteria** — tracked in [`EVIDENCE.md`](EVIDENCE.md) (a manual log; udflow ships no telemetry). The "experimental" label comes off when that log documents **≥3 external repos across ≥2 languages and ≥20 qualifying data points** with computed catch & false-positive rates, **at least half from bugs not previously found by a review**. Only runs with a *verifiable ground truth* count — adoption/testimonials don't move the rates. _Now: **6 repos · 6 languages · 32 points** — those coverage/volume/anti-bias criteria are **met**; still labelled "experimental" pending a maintainer call on relabeling, since recall is modest and the validated edge is precision + structure._
+**Limits:** bugs drawn mostly from `fix` commits; concurrency/integration barely tested; many runs used a single reviewer with no plan context — all of which *understate* a full udflow run (panel + intent + verification). Full method, per-run results, and the honest walk-backs are logged in [`EVIDENCE.md`](EVIDENCE.md) (a manual log — udflow ships **no telemetry**). The "experimental" label stays until the log shows enough verified-ground-truth runs; the coverage criteria are met, but recall is intent-dependent and the strong claim is precision, so the honest label is a *characterized* early/beta — **directional, not a guarantee.**
 
 </details>
 
@@ -94,7 +98,7 @@ udflow> [plan / plan mode]  (read-only — no files changed yet)
 you> approve
 
 udflow> [implement] implementer makes the smallest change for the plan.
-        [verify] runs tests/lint; opens the page and confirms the checkbox persists the session.
+        [verify] runs tests/lint; exercises the unchecked + checked paths; confirms the session persists.
         [review] risk is UI + auth behavior → spec / test / ui-ux (+ security).
         [findings] test: missing a test for the unchecked default (major).
         [repair loop] adds the test → re-runs the affected reviewers → all pass.
@@ -127,9 +131,9 @@ understand → plan (plan mode) → you approve → implement → verify → sel
 
 - **Understand / plan** happen in plan mode (read-only); the plan is presented via ExitPlanMode for your approval.
 - **Only after approval** does the `implementer` write code.
-- **Verify** runs build / test / lint / typecheck / browser evidence as applicable.
-- **Review** selects only the reviewers relevant to this change's risk (no ceremony).
-- **gatekeeper** returns `READY` / `FIX REQUIRED` / `NOT READY`; if a fix is needed it enters a repair loop until ready or clearly blocked.
+- **Verify** runs build / test / lint / typecheck / browser evidence as applicable — and is expected to **exercise the change's risky edge inputs** (empty / overflow / multibyte / duplicate / malformed / by-value / concurrent), because a boundary that actually runs is the oracle a code read lacks.
+- **Review** selects only the reviewers relevant to this change's risk (no ceremony), and reviews against the change's stated intent (the more specific the intent, the more they catch).
+- **gatekeeper** aggregates the findings, **re-rates each by its real impact** (a demonstrated wrong-result / crash / contract violation is not left as "minor"), treats a missing edge-test on behavior-changing code as a verification gap, and returns `READY` / `FIX REQUIRED` / `NOT READY`. A fix enters a repair loop until ready or clearly blocked.
 
 ---
 
@@ -141,7 +145,7 @@ The plugin lives in the [`udflow/`](udflow/) subdirectory (only that subdir is i
 - `udflow/skills/run/` — manual entry point: `/udflow:run <task>`.
 - `udflow/agents/` — 9 subagents: `implementer` (writes) + 7 read-only reviewers + `gatekeeper`. `security-reviewer` and `gatekeeper` run on `opus`; the rest inherit the current session model.
 - `udflow/hooks/` — three Node hooks (same behavior on Windows, macOS, Linux; all fail-open):
-  - `plan-gate.js` (PreToolUse) — blocks structured edits while in plan mode, exempting Claude Code's own plan files under `~/.claude/plans/`.
+  - `plan-gate.js` (PreToolUse) — blocks structured edits while in plan mode, and trips on the *obvious* Bash writes; exempts Claude Code's own plan files under `~/.claude/plans/`.
   - `load-failure-memory.js` (SessionStart) — injects a failure-memory digest.
   - `orchestration-check.js` (Stop) — best-effort, non-blocking: warns if a `READY` verdict is claimed without the review panel actually running.
 - `udflow/.mcp.json` — empty by default (zero context cost). `udflow/mcp.example.json` is a copy-in template.
@@ -158,7 +162,9 @@ The plugin lives in the [`udflow/`](udflow/) subdirectory (only that subdir is i
 | `architecture-reviewer` | Layering, boundaries, dependency direction, placement | structural/boundary concerns | inherit |
 | `operability-reviewer` | Observability, retries/timeouts, deploy, rollback | runtime/production impact | inherit |
 | `ui-ux-reviewer` | Usability, interaction, layout, states, accessibility | UI impact | inherit |
-| `gatekeeper` | Aggregates and decides: READY / FIX REQUIRED / NOT READY | after selected reviewers finish | opus |
+| `gatekeeper` | Aggregates, re-rates severity by impact, decides: READY / FIX REQUIRED / NOT READY | after selected reviewers finish | opus |
+
+For correctness-critical paths (parsing, numeric/encoding/overflow, concurrency, security, data integrity), udflow prefers **at least two independent reviewer lenses** rather than a lone reviewer — the benchmark showed a second lens recovers defects the first rationalizes as fine.
 
 ---
 
@@ -179,6 +185,10 @@ udflow> [exits plan mode] now edits checkout.tsx ✓
 Two honest limits:
 - **It's global.** The hook runs in every session while installed, so if you're in plan mode in an unrelated project, edits there are blocked too — it doesn't know whether the session is a udflow task.
 - **Bash is only partly covered.** The hook blocks the structured edit tools and the *obvious* Bash writes (`>`/`>>` to a file, `tee`, `sed -i`, `git apply`), but deliberately allows read-only Bash and won't catch non-obvious writes (e.g. `python -c "open(...,'w')"`). Treat the tripwire as a safety net — udflow's rules still forbid any Bash working-tree write while planning.
+
+### Verification gate
+
+Before any readiness claim, udflow runs the narrowest meaningful checks (build / test / lint / typecheck, browser evidence for UI). For behavior-changing code it expects a **focused test that exercises the change's risky edge inputs** — empty / zero / overflow / large, multibyte, null / empty / duplicate / multiple values, malformed input, by-value vs receiver, concurrency — because a test that reproduces the boundary catches the idiom/encoding/overflow/omission bugs a code read rationalizes as "looks fine." The `gatekeeper` treats a missing edge-test as a verification gap and withholds `READY`.
 
 ### Failure memory
 
