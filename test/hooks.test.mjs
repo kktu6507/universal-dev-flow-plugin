@@ -17,8 +17,8 @@ const MEM = path.join(HOOKS, "load-failure-memory.js");
 const GATE = path.join(HOOKS, "plan-gate.js");
 const globalMemExists = fs.existsSync(path.join(os.homedir(), ".claude", "FAILURE_MEMORY.md"));
 
-function runHook(hookPath, input) {
-  return cp.execFileSync("node", [hookPath], { input: JSON.stringify(input) }).toString();
+function runHook(hookPath, input, env) {
+  return cp.execFileSync("node", [hookPath], { input: JSON.stringify(input), env: env || process.env }).toString();
 }
 function digestOf(input) {
   const out = runHook(MEM, input);
@@ -32,9 +32,17 @@ function mkProject(memFile) {
   }
   return dir;
 }
-function gate(input) {
-  const out = runHook(GATE, input);
+function gate(input, env) {
+  const out = runHook(GATE, input, env);
   return out.includes('"deny"') ? "DENY" : "ALLOW";
+}
+// Isolate the home dir for tests that exercise the ~/.claude/plans exemption, so they
+// don't touch the developer's real home tree.
+function isolatedHome() {
+  const home = fs.mkdtempSync(path.join(os.tmpdir(), "udflow-home-"));
+  // os.homedir() reads HOME on POSIX but USERPROFILE on Windows — set both so the
+  // isolation actually takes effect cross-platform.
+  return { home, env: { ...process.env, HOME: home, USERPROFILE: home } };
 }
 
 const TWO_ENTRIES_PLUS_PLACEHOLDER = `# FAILURE_MEMORY
@@ -108,34 +116,35 @@ test("B3: repo-local .claude/plans path is NOT exempt (denied in plan mode)", ()
   assert.strictEqual(gate({ tool_name: "Write", permission_mode: "plan", tool_input: { file_path: repoPlan } }), "DENY");
 });
 
-test("home ~/.claude/plans path IS exempt (allowed in plan mode)", () => {
-  const homePlan = path.join(os.homedir(), ".claude", "plans", "plan-x.md");
-  assert.strictEqual(gate({ tool_name: "Write", permission_mode: "plan", tool_input: { file_path: homePlan } }), "ALLOW");
+test("home ~/.claude/plans path IS exempt (isolated home)", (t) => {
+  const { home, env } = isolatedHome();
+  t.after(() => { try { fs.rmSync(home, { recursive: true, force: true }); } catch (e) {} });
+  const homePlan = path.join(home, ".claude", "plans", "plan-x.md");
+  assert.strictEqual(gate({ tool_name: "Write", permission_mode: "plan", tool_input: { file_path: homePlan } }, env), "ALLOW");
 });
 
 test("plan-gate: a junction under ~/.claude/plans whose target escapes is NOT exempt (denied)", (t) => {
   // realpathDeepest must resolve a symlink/junction so a "plans"-named link can't redirect
   // a write outside the exemption. Uses a junction (no admin needed on Windows); EPERM-skip.
-  const plansDir = path.join(os.homedir(), ".claude", "plans");
+  // Isolated home so it never creates/writes the developer's real ~/.claude/plans.
+  const { home, env } = isolatedHome();
+  t.after(() => { try { fs.rmSync(home, { recursive: true, force: true }); } catch (e) {} });
+  const plansDir = path.join(home, ".claude", "plans");
   let link;
   try {
     fs.mkdirSync(plansDir, { recursive: true });
     const target = fs.mkdtempSync(path.join(os.tmpdir(), "udflow-escape-"));
-    link = path.join(plansDir, "udflow-test-junction-" + process.pid);
+    link = path.join(plansDir, "udflow-test-junction");
     fs.symlinkSync(target, link, "junction");
   } catch (e) {
     return t.skip("cannot create a junction here: " + (e && e.code));
   }
-  try {
-    const escaped = path.join(link, "escaped.ts"); // resolves to <target>/escaped.ts, outside plans
-    assert.strictEqual(
-      gate({ tool_name: "Write", permission_mode: "plan", tool_input: { file_path: escaped } }),
-      "DENY",
-      "a junction whose target escapes ~/.claude/plans must not be exempt"
-    );
-  } finally {
-    try { fs.rmSync(link, { recursive: true, force: true }); } catch (e) {}
-  }
+  const escaped = path.join(link, "escaped.ts"); // resolves to <target>/escaped.ts, outside plans
+  assert.strictEqual(
+    gate({ tool_name: "Write", permission_mode: "plan", tool_input: { file_path: escaped } }, env),
+    "DENY",
+    "a junction whose target escapes ~/.claude/plans must not be exempt"
+  );
 });
 
 test("normal file write is denied in plan mode, allowed otherwise", () => {
