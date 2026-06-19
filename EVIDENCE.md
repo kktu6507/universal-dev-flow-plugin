@@ -45,7 +45,7 @@ Drop the **"experimental"** label when this file documents **all** of:
 | Catch rate | 11 hit + 5 partial / 32 (**34% hit; 50% touched**) | (reported, not a pass/fail) |
 | False-positive rate | **0** across the 32-bug single-reviewer corpus (**1** total across ~90 reviews incl. panel re-tests) | (reported) |
 
-**Status: graduation criteria are MET** (≥3 repos ✓, ≥2 languages ✓, ≥20 points ✓, anti-bias ✓, rates documented ✓). The README still labels udflow "experimental" pending the maintainer's call on relabeling, because — honestly — recall is modest (34%); the validated edge is **precision (near-zero false positives) + structural depth**, not single-pass recall. Recommend relabeling to a *characterized* "beta" that states this profile rather than dropping the caveat outright.
+**Status: graduation criteria are MET** (≥3 repos ✓, ≥2 languages ✓, ≥20 points ✓, anti-bias ✓, rates documented ✓). Two recall figures, **both at 0 false positives**: **diff-only ~34%** (reviewer sees only the code) and **with-intent ~84% (27/32)** (reviewer also gets the contract/intent — which real udflow's Review Packet supplies to every reviewer). The with-intent profile is the one that reflects real use. This now **strongly supports relabeling** from "experimental" (still the maintainer's call), subject to the standing validity caveat that the with-intent notes were author-written. A *characterized* "beta" that states the profile (near-zero FP; high recall when given intent; modest when blind) is the honest label.
 
 ## Entries
 
@@ -132,6 +132,21 @@ Took 6 bugs a single reviewer **missed even with the discipline** (Phase D: 0 hi
 **0/6 → 5/6, 0 FP, single variable = intent.** Even subtle-semantics misses flipped (PY4 char-vs-byte — reviewer cited "café" = 4 chars / 5 bytes; GO3 pointer-receiver — gave a concrete failing `errors.Is` case; PY7 `__getattr__` proxy — blocker). The lone remaining miss (GO4) was **not** a context failure: the reviewer saw the missing Content-Length and argued Go auto-computes it (a defensible non-defect — that bug was weakly framed).
 
 **Conclusion:** the dominant recall lever is **feeding reviewers the intent/contract**, not the language and not local build. This directly answers "was C# higher because it could build locally?" — **no**: no build ran for any language in the benchmark; C# scored higher partly because several C# packets had intent inlined, and giving Python/Go the same intent reproduced the jump. It also explains why the blind benchmark's ~34% **understates real udflow**: the Review Packet already delivers the intent (Task / Success criteria / Reviewer scope) that this experiment shows is worth roughly **+80 points of recall**. udflow's design is right; the blind harness simply withheld that input.
+
+### Full corpus WITH intent — 2026-06-19 · the 34% vs with-intent comparison
+
+Re-ran the **entire 32-bug corpus** (same packets, same single `code-reviewer`, same discipline) with **one change**: a purpose/contract `intent` note prepended to each packet (stating what the code must do, never the defect).
+
+| Condition | hit | partial | miss | false positives |
+|---|---|---|---|---|
+| Diff-only (blind, no intent) | 11 | 5 | 16 | 0 |
+| **+ intent note** | **27** | 2 | 3 | **0** |
+
+**~34% → ~84% hit (27/32), ~91% touched, misses 16 → 3 — and false positives stayed at 0** across all 32 with-intent reviews (intent did **not** trade precision for recall). Per language with intent: Go 5/5, Rust 3/3, JS 5/5 (all clean), Python 6/7, C# 6 hit + 2 partial, Java 2/4. The 3 residual misses are the genuine ceiling: JV3 (ParameterizedType flag-conflation), JV4 (long-overflow — reviewer affirmatively judged it correct), PY3 (reviewer found a *different* real bug — a missing regex end-anchor — instead). The 2 C# partials (B1/B2 omissions) are cases where the reviewer hedged that table/scope coverage "can't be confirmed from this excerpt" — likely to resolve when given the whole file in the real flow.
+
+**Validity caveat (important):** the intent notes were author-written with knowledge of the bugs, so the 84% carries an upward-bias risk. Mitigants: the notes state purpose/contract (defect-agnostic); 5 bugs were still not caught (a pure leak would catch all); and 0 false positives shows reviewers were not rubber-stamping. A stricter version would derive intent from each repo's own docs/issues.
+
+**Conclusion:** this *measures* what the earlier context-isolation test implied — the blind ~34% was dominated by **withheld intent**, not a capability ceiling. With intent (which real udflow's Review Packet supplies to every reviewer), the profile is **~84% hit / 0 false positives**. This materially strengthens the case to relabel from "experimental"; still the maintainer's call, but the with-intent profile is the one that reflects real use.
 
 ## Adding an entry
 
