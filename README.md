@@ -9,7 +9,26 @@ Understand → plan → **approve** → implement → verify → selected review
 
 > In one line: udflow makes Claude Code lay out a plan and get your approval before it changes code, then has the right specialist reviewers check the work, and finishes with a gatekeeper verdict on whether it's shippable — instead of just saying "done."
 
-> **Status: early / experimental.** The hooks are tested; the multi-agent orchestration is prompt-driven and still being validated on real repos. Treat it as a disciplined scaffold.
+> **Status: early / experimental.** The hooks are tested; the multi-agent orchestration is prompt-driven. A first blind benchmark on an external repo is encouraging — **6 of 8 real bugs caught, 0 false positives** (see the Evidence note below) — but the sample is small. Treat it as a disciplined scaffold.
+
+<details>
+<summary><b>Evidence (field notes)</b> — first blind benchmark, directional (not yet a guarantee)</summary>
+
+**Retroactive blind bug-catch (2026-06-19).** udflow's reviewers were run *blind* on the pre-fix code of **8 real historical bugs** from an external C#/.NET repo (a different stack from this Node plugin). Each reviewer saw only the buggy region — not the fix, not the issue, not the repo — and an independent judge scored its findings against the known defect.
+
+| 8 real bugs, blind | Caught | Partial | Missed | False positives |
+|---|---|---|---|---|
+| outcome | **6** | 1 | 1 | **0** (of ~46 findings) |
+
+- **Caught — concrete, code-visible defects:** an undisposed `HttpResponseMessage`; unbounded text written to a `nvarchar(4000)` column; raw JSON polluting a search index; a flat iteration cap violating a per-role spec; a UI count that never refreshes during a background job; and a form whose `DataAnnotationsValidator` was a no-op because the model carried no validation attributes.
+- **Missed / partial — omission-vs-intent defects:** a missing cascade-delete of a child table, and statistics that should have excluded binary files. The code "looks fine" unless you know the intent — and a **full three-reviewer panel did not help**, which suggests the lever is feeding reviewers the *intent/spec*, not adding more reviewers.
+- **0 false positives** across both rounds (~46 findings; ~40 additional findings were plausible-but-unverified — thoroughness, not confirmed catches).
+
+**Limits:** n=8, one repo / one language; bugs were drawn from `fix` commits (some previously surfaced by a review), biasing toward catchable; concurrency/integration bugs were not tested; each bug saw a single reviewer or a small panel with **no plan/requirements context**, which understates a full udflow run. **Directional, not a guarantee.**
+
+**Graduation criteria** — the "experimental" label comes off when udflow has been used on **≥3 external repos across ≥2 languages and ≥20 real tasks**, with documented catch and false-positive rates, *including bugs not previously found by a review*.
+
+</details>
 
 ---
 
