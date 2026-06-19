@@ -5,7 +5,28 @@
 **English** · [繁體中文](README.zh-TW.md)
 
 **A plan-gated, risk-proportional code-review & release-readiness workflow for Claude Code.**
-Understand → plan → **approve** → implement → verify → selected review → **gatekeeper verdict** (`READY` / `FIX REQUIRED` / `NOT READY`).
+
+> Not for typos. Use udflow when "done" needs to mean release-ready.
+
+```text
+Task
+  ↓
+Understand requirement
+  ↓
+Plan mode — no code changes yet
+  ↓
+User approval
+  ↓
+Smallest safe implementation
+  ↓
+Build / test / lint / browser evidence
+  ↓
+Risk-selected reviewers
+  ↓
+Gatekeeper verdict: READY / FIX REQUIRED / NOT READY
+```
+
+Use it for non-trivial engineering work where Claude Code should not self-certify completion.
 
 > In one line: udflow makes Claude lay out a plan and get your approval before it touches code, has the right specialist reviewers check the work against your intent, auto-fixes what they raise, and ends with a ship/no-ship verdict — instead of just saying "done."
 

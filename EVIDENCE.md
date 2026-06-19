@@ -5,18 +5,32 @@ This file is the **single source of truth** for udflow's empirical track record 
 authoritative.
 
 It is a manual log on purpose: udflow ships **no telemetry** and does not report usage anywhere (good for
-privacy, but it means runs only "count" if they are written down here). Anyone can add an entry via pull
-request.
+privacy, but it means runs only "count" if they are written down here). There are two ways to contribute:
+open a **["Verified udflow run"](.github/ISSUE_TEMPLATE/verified-run.yml)** issue (the maintainer curates
+accepted ones into this file), or add a section directly via pull request. See [`CONTRIBUTING.md`](CONTRIBUTING.md).
+
+## Two kinds of evidence (and which one matters most)
+
+- **Real-world runs (Type B) — the headline this log is built around.** A real udflow run on actual work
+  where the outcome was **verified over time** (its `READY` verdict held up, or a defect escaped and was
+  recorded; plus any false alarm and the cost). This is the evidence that shows udflow *works in practice* —
+  and it is what dropping "experimental" now hinges on. **It is currently sparse**: udflow has not yet been
+  used on many *logged* real projects, so this section is honestly near-empty and grows with real usage.
+- **Capability validation (Type A) — controlled benchmarks.** Blind bug-catch experiments that characterize
+  *what the reviewers can and cannot catch* and the precision profile. This is extensive (below), but it is a
+  **proxy** for real use, not proof of it — a controlled measurement of the reviewers' reach, not a record of
+  udflow building real software.
 
 ## What counts (strict)
 
-A data point counts toward graduation **only if it has a verifiable ground truth and is recorded here.**
+A data point counts **only if it has a verifiable ground truth and is recorded here.**
 
+- **Type B — verified live task.** A real udflow run on actual work whose outcome was **verified** (the
+  `READY` verdict held with no defect escaping later, or escaped defects were found and recorded). Unit = one
+  task. *This is the evidence the log is for.*
 - **Type A — blind bug-catch.** A *known* historical bug is presented to udflow's reviewer(s) **blind**
   (pre-fix code only; no fix, issue, or repo access), and an independent judge scores the findings against
-  the known defect. Unit = one bug.
-- **Type B — verified live task.** A real udflow run on actual work where the outcome was **verified**
-  (e.g. its `READY` verdict held up, or escaped defects were later found and recorded). Unit = one task.
+  the known defect. Unit = one bug. *Capability validation, not real-use proof.*
 
 **Does NOT count toward the rates:** testimonials, "I used it and liked it", stars, install counts. These are
 adoption signals — log them under [Adoption](#adoption-not-counted-toward-graduation), separate from the rates.
@@ -24,30 +38,81 @@ adoption signals — log them under [Adoption](#adoption-not-counted-toward-grad
 This applies equally to the maintainer's runs and to contributors' runs — the gate is *verifiable ground
 truth*, not *who ran it*.
 
-## Graduation criteria
+## Graduation criteria (two tracks)
 
-Drop the **"experimental"** label when this file documents **all** of:
+**Track 1 — Capability validation: MET.** ≥3 external repos ✓, ≥2 languages ✓, ≥20 qualifying Type-A points ✓,
+aggregate catch/false-positive rates computed ✓, and ≥half of the bugs not previously surfaced by a prior
+review ✓. This establishes the *profile* (near-zero false positives; recall that scales with intent specificity).
 
-1. **Breadth** — ≥ 3 distinct external repositories, across ≥ 2 languages.
-2. **Volume** — ≥ 20 qualifying data points (Type A bugs and/or Type B tasks).
-3. **Anti-bias + measured** — aggregate catch-rate and false-positive-rate are computed, and **≥ half of the
-   bug data points are bugs that were NOT previously surfaced by a prior review** (so the sample isn't
-   skewed toward "already known to be catchable").
+**Track 2 — Real-world validation: NOT yet met.** Drop **"experimental"** only once this file also documents
+real-use evidence:
+
+1. **Volume** — ≥ 10 verified Type-B live runs.
+2. **Breadth** — across ≥ 3 distinct real projects.
+3. **Independence** — at least some runs **not** by the maintainer (so it isn't only self-dogfooding).
+4. **Outcome quality** — each run records the verdict, whether it **held up** afterward, any escaped defect,
+   any false alarm, and cost — so a real-use precision / reliability picture can be stated.
+
+Rationale: the controlled benchmark already tells us *what the reviewers can catch*; only real runs tell us
+whether the **workflow + verdict** holds up in practice, which is the claim the label is really about.
 
 ## Running tally
 
-| Metric | Now | Target |
-|---|---|---|
-| External repos | **~13** (Plan_PJ, axios, requests, gson, gin, clap, flask, express, cobra, ripgrep, jackson-core, Newtonsoft.Json, Polly) | ≥ 3 ✓ |
-| Languages | **6** (C#, JS, Python, Java, Go, Rust) | ≥ 2 ✓ |
-| Qualifying data points | **109** (32 curated + 77 automated) | ≥ 20 ✓ |
-| Not-previously-review-found bugs | nearly all (curated 29/32; all 77 automated from `fix` commits) | ≥ half ✓ |
-| Catch rate | curated diff-only 34% hit; automated bug-blind-intent (n=77) **~29% hit / ~39% touched**; ~84% only with specific author intent (upper bound) | (reported) |
-| False-positive rate | **~0** — 0 across the 32 single-reviewer corpus; **1 in 77** automated; 1 more only when fanning out to a panel | (reported) |
+| Metric | Now | Track-1 target | Track-2 target |
+|---|---|---|---|
+| **Real-world verified runs (Type B)** | **0 logged** | — | ≥ 10 |
+| Distinct real projects (Type B) | **0 logged** | — | ≥ 3 |
+| Independent (non-maintainer) runs | **0** | — | ≥ 1 |
+| External repos (Type A benchmark) | **~13** | ≥ 3 ✓ | — |
+| Languages (Type A) | **6** (C#, JS, Python, Java, Go, Rust) | ≥ 2 ✓ | — |
+| Qualifying Type-A points | **109** (32 curated + 77 automated) | ≥ 20 ✓ | — |
+| Catch rate (Type A) | diff-only ~34% hit; automated bug-blind-intent (n=77) **~29% hit / ~39% touched**; ~84% only with specific author intent (upper bound) | (reported) | — |
+| False-positive rate (Type A) | **~0** — 0 across the 32 single-reviewer corpus; **1 in 77** automated | (reported) | — |
 
-**Status: graduation criteria are MET** (≥3 repos ✓, ≥2 languages ✓, ≥20 points ✓, anti-bias ✓, rates documented ✓). Recall, all at **0 false positives**, depends on the intent given to the reviewer: **~34% with no intent (diff only)**; **~84% (27/32) with very specific, author-written contract-level intent**; but a **bug-blind native-doc intent test was far lower** (a strict author-bias check — see below), so **84% is an optimistic upper bound, not the typical figure**. Real-use recall depends on how contract-specific the Review Packet's intent is, and sits somewhere in 34%–84%. The robust, condition-independent strength is the **near-zero false-positive rate**. Net: the *coverage* criteria are met, but given that recall is intent-quality-dependent and the 84% is bias-inflated, a **conservative relabel** (e.g. a *characterized* "beta" stating "near-zero FP; recall scales with the quality of the intent you give it") is more defensible than dropping the caveat — maintainer's call.
+**Status: capability is characterized; real-world validation is the remaining gate.** Track 1 (controlled
+benchmark) is **met** and pins the profile: at **~0 false positives** throughout, recall depends on the intent
+given to the reviewer — **~34% with no intent (diff only)**, **~84% only with very specific author-written
+contract-level intent** (an optimistic upper bound; a strict bug-blind native-doc-intent re-run scored far
+lower), and **~29% bug-blind at n=77**. The robust, condition-independent strength is the **near-zero
+false-positive rate**. Track 2 (**real-world runs**) is **not yet met** — that is now the honest reason
+"experimental" stays. The defensible relabel is a *characterized* "beta" ("near-zero FP; recall scales with the
+quality of the intent you give it; real-world track record still accumulating"), to be earned by the Type-B
+runs this log is built to collect.
 
-## Entries
+---
+
+## Real-world runs (Type B)
+
+The headline section: real udflow runs on actual work, with verified outcomes. **This is the evidence that
+matters most** — and it is honestly near-empty today, because udflow has not yet been used on many *logged*
+real projects. Every entry here moves Track 2 toward graduation.
+
+**To add one:** run udflow on a real task, then open a
+**["Verified udflow run"](.github/ISSUE_TEMPLATE/verified-run.yml)** issue (or PR a section directly). Use this
+shape:
+
+```
+### Live run N — YYYY-MM-DD · <project / stack> (<language>) · verified live task
+
+- Task: <what udflow was asked to do>
+- Intent given: <the requirement / contract handed to udflow — how specific?>
+- Reviewers: <which reviewers ran> · Verdict: <READY / FIX REQUIRED / NOT READY>
+- Verification: <commands / browser checks / tests run>
+- Caught: <real, valid findings udflow raised that you acted on — "saves">
+- Missed: <defects found later, after the verdict — "escaped">
+- False alarms: <findings that were not actually defects>
+- Outcome after follow-up: <did the verdict hold? merged / reverted / fixed again?>
+- Cost: <~tokens / wall-clock> · Evidence: <PR / commit / sanitized log>
+```
+
+_(none fully logged yet — be the first; see the open invitation above)_
+
+---
+
+## Capability validation (controlled benchmarks / Type A)
+
+Blind bug-catch experiments. These characterize the reviewers' reach and precision; they are a **proxy** for
+real use, not a record of it.
 
 ### Run 1 — 2026-06-19 · Plan_PJ (C#/.NET) · retroactive blind bug-catch
 
@@ -172,9 +237,12 @@ This is the cleanest, largest, no-author-bias measurement, and it **confirms at 
 
 ## Adding an entry
 
-Append a new `### Run N — date · repo (language) · type` section with a table like Run 1's, then update the
-**Running tally**. For Type A, state how ground truth was established and how leakage was prevented. For
-Type B, state how the outcome was verified. Contributors: open a PR adding your section.
+- **Type B (real-world):** preferred path is a **["Verified udflow run"](.github/ISSUE_TEMPLATE/verified-run.yml)**
+  issue; the maintainer curates accepted ones into the *Real-world runs* section. Or PR a `### Live run N …`
+  section directly. State how the outcome was verified and whether the verdict held up.
+- **Type A (benchmark):** append a `### Run N — date · repo (language) · type` section with a table like
+  Run 1's under *Capability validation*, then update the **Running tally**. State how ground truth was
+  established and how leakage was prevented.
 
 ## Adoption (not counted toward graduation)
 

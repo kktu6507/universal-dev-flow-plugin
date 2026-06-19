@@ -1,0 +1,153 @@
+name: Verified udflow run
+description: Record a real or benchmarked udflow run with verifiable outcome data.
+title: "[Verified run]: "
+labels: ["evidence", "verified-run"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a udflow run.
+
+        Please sanitize private code, secrets, customer data, and proprietary business rules before posting.
+
+        This template is for evidence with a verifiable outcome. General feedback is welcome, but it should be labeled separately from measured evidence.
+
+  - type: input
+    id: date
+    attributes:
+      label: Date of run
+      description: Use YYYY-MM-DD.
+      placeholder: "2026-06-20"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: run_type
+    attributes:
+      label: Run type
+      options:
+        - Live task
+        - Historical blind bug-catch
+        - False positive report
+        - Missed defect report
+        - Other
+    validations:
+      required: true
+
+  - type: input
+    id: repo_stack
+    attributes:
+      label: Repository / stack
+      description: Public repo link if possible, otherwise sanitized stack description.
+      placeholder: "Node/React app, private repo"
+    validations:
+      required: true
+
+  - type: input
+    id: language_framework
+    attributes:
+      label: Language / framework
+      placeholder: "TypeScript / React / Node"
+    validations:
+      required: true
+
+  - type: textarea
+    id: task
+    attributes:
+      label: Task summary
+      description: What did you ask udflow to do?
+      placeholder: "Add token refresh behavior to the login flow."
+    validations:
+      required: true
+
+  - type: textarea
+    id: intent
+    attributes:
+      label: Intent / requirement specificity
+      description: What requirement or contract was given to udflow?
+      placeholder: "Token should refresh silently before expiry; expired sessions should redirect to login."
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: reviewers
+    attributes:
+      label: Reviewers involved
+      options:
+        - label: spec-reviewer
+        - label: test-reviewer
+        - label: code-reviewer
+        - label: security-reviewer
+        - label: architecture-reviewer
+        - label: operability-reviewer
+        - label: ui-ux-reviewer
+        - label: gatekeeper
+
+  - type: textarea
+    id: verification
+    attributes:
+      label: Verification performed
+      description: Commands, browser checks, tests, lint, typecheck, or blockers.
+      placeholder: |
+        npm test
+        npm run lint
+        Manual browser check on /login
+    validations:
+      required: true
+
+  - type: dropdown
+    id: final_verdict
+    attributes:
+      label: Final udflow verdict
+      options:
+        - READY
+        - FIX REQUIRED
+        - NOT READY
+        - No formal verdict
+    validations:
+      required: true
+
+  - type: textarea
+    id: findings
+    attributes:
+      label: What did udflow catch?
+      description: Include concrete findings, if any.
+      placeholder: "test-reviewer found missing coverage for expired-token path."
+    validations:
+      required: false
+
+  - type: textarea
+    id: misses
+    attributes:
+      label: What did udflow miss?
+      description: Include escaped defects or uncertainty, if any.
+      placeholder: "Later found that refresh failed in Safari private mode."
+    validations:
+      required: false
+
+  - type: textarea
+    id: false_positives
+    attributes:
+      label: False positives
+      description: Did udflow raise anything that was not actually a defect?
+      placeholder: "None, or describe the false positive and why it was wrong."
+    validations:
+      required: false
+
+  - type: textarea
+    id: outcome
+    attributes:
+      label: Outcome after follow-up
+      description: Did the verdict hold up? Was the code merged, reverted, fixed again, or rejected?
+      placeholder: "Merged and no regression observed after manual QA."
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence or links
+      description: Link to PR, commit, issue, sanitized log, test output, or benchmark packet if available.
+      placeholder: "PR link, commit link, sanitized transcript, or test output."
+    validations:
+      required: false
