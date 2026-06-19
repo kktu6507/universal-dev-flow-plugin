@@ -15,35 +15,44 @@ concurrency:
 
 jobs:
   validate:
-    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]   # hooks have cross-platform path logic
+    runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
-
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "20"
 
-      # Reliable, auth-free structural gate: manifests parse, required fields
-      # exist, versions agree, and every agent/skill has frontmatter.
+      # Reliable, auth-free structural gate: manifests parse, required fields exist,
+      # versions agree, references/agents/hooks linked from SKILL.md exist, every
+      # agent/skill has frontmatter, and the shipped tree has no dev/runtime artifacts.
       - name: Validate plugin structure
         run: node .github/scripts/validate-structure.mjs
 
       # The session hooks run on every session and fail open, so a syntax error
       # would otherwise be invisible. Syntax-check and behaviorally test them.
       - name: Syntax-check hooks
+        shell: bash
         run: |
           node --check udflow/hooks/plan-gate.js
           node --check udflow/hooks/load-failure-memory.js
+          node --check udflow/hooks/orchestration-check.js
 
       - name: Run hook tests
+        shell: bash
         run: |
           test -f test/hooks.test.mjs   # guard: never let "0 tests found" pass as green
           node --test
 
-      # Best-effort: the official validator. Non-blocking because it requires
-      # the Claude Code CLI, which may not run fully headless in CI.
+      # Best-effort: the official validator. Linux-only and non-blocking because it
+      # requires the Claude Code CLI, which may not run fully headless in CI.
       - name: claude plugin validate (best-effort)
+        if: runner.os == 'Linux'
         continue-on-error: true
+        shell: bash
         run: |
           npm install -g @anthropic-ai/claude-code || exit 0
           claude plugin validate . || echo "claude plugin validate could not run headless; the checks above are the gate."

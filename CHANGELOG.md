@@ -3,6 +3,27 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.7.0]
+
+A large honesty + hardening pass from a fresh-eyes multi-agent review (all findings A–M), plus native plan-mode integration and an optional ultracode/Workflow deep mode.
+
+### Changed
+- **Plan gate honesty + native plan mode.** udflow now drives Claude Code's native plan mode for its planning phase (Detect → Use → Else-Disclose) so the read-only hook is live even when your default mode isn't plan; if the runtime can't switch modes it proceeds read-only by discipline and discloses that the hook isn't enforcing. README/docs no longer claim an unconditional "no files changed before approval", and now state the gate covers structured edit tools only — **not `Bash`**.
+- **Cost guardrails.** The repair loop's iteration cap is now consistent (Stuck Summary after the same blocker persists two iterations — not "no fixed cap"); escalation to a deeper/opus pass asks first; docs explain manual-only operation.
+- **Failure memory is written by a single actor** (main thread / gatekeeper after the verdict); reviewers/implementer only propose entries — avoids concurrent lost-update corruption.
+- **`opus` use is disclosed at the agent level** (gatekeeper/security-reviewer state the model actually used and reduced confidence on fallback). `ui-ux-reviewer` gained a concrete fallback baseline (WCAG AA contrast, ≥44px targets, required states).
+
+### Added
+- **Optional deep mode** (`references/deep-mode.md`): when an ultracode/Workflow capability is detected or opted in (`/udflow:run --deep`), the selected panel, gatekeeper barrier, and repair loop run as a deterministic Workflow (the panel actually runs), with adversarial verification of blocker/major findings and raised effort — depth, not breadth, and never a hard dependency.
+- **`orchestration-check` Stop hook** (best-effort, non-blocking, fail-open): warns if a READY verdict is asserted without the core panel actually running as subagents.
+- **Hook hardening**: stdin size cap + write-then-exit flush (so a deny can't be truncated), `UDFLOW_HOOK_DEBUG` opt-in trace, `permission_mode`/`permissionMode` alias, large-file read cap, and plan-gate symlink/realpath hardening.
+- **Failure-memory injection is fenced for real** (per-run nonce delimiter + neutralization of role-marker/instruction-tag lines), with tests — replacing the prior prose-only fence.
+- CI: reference/agent/hook existence checks, `metadata.version` + CHANGELOG-entry validation, a `compact` SessionStart trigger, Windows test matrix, pinned actions, and CODEOWNERS.
+- README onboarding: Node prerequisite, marketplace-name explanation, and a troubleshooting section; an "early / experimental" status label.
+
+### Fixed
+- `gatekeeper` Inputs list now includes `code-reviewer`; `reviewer-common.md` no longer falsely claims each reviewer inlines the contract (it is delivered via the Review Packet's "Shared reviewer contract" block).
+
 ## [0.6.0]
 
 ### Changed
@@ -26,7 +47,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/), and this pro
 ### Added
 - Committed hook test suite (`test/hooks.test.mjs`, `node --test`) locking in the above fixes; CI now `node --check`s both hooks and runs the tests (previously CI never executed the hook JS).
 - `ai/FAILURE_MEMORY.md` recording the three lessons from this review.
-- Injected failure-memory content is now fenced as untrusted reference data (prompt-injection mitigation); CI workflow adds `permissions: contents: read` and concurrency.
+- Injected failure-memory content carries a prose disclaimer marking it untrusted reference data (a real nonce-delimited fence + line neutralization landed later in 0.7.0); CI workflow adds `permissions: contents: read` and concurrency.
 
 ## [0.5.1]
 

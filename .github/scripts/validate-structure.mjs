@@ -50,6 +50,25 @@ if (plugin && marketPluginVersion && plugin.version !== marketPluginVersion) {
   fail(`version mismatch: plugin.json ${plugin.version} vs marketplace ${marketPluginVersion}`);
 }
 
+// 3b. metadata.version present + semver, and agrees with the plugin version
+const SEMVER = /^\d+\.\d+\.\d+(?:[-+].+)?$/;
+if (market) {
+  const mv = market.metadata && market.metadata.version;
+  if (mv == null) fail(`marketplace.json missing "metadata.version"`);
+  else if (!SEMVER.test(mv)) fail(`marketplace.json metadata.version "${mv}" is not semver`);
+  else if (plugin && plugin.version !== mv) fail(`version mismatch: plugin.json ${plugin.version} vs metadata.version ${mv}`);
+}
+if (plugin && plugin.version && !SEMVER.test(plugin.version)) fail(`plugin.json version "${plugin.version}" is not semver`);
+
+// 3c. CHANGELOG has an entry for the current plugin version
+if (plugin && plugin.version) {
+  const clPath = path.join(root, "CHANGELOG.md");
+  if (!fs.existsSync(clPath)) fail(`missing CHANGELOG.md`);
+  else if (!new RegExp(`^##\\s*\\[?${plugin.version.replace(/\./g, "\\.")}\\]?`, "m").test(fs.readFileSync(clPath, "utf8"))) {
+    fail(`CHANGELOG.md has no "## [${plugin.version}]" entry`);
+  }
+}
+
 // 4. hooks.json parses (if present)
 if (fs.existsSync(path.join(root, `${PLUGIN}/hooks/hooks.json`))) readJSON(`${PLUGIN}/hooks/hooks.json`);
 
@@ -76,6 +95,30 @@ function walk(dir, fn) {
 
 walk(`${PLUGIN}/agents`, (rel) => { if (rel.endsWith(".md")) checkFrontmatter(rel); });
 walk(`${PLUGIN}/skills`, (rel) => { if (path.basename(rel) === "SKILL.md") checkFrontmatter(rel); });
+
+// 5b. every reference / agent / hook that SKILL.md or hooks.json points to must exist
+// (catches a renamed/deleted reference or agent that prose alone would not surface).
+const skillRel = `${PLUGIN}/skills/universal-dev-flow/SKILL.md`;
+if (fs.existsSync(path.join(root, skillRel))) {
+  const skill = fs.readFileSync(path.join(root, skillRel), "utf8");
+  for (const m of new Set([...skill.matchAll(/references\/([a-z0-9-]+\.md)/gi)].map((x) => x[1]))) {
+    if (!fs.existsSync(path.join(root, `${PLUGIN}/skills/universal-dev-flow/references/${m}`)))
+      fail(`SKILL.md links a missing reference: references/${m}`);
+  }
+  const roster = (skill.match(/subagents \(([^)]+)\)/) || [])[1] || "";
+  for (const m of roster.matchAll(/`([a-z0-9-]+)`/gi)) {
+    if (!fs.existsSync(path.join(root, `${PLUGIN}/agents/${m[1]}.md`)))
+      fail(`SKILL.md names agent "${m[1]}" but ${PLUGIN}/agents/${m[1]}.md is missing`);
+  }
+}
+const hooksRel = `${PLUGIN}/hooks/hooks.json`;
+if (fs.existsSync(path.join(root, hooksRel))) {
+  const hooksText = fs.readFileSync(path.join(root, hooksRel), "utf8");
+  for (const m of new Set((hooksText.match(/hooks\/[a-z0-9-]+\.js/gi) || []))) {
+    if (!fs.existsSync(path.join(root, `${PLUGIN}/${m}`)))
+      fail(`hooks.json references a missing hook: ${m}`);
+  }
+}
 
 // 6. distribution hygiene: runtime/process artifacts must never ship in the
 // plugin subdir, and scratch/temp files must not be committed anywhere.

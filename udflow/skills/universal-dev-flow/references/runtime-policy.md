@@ -25,6 +25,14 @@ Therefore:
 - Avoid repeated waits unless the next critical path step is blocked by reviewer output.
 - If a spawned reviewer is stale after a material fix, send a new Review Packet or rerun the reviewer instead of relying on outdated findings.
 
+## Shared-State Writes (single writer)
+
+The failure-memory file is shared mutable state, and reviewers run in parallel. To avoid lost-update / interleaved-write corruption, only **one** actor writes it: the main thread / `gatekeeper` after the verdict. Reviewers and the implementer only *propose* candidate entries (using the existing template); they never write the file themselves. The "reread global before writing" merge step is performed by that single writer.
+
+## Deep Mode Enforcement
+
+When a deep mode is detected/opted in (see `references/deep-mode.md`), the rules above — "spawn only selected reviewers", "gatekeeper only after reviewers", reviewer independence — are enforced by the Workflow graph (a `parallel` barrier for the panel, then a `pipeline` barrier for gatekeeper) rather than by prose. Reviewer independence is preserved because each Workflow agent still receives only its own focused Review Packet.
+
 ## Gatekeeper Sequencing
 
 `gatekeeper` receives:

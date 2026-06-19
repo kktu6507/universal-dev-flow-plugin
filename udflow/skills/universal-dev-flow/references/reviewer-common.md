@@ -2,7 +2,7 @@
 
 Rules shared by every review subagent (`spec-reviewer`, `test-reviewer`, `code-reviewer`, `security-reviewer`, `architecture-reviewer`, `operability-reviewer`, `ui-ux-reviewer`). Each reviewer file keeps its own persona and domain focus; this file is the single source of truth for what is identical across all of them, so the same wording is not repeated in every agent.
 
-The orchestrator conveys these rules through the Review Packet (see `review-packet.md`). A reviewer does not have to read this file at runtime to apply the contract — each reviewer file already states its operative version inline. This file exists to define the shared terms once and to keep the reviewers from drifting apart.
+A spawned reviewer runs in an isolated context and cannot reach this file by its relative path, so the contract is **delivered to it inside the Review Packet**: the orchestrator copies the "Shared reviewer contract" block (severity vocabulary, scope discipline, base output) from `review-packet.md` into each reviewer's handoff. This file is the single source of truth that block is kept in sync with; it is not loaded by the reviewers at runtime.
 
 ## Severity vocabulary
 

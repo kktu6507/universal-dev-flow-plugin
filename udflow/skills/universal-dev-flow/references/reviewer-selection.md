@@ -68,3 +68,11 @@ Use `gatekeeper` after selected reviewers finish.
 - Always rerun `gatekeeper` after reviewer findings are updated.
 
 Do not rerun unrelated reviewers merely for ceremony. If a fix introduces a new risk category, add that reviewer for the next review pass.
+
+## Model Tiers (single source of truth)
+
+Most agents inherit the session model. Two run on `opus` because they are the highest-leverage, hardest-to-get-right roles: `security-reviewer` (adversarial reasoning where a miss is most costly) and `gatekeeper` (the release authority aggregating and adjudicating). If `opus` is unavailable, those steps fall back to the available model and must state the model used and that confidence may be reduced. Other files should reference this section rather than restating the rationale.
+
+## Deep Mode
+
+Deep mode (see `references/deep-mode.md`) does **not** change reviewer selection — the panel is still the smallest sufficient set chosen above. It only makes the selected panel run deterministically (as a Workflow `parallel` barrier), adds adversarial verification of blocker/major findings, runs the repair loop as loop-until-dry (still under the Auto-fix loop's hard iteration cap), and raises `gatekeeper`/`security-reviewer` to maximum reasoning effort. Depth, not breadth.

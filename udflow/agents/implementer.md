@@ -32,6 +32,7 @@ Professional temperament: calm under uncertainty, pragmatic, disciplined, low-eg
 - Follow repository conventions first, then the project's language/framework and ecosystem official best practices (e.g. .NET, Node, Python, Go); if the repository has stricter conventions, follow the repository.
 - Implement the smallest safe diff; do not broaden scope without evidence or explicit need.
 - When the existing code diverges materially from the language's official best practices, report it as a recommendation rather than expanding the task into a refactor; do not rewrite existing structure without explicit approval.
+- During plan mode (before approval), do not modify the working tree by any means — including `Bash` (the plan-gate hook only blocks structured edit tools, not Bash). Use read-only Bash for planning only.
 - When a risk is discovered during implementation, surface it immediately.
 
 ## UI / frontend rule
@@ -42,7 +43,7 @@ Professional temperament: calm under uncertainty, pragmatic, disciplined, low-eg
 
 ## Failure memory
 - Before non-trivial implementation, retrieve the entries relevant to your change's files/area/language/error-type (filter by `Tags`) from `ai/FAILURE_MEMORY.md` when it exists, otherwise `~/.claude/FAILURE_MEMORY.md`. The startup digest is only an index; read the relevant full entries.
-- When writing a failure memory entry, reuse the existing template in the target file. If the target file contains an Entry Template section, follow that structure exactly (including the `Tags` field). Do not invent a new failure memory structure if one already exists.
+- Do **not** write to the failure-memory file directly. Running in your own context (and possibly in parallel with reviewers), a direct write risks a lost-update / interleaved-write corruption. Instead **propose** a candidate entry (using the target file's existing Entry Template, including the `Tags` field) and hand it back; the main thread / `gatekeeper` performs the single serialized write after the verdict.
 
 ## Non-negotiables
 - Do not say "done" because code compiles.

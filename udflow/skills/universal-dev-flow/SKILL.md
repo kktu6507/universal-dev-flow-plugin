@@ -40,17 +40,22 @@ Keep `SKILL.md` as the lightweight entry point. Read these references only when 
 - `references/runtime-policy.md`: before using subagents, waiting on agents, or closing agents.
 - `references/verification-gate.md`: before verification, final delivery, or failure-memory updates.
 - `references/external-capabilities.md`: before using any MCP tool, external subagent, or external skill (including `ui-ux-pro-max` for UI work).
+- `references/deep-mode.md`: before running a deeper review (when an ultracode/Workflow deep mode is detected or explicitly opted in).
 
 Do not deep-chain references. All required workflow references are linked from this file.
 
 ## Plan Gate (approve before any change)
 
-Non-trivial work must pass an explicit plan gate before implementation begins:
+Non-trivial work must pass an explicit plan gate before implementation begins. The gate has two layers: udflow drives Claude Code's native plan mode so the planning phase is genuinely read-only, and a plugin PreToolUse hook (`plan-gate.js`) denies Write/Edit/MultiEdit/NotebookEdit while permission mode is `plan`.
 
-1. Run requirement understanding and planning in **plan mode** (read-only). A plugin PreToolUse hook also blocks Write/Edit/MultiEdit while permission mode is `plan`, so the gate is enforced, not just requested.
-2. Present the plan for approval using **ExitPlanMode**. Only proceed to implementation after the user approves.
-3. When a decision has discrete options (e.g. competing designs, ambiguous business behavior, destructive vs. non-destructive paths), surface them with **AskUserQuestion** rather than guessing.
-4. Do not spawn `implementer` until the plan is approved and plan mode is exited.
+1. **Enter plan mode first**, following Detect → Use → Else-Disclose (see `references/external-capabilities.md`, "Native plan mode"):
+   - If the session is already in plan mode, proceed.
+   - Else if the runtime exposes a plan-mode entry (e.g. EnterPlanMode), enter it, then do requirement understanding and planning read-only.
+   - Else (no programmatic switch), proceed read-only by discipline and **disclose** that the hook's read-only enforcement is not active this session; recommend setting a default plan mode in settings for a hard guarantee.
+2. Run requirement understanding and planning while in plan mode. The hook enforces read-only for **structured edit tools** (Write/Edit/MultiEdit/NotebookEdit) only — it does **not** cover `Bash`, so do not use Bash to modify the working tree during planning; use read-only Bash only.
+3. Present the plan for approval using **ExitPlanMode**. Only proceed to implementation after the user approves.
+4. When a decision has discrete options (e.g. competing designs, ambiguous business behavior, destructive vs. non-destructive paths), surface them with **AskUserQuestion** rather than guessing.
+5. Do not spawn `implementer` until the plan is approved and plan mode is exited.
 
 ## Core Rules
 
@@ -106,12 +111,13 @@ When touching human-readable text, check for mojibake, replacement characters, b
 5. Review panel selection
    - Always include `spec-reviewer` and `test-reviewer` for non-trivial formal review.
    - Add conditional reviewers only when their risk criteria apply.
-   - Prepare a Review Packet before reviewer handoff.
+   - Prepare a Review Packet before reviewer handoff, and fill the "Shared reviewer contract" block into each handoff verbatim (a spawned reviewer cannot reach `references/reviewer-common.md` by path).
    - Read `references/review-packet.md` and `references/reviewer-selection.md`.
 
 6. Parallel review
    - Run selected reviewers in parallel when possible and authorized.
    - If runtime or policy prevents subagent use, state that limitation and continue with local evidence without calling it formal multi-agent review.
+   - In a detected/opted-in deep mode, express the selected panel, the gatekeeper barrier, and the repair loop as a deterministic Workflow so the panel actually runs and gatekeeper only runs after reviewers; the reviewer *selection* is unchanged (still the smallest sufficient set). See `references/deep-mode.md`.
    - Read `references/runtime-policy.md` before spawning agents.
 
 7. Conflict resolution and gatekeeper
@@ -124,7 +130,8 @@ When touching human-readable text, check for mojibake, replacement characters, b
 8. Auto-fix loop
    - If verdict is `FIX REQUIRED` or `NOT READY`, fix concrete findings, rerun relevant verification, rerun only affected reviewers, rerun `gatekeeper`, and repeat until `READY` or clearly blocked.
    - If a fix introduces a new risk category, add the corresponding conditional reviewer.
-   - If the same blocker category persists across two consecutive iterations, produce a Stuck Summary. Before declaring stuck, only if the user explicitly enabled Codex for this task and it is available, you may escalate one independent diagnosis; otherwise (not enabled or unavailable) continue locally and disclose. Codex is off by default; a missing opt-in or absent capability must not error. See `references/external-capabilities.md`.
+   - **Iteration cap:** if the same blocker category persists across two consecutive iterations, produce a Stuck Summary and stop. This is a hard cap, not "loop until solved" — surface the blocker for the user rather than spending unbounded iterations/tokens.
+   - **Cost control:** before escalating to a deeper/opus-heavy pass, confirm with the user. To avoid unexpected spend, the workflow may be run manual-only (invoke `/udflow:run` explicitly and do not auto-engage) — see the cost note in the README. Before declaring stuck, only if the user explicitly enabled Codex for this task and it is available, you may escalate one independent diagnosis; otherwise (not enabled or unavailable) continue locally and disclose. Codex is off by default; a missing opt-in or absent capability must not error. See `references/external-capabilities.md`.
 
 9. Final delivery
    - Follow the final output contract in `references/verification-gate.md`.

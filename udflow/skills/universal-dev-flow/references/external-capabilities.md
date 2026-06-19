@@ -18,6 +18,16 @@ For any MCP tool, external skill, or external subagent:
 
 Never present an external-assisted result as done when the capability was unavailable. The `gatekeeper` treats an unavailable *required* capability as a review/verification gap that blocks `READY` until addressed or justified.
 
+## Native plan mode (drive the gate, don't assume it)
+
+The plan gate's read-only enforcement comes from the PreToolUse hook, which only denies while `permission_mode === "plan"`. So udflow must *drive* native plan mode rather than assume the user is in it. Apply Detect → Use → Else-Disclose at the start of a non-trivial task:
+
+1. **Detect**: is the session already in plan mode? does the runtime expose a plan-mode entry (e.g. `EnterPlanMode`)?
+2. **Use**: if already in plan mode, proceed. Else, if an entry exists, enter plan mode, then do requirement understanding and planning read-only and present via `ExitPlanMode`.
+3. **Else**: if no programmatic switch is available, proceed read-only by discipline and **disclose** that the hook is not enforcing read-only this session; recommend setting a default plan mode in `~/.claude/settings.json` (or the project `.claude/settings.json`) for a hard guarantee.
+
+Never hard-depend on a plan-mode entry tool and never claim "always enforces read-only" when running in branch 3. Keep the `~/.claude/plans/` exemption in `plan-gate.js` so entering plan mode can still write its own plan file. Note the hook does not cover `Bash`: do not modify the working tree via Bash during planning.
+
 ## MCP per reviewer (opt-in, read-only)
 
 MCP is high context cost, so it ships disabled. The plugin's `.mcp.json` has no active servers; each reviewer's `tools:` has its `mcp__*` allowlist line commented out. To enable: add the server to `.mcp.json` (see `mcp.example.json`), then uncomment the matching `mcp__*` line in the reviewer's frontmatter. Keep reviewers read-only — only grant read-type MCP tools.
@@ -36,7 +46,7 @@ Suggested mapping (all read-only):
 - **If `ui-ux-pro-max` is available**: invoke it FIRST for design decisions during planning and before UI implementation, and incorporate its guidance in `ui-ux-reviewer`. This is what keeps generated UI from looking poor.
 - **If it is unavailable**: fall back to internal `ui-ux-reviewer` guidance and standard responsive/accessibility defaults, and disclose that ui-ux-pro-max was not used.
 
-Note: `ui-ux-pro-max` may run a Python helper (`scripts/search.py`). If Python is unavailable in the environment, the detect step will fail gracefully and the fallback applies.
+Note: `ui-ux-pro-max` may run a Python helper (`scripts/search.py`) locally. If Python is unavailable, the detect step fails gracefully and the fallback applies. Disclosure: that helper executes local code and, depending on its implementation, may perform network/data egress — treat it like any optional external capability and only use it when that is acceptable for the repository's data sensitivity.
 
 ## Optional external subagents
 

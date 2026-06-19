@@ -7,7 +7,9 @@
 A risk-proportional, plan-gated multi-agent engineering workflow.
 Understand → plan → **approve** → implement → verify → selected review → gatekeeper readiness verdict, with failure memory and optional external capabilities.
 
-> In one line: udflow makes Claude Code lay out a plan and get your approval **before** it touches any code, then has the right specialist reviewers check the work, and finishes with a gatekeeper verdict on whether it's shippable — instead of just saying "done."
+> **Status: early / experimental.** The two session hooks are tested; the orchestration is model-followed prose, and its value has not yet been measured against alternatives on external repos. Treat it as a disciplined scaffold, not a proven quality gate.
+
+> In one line: udflow makes Claude Code lay out a plan and get your approval before it changes code, then has the right specialist reviewers check the work, and finishes with a gatekeeper verdict on whether it's shippable — instead of just saying "done."
 
 ---
 
@@ -17,12 +19,13 @@ What you're opting into:
 
 - **It uses more tokens than a normal chat.** One task can spawn the `implementer`, several reviewers, and the `gatekeeper`, and `security-reviewer` + `gatekeeper` run on `opus`. Expect noticeably higher token/cost usage than a one-shot edit, and reviewers are chosen by risk so simple tasks cost less. See the rough per-run estimate below.
 - **`opus` access:** `security-reviewer` and `gatekeeper` request `opus`; if your account/session can't use it, those steps fall back to the available model and verdict quality may vary.
-- **Installing adds two hooks that run in *every* session — not only on udflow tasks:**
-  - `plan-gate` (PreToolUse) is **invisible during normal work**; it only blocks `Write`/`Edit`/`MultiEdit` **while you are in plan mode** — for any session while the plugin is installed, not just udflow tasks (Claude Code's own plan files are exempt, so the native plan flow still works).
+- **The plan-gate guarantee depends on plan mode.** The read-only enforcement is a hook that only fires while you're in plan mode. udflow drives Claude Code's native plan mode itself for its planning phase (so the gate is live even if your default mode isn't plan); if the runtime can't switch modes programmatically, it proceeds read-only by discipline and **tells you** the hook isn't enforcing this session. For a hard guarantee, set a default plan mode in your settings. Note the gate covers **structured edit tools (Write/Edit/MultiEdit/NotebookEdit) only — not `Bash`**, so a shell write could bypass it; udflow's rules forbid Bash working-tree writes during planning, but that part is convention, not enforcement.
+- **Installing adds hooks that run in *every* session — not only on udflow tasks:**
+  - `plan-gate` (PreToolUse) is invisible during normal work; it only blocks structured edits while in plan mode (Claude Code's own plan files are exempt, so the native plan flow still works).
   - `load-failure-memory` (SessionStart) reads your recorded past-mistake notes at the start of every session and injects a short **digest** so Claude avoids repeating them; if there is no such file, it does nothing.
 - **It writes files.** The workflow may create `ai/FAILURE_MEMORY.md` in your repo (a new `ai/` folder) and `~/.claude/FAILURE_MEMORY.md` in your home directory. Decide whether to commit `ai/FAILURE_MEMORY.md` or add it to `.gitignore`.
 - **Codex is off by default (opt-in).** udflow does **not** use Codex unless you explicitly ask for it in a task (e.g. say to use Codex when stuck). When you enable it, it *may* — on a stuck fix — delegate one independent diagnosis to **Codex**, which runs an **external (OpenAI) model** and sends the relevant code/context to a **third party**, at **extra cost**. If you don't enable it (or it isn't installed), udflow never calls it and does not error.
-- **It can engage on its own.** udflow auto-starts for non-trivial engineering work even if you don't call `/udflow:run`, and stays out of trivial edits and plain Q&A. Use `/udflow:run` to force the full workflow.
+- **It can engage on its own — and you can stop it.** udflow auto-starts for non-trivial engineering work even if you don't call `/udflow:run`, and stays out of trivial edits and plain Q&A. For cost control: the repair loop has a hard cap (a Stuck Summary after the same blocker persists two iterations, not unbounded), it asks before escalating to a deeper/opus-heavy pass, and you can run it manual-only by simply not describing engineering tasks in plain language and invoking `/udflow:run` when you want it.
 
 **Rough cost per run** (ballpark from real runs — varies a lot by task size, risk, and number of fix iterations; treat as orders of magnitude, not guarantees):
 
@@ -38,7 +41,7 @@ What you're opting into:
 
 ## Quick start
 
-Prerequisite: **Claude Code** installed.
+Prerequisites: **Claude Code** installed, and **Node.js on your PATH** (the two hooks are Node scripts — verify with `node --version`). If Node is missing, the hooks silently no-op: the plan gate won't fire and failure memory won't inject.
 
 **1. 🪟 In your terminal, go to your project and launch Claude Code**
 
@@ -51,13 +54,15 @@ Prerequisite: **Claude Code** installed.
     /plugin install udflow@kktmarketplace
     /reload-plugins
 
+> The first line adds the marketplace by its GitHub `owner/repo`; the second installs the `udflow` plugin from that marketplace, whose name is `kktmarketplace` (the `name` field in `marketplace.json`, not the repo name). They differ on purpose.
+
 **3. 🤖 Hand it a task**
 
     /udflow:run Fix the login flow so it refreshes when the token expires
 
 You can also just describe the task in plain language — udflow takes over automatically when it judges the work to be non-trivial engineering.
 
-It then runs: understand → plan → present via **ExitPlanMode** for your approval → implement only after approval → verify → review → `gatekeeper` verdict. **No files are changed before the plan is approved.**
+It then runs: understand → plan → present via **ExitPlanMode** for your approval → implement only after approval → verify → review → `gatekeeper` verdict. udflow enters plan mode for its planning phase so structured edits are blocked until you approve (or, if the runtime can't switch modes, it proceeds read-only by discipline and tells you the hook isn't enforcing — see [Good to know](#good-to-know-read-before-installing)).
 
 > **Stays out of the way for small stuff.** udflow only engages for non-trivial engineering work; trivial edits and plain Q&A are left alone. Want to force the full workflow on anything? Use `/udflow:run`.
 
@@ -69,6 +74,13 @@ Already installed an older version? Refresh the marketplace and reload — no un
     /reload-plugins
 
 Custom marketplaces do **not** auto-update, so run `marketplace update` manually. Check the installed version in `/plugin`.
+
+### Troubleshooting
+
+- **Install failed / can't find the plugin** — confirm the marketplace name: `/plugin marketplace list` should show `kktmarketplace`. Install is `udflow@kktmarketplace`, not `udflow@<repo>`.
+- **Is the plan gate actually live?** Enter plan mode and ask Claude to edit a file — it should be blocked with a "udflow plan gate" message. If it isn't, the hook isn't firing (see next item).
+- **Nothing seems to happen / gate never blocks** — check `node --version`. With no Node on PATH the hooks no-op silently. For deeper insight, set `UDFLOW_HOOK_DEBUG=1` in your environment to make the hooks write a trace (stderr / temp file); unset, they stay silent.
+- **opus unavailable** — `security-reviewer` and `gatekeeper` fall back to the available model and say so in their output; verdict confidence may be lower.
 
 ---
 
@@ -148,9 +160,9 @@ The plugin lives in the [`udflow/`](udflow/) subdirectory (only that subdir is i
 
 ## Plan gate (approve before any change)
 
-Steps 1–2 run in plan mode; the plan is presented via ExitPlanMode and **`implementer` only runs after approval**. A PreToolUse hook enforces read-only during plan mode (it only exempts Claude Code's own plan files so it never blocks the native plan flow).
+Steps 1–2 run in plan mode; the plan is presented via ExitPlanMode and **`implementer` only runs after approval**. udflow enters plan mode for its planning phase, so the PreToolUse hook enforces read-only (for Write/Edit/MultiEdit/NotebookEdit — not `Bash`) even when your default mode isn't plan. The hook exempts Claude Code's own plan files so it never blocks the native plan flow.
 
-To start every session in plan mode, set a default mode in your own `~/.claude/settings.json` or the project's `.claude/settings.json` (the plugin does not force it).
+If the runtime can't switch modes programmatically, udflow proceeds read-only by discipline and discloses that the hook isn't enforcing this session. For a hard, every-session guarantee, set a default plan mode in your own `~/.claude/settings.json` or the project's `.claude/settings.json` (the plugin does not force it).
 
 ---
 
