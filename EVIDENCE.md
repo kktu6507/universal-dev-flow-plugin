@@ -60,8 +60,8 @@ whether the **workflow + verdict** holds up in practice, which is the claim the 
 
 | Metric | Now | Track-1 target | Track-2 target |
 |---|---|---|---|
-| **Real-world verified runs (Type B)** | **0 logged** | — | ≥ 10 |
-| Distinct real projects (Type B) | **0 logged** | — | ≥ 3 |
+| **Real-world verified runs (Type B)** | **1 logged** | — | ≥ 10 |
+| Distinct real projects (Type B) | **1 logged** | — | ≥ 3 |
 | Independent (non-maintainer) runs | **0** | — | ≥ 1 |
 | External repos (Type A benchmark) | **~13** | ≥ 3 ✓ | — |
 | Languages (Type A) | **6** (C#, JS, Python, Java, Go, Rust) | ≥ 2 ✓ | — |
@@ -77,7 +77,7 @@ lower), and **~29% bug-blind at n=77**. The robust, condition-independent streng
 false-positive rate**. Track 2 (**real-world runs**) is **not yet met** — that is now the honest reason
 "experimental" stays. The defensible relabel is a *characterized* "beta" ("near-zero FP; recall scales with the
 quality of the intent you give it; real-world track record still accumulating"), to be earned by the Type-B
-runs this log is built to collect.
+runs this log is built to collect — the **first of which is now logged below (1 of ≥10)**.
 
 ---
 
@@ -105,7 +105,24 @@ shape:
 - Cost: <~tokens / wall-clock> · Evidence: <PR / commit / sanitized log>
 ```
 
-_(none fully logged yet — be the first; see the open invitation above)_
+### Live run 1 — 2026-06-19 · private C#/.NET 10 Blazor app · verified live task
+
+- **Task:** apply an approved visual design ("Flat × Analytics-Dashboard palette × Minimal Swiss / Inter") across the entire Blazor Web frontend, with a working, persisted light/dark theme toggle. **Appearance-only** — no C# logic / route / auth / behavior changes. Invoked via the `universal-dev-flow` skill (maintainer's run).
+- **Intent given:** highly specific (**contract-level**) — exact CSS token values (light/dark backgrounds, semantic colors), Inter + `Noto Sans TC` fallback, flat aesthetic (no glass/gradient), an enumerated list of ~13 pages + shared components that must all be covered, and explicit success criteria (build 0/0, existing contract tests green, a browser-smoke checklist).
+- **Reviewers:** spec / test / code / ui-ux (4-reviewer panel) + gatekeeper ×2; security / architecture / operability correctly scoped out for a token/theme change. · **Verdict: FIX REQUIRED → READY** (one repair loop).
+- **Verification:** `dotnet build` → 0 warn / 0 err; `dotnet test` → 13/13 pass (0 failed / 0 skipped); plus a real **browser smoke** (Chrome MCP on a local host: toggle re-themes every region, `localStorage` persisted, no FOUC on hard reload, CJK intact, nav/collapse preserved) → PASS.
+- **Caught (saves — all real, fixed before merge):**
+  - **MAJOR (spec):** dark mode only reached the shell + dashboard — ~15 components hardcoded light-only color literals → "light islands" + a dark-on-dark contrast failure; **missed the "whole frontend" requirement** — a real omission-vs-intent defect, the class the blind benchmark most often misses, caught here because the intent was specific.
+  - **MAJOR (ui-ux):** light-mode amber warning color fails WCAG-AA as text (~3.2:1).
+  - **MAJOR (gatekeeper):** 30 un-swept saturated status-text literals across 10 files fail AA in light mode (1.74–3.96:1) — a recurring class; **the gatekeeper withheld READY until it was actually fixed**, not merely claimed.
+  - **Minors:** duplicate / dead tokens, an unthemed neutral badge, missing global `:focus-visible` ring, toggle `aria-pressed`, two pre-existing undefined CSS vars (judged out-of-scope → spun into a background task, later fixed).
+- **False alarms: 0** — every major was a measured, real defect (contrast ratios computed; the out-of-scope finding was genuine and later fixed).
+- **Missed:** none known at the verdict; the maintainer confirms the change was **not reverted and showed no regression** in follow-up use.
+- **Verification-environment note (not a udflow defect):** *after* the READY verdict, during post-run commit, a leftover .NET test-host process (a terminated-but-unreaped zombie) locked the Web DLL and transiently blocked a rebuild (`MSB3021`); `taskkill` could not reap it — resolved via WMI `Win32_Process.Terminate` + `dotnet build-server shutdown`, after which the full gate re-ran green. This is the known .NET build-server / pipe-EOF environment issue (→ udflow v0.8.1 verification-gate note), not a missed code defect.
+- **Outcome after follow-up: held up** — committed and **not reverted; the maintainer confirms no regression.**
+- **Cost:** ~2 h 15 m wall-clock for the udflow phase; ~0.87–0.99M subagent tokens (largest single subagent ~199K / ~19 min). · **Evidence:** private repo — commit `e11b177f` (36 files), retained as the maintainer's internal index (not publicly linkable).
+
+_More runs needed for Track 2 — especially at least one **not** by the maintainer. Add yours via the issue template above._
 
 ---
 
