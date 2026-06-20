@@ -15,6 +15,8 @@ Understand requirement
   ↓
 Plan mode — no code changes yet
   ↓
+(high-risk) Ground the plan in the code + sharpen the intent
+  ↓
 User approval
   ↓
 Smallest safe implementation
@@ -150,7 +152,7 @@ understand → plan (plan mode) → you approve → implement → verify → sel
                                                                   ↑________ repair loop ________↓
 ```
 
-- **Understand / plan** happen in plan mode (read-only); the plan is presented via ExitPlanMode for your approval.
+- **Understand / plan** happen in plan mode (read-only); the plan is presented via ExitPlanMode for your approval. On **high-risk / correctness-critical** work, before that approval udflow grounds the plan in the code's reality and sharpens the requirement into a contract-level intent plus an edge-input checklist (see [Plan grounding](#plan-grounding-high-risk)) — to inform your approval, not replace it.
 - **Only after approval** does the `implementer` write code.
 - **Verify** runs build / test / lint / typecheck / browser evidence as applicable — and is expected to **exercise the change's risky edge inputs** (empty / overflow / multibyte / duplicate / malformed / by-value / concurrent), because a boundary that actually runs is the oracle a code read lacks.
 - **Review** selects only the reviewers relevant to this change's risk (no ceremony), and reviews against the change's stated intent (the more specific the intent, the more they catch).
