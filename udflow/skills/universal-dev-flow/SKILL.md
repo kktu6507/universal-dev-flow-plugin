@@ -75,7 +75,11 @@ Non-trivial work must pass an explicit plan gate before implementation begins. T
 
 ## Language And Text Integrity
 
-For human-readable repository content, follow the file's and repository's existing language and the user's language; default to English when none is determinable. Preserve technical contracts such as identifiers, API fields, database objects, configuration keys, file names, protocol values, and reviewer names.
+For human-readable repository content, follow the file's and repository's existing language and the user's language; default to English when none is determinable.
+
+The workflow's own **user-facing communication** — the plan presented at the plan gate, AskUserQuestion prompts, reviewer findings surfaced to the user, and the final summary — **follows the language the user is communicating in** (default to English when undeterminable). This is language-adaptive, not a fixed language: match the user rather than defaulting to English when the user writes in another language.
+
+Preserve technical contracts **verbatim regardless of the surrounding language**: identifiers, API fields, database objects, configuration keys, file names, commands, protocol values, and reviewer/agent names. In particular, **never translate the machine-checked tokens** — the severity labels `blocker` / `major` / `minor` and the verdict `READY` / `FIX REQUIRED` / `NOT READY` — they are matched literally by tooling (e.g. the Stop orchestration-check hook) and a translation silently breaks the contract.
 
 When touching human-readable text, check for mojibake, replacement characters, broken mixed encodings, unsafe localization of technical contracts, and inconsistent rendering of the target language. Prefer the smallest safe text fix and do not force broad encoding conversion unless the root cause and compatibility risk are understood.
 
@@ -93,7 +97,7 @@ When touching human-readable text, check for mojibake, replacement characters, b
    - Plan to the project language/framework's official best practices and the repo's conventions. If the existing code diverges materially from those best practices, state the gap here and propose concrete corrections; do not silently refactor beyond the requested scope.
    - For UI work, include target screens, states, responsive/accessibility concerns, and browser verification target or blocker. If the `ui-ux-pro-max` skill is available, consult it for design decisions (styles, palettes, font pairings, UX guidelines) during planning; if unavailable, fall back to internal `ui-ux-reviewer` guidance and note that ui-ux-pro-max was not used (see `references/external-capabilities.md`).
    - Before non-trivial implementation, consult failure memory — project-specific `ai/FAILURE_MEMORY.md` when it exists, otherwise `~/.claude/FAILURE_MEMORY.md`. The SessionStart digest is only an index; here, retrieve the full entries relevant to this task's affected files, area, language, and error type (filter by `Tags`) and read them. Before any failure-memory write, reread the global `~/.claude/FAILURE_MEMORY.md` and merge with a similar existing entry when one exists.
-   - Present the plan via ExitPlanMode and wait for approval (Plan Gate).
+   - Present the plan via ExitPlanMode **in the user's language** (keep identifiers, file names, commands, and verdict tokens verbatim — see Language And Text Integrity) and wait for approval (Plan Gate).
 
 3. Implementation
    - Use the `implementer` subagent (only after plan approval).

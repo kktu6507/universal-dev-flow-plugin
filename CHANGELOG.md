@@ -3,6 +3,14 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.9.4]
+
+User-facing communication now follows the user's language. Prompt/docs only — no hook or reviewer behavior change, fully language-neutral (language-adaptive, not biased to any one language).
+
+### Changed
+- **The plan, AskUserQuestion prompts, reviewer findings shown to the user, and the final summary now follow the language the user is communicating in** (`SKILL.md` Language And Text Integrity + Planning step), instead of defaulting to English when the user writes in another language. The plan is the most user-facing artifact in the workflow — its purpose is to be read and approved — so it should be in the user's language. Previously the all-English scaffolding nudged plans toward English even in a non-English conversation; this closes that gap (udflow already followed the user's language for *repository* content — now it does for its *own* communication too).
+- **Hard guard on machine-checked tokens:** the verdict `READY` / `FIX REQUIRED` / `NOT READY` and severity labels `blocker` / `major` / `minor`, plus identifiers / file names / commands / API fields / reviewer names, must stay **verbatim in any language** — they are matched literally by tooling (the Stop `orchestration-check` hook tests for the literal `READY` token), so translating them would silently break the contract.
+
 ## [0.9.3]
 
 Makes real-world usage loggable as evidence, so udflow's track record can grow from actual runs (not just the controlled benchmark). Docs + workflow output only — no hook or reviewer behavior change.
