@@ -58,6 +58,10 @@ Use `gatekeeper` after selected reviewers finish.
 - High risk: auth/authz, schema or migration, destructive operations, cross-module orchestration, deployment/rollback, external integration, or ambiguous user-facing UX. Add all directly relevant conditional reviewers and pause for user input when product or release safety depends on the answer.
 - **Correctness-critical logic** — parsing, numeric / encoding / overflow handling, concurrency, security or trust boundaries, data integrity, or any path with non-obvious edge cases — gets **at least two independent lenses** (not a lone reviewer), since single-reviewer recall on subtle defects is low and a second lens recovers defects the first rationalizes as fine (see *Recall vs precision*).
 
+## Plan Grounding (high-risk, pre-approval)
+
+The same risk signals above also gate the conditional **plan-grounding & intent-sharpening** step (`references/plan-grounding.md`), which runs *before plan approval* — it is not a reviewer. Run it when the task is High risk or correctness-critical (or already triggers `security-reviewer` / `architecture-reviewer` / `operability-reviewer`); skip it for low/medium-risk work. It adds depth at the plan stage — grounding the plan in the code's reality and sharpening the intent into a contract plus an edge checklist — **not** breadth: reviewer selection is unchanged.
+
 ## Repair Loop
 
 - Rerun reviewers whose discipline is affected by the fix.

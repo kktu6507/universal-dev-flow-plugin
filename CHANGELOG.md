@@ -3,6 +3,19 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.9.6]
+
+Adds a conditional, read-only **plan-grounding & intent-sharpening** step before plan approval on high-risk work — targeting the benchmark's #1 miss category (omission ~36%) at its cheapest point, the plan. Prompt/docs only — no hook or reviewer behavior change, language-neutral.
+
+### Added
+- **Plan grounding & intent sharpening** (`references/plan-grounding.md`, wired into `SKILL.md` Lifecycle + Plan Gate, gated by the `reviewer-selection.md` Risk Matrix): on High-risk / correctness-critical work, before presenting the plan, udflow (Stage A) **grounds** the plan in the code's reality via a read-only exploration pass (`Detect → Use → Else-Disclose`; real call sites, existing edge handling, true contracts — each anchored to `file:line`), then (Stage B, main thread) **sharpens** the requirement into a contract-level intent plus an implied edge-input checklist. The sharpened contract is routed into the Review Packet's intent (the measured recall lever — see Evidence), the edge checklist into the verification gate / `test-reviewer` scope, and any product ambiguity into `AskUserQuestion` at the gate. It **assists** the human approval (never replaces it), adds **depth not breadth** (reviewer selection unchanged), is **skipped for low/medium-risk** work, and is **never a hard dependency** (no exploration subagent → local fallback + disclosure, never an error).
+
+### Changed
+- `SKILL.md` (Reference Loading, Lifecycle step 2, Plan Gate step 4), `reviewer-selection.md` (new *Plan Grounding* trigger on the same risk gate), `review-packet.md` (populate intent/edge fields from the sharpened contract/checklist), `verification-gate.md` (edge inputs are pre-enumerated at plan time), and `deep-mode.md` (Stage A may run as a read-only Workflow node) updated to wire the step in. README (EN/zh) gained a *Plan grounding* note under Advanced.
+
+### Notes (why this is the right lever)
+- The cross-language benchmark (`EVIDENCE.md`) pins two facts this step is built on: omissions are the #1 miss (~36%), and the dominant recall lever is **contract-level intent in the Review Packet**, not more reviewers on the same content. Omissions originate at plan time and are cheapest to fix there; sharpening the intent before approval pushes exactly that lever. Risk-gated and read-only to stay consistent with udflow's risk-proportional, usability-over-strictness ethos.
+
 ## [0.9.5]
 
 Sharper external-capability disclosure: don't mislabel an installed-but-failing capability as "not installed". Prompt/docs only — no hook or reviewer behavior change, language-neutral.

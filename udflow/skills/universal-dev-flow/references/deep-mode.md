@@ -37,4 +37,5 @@ Run exactly the standard prose flow. If deep mode was requested but the Workflow
 
 - The plan gate and failure-memory hooks are active in both modes; deep mode changes neither hook and the hooks must never depend on deep mode.
 - Plan approval (ExitPlanMode) stays human-in-the-loop; the Workflow does not take it over.
+- The conditional plan-grounding step (`references/plan-grounding.md`) runs the same in both modes; in deep mode its Stage A grounding may run as a read-only Workflow agent node, but it never changes reviewer selection.
 - Roles, severity vocabulary (`blocker`/`major`/`minor`), and the verdict set (`READY`/`FIX REQUIRED`/`NOT READY`) are unchanged, so a deep run and a standard run are directly comparable — only enforcement, verification depth, and effort differ.

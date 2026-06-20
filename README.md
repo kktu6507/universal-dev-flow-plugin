@@ -207,6 +207,10 @@ Two honest limits:
 - **It's global.** The hook runs in every session while installed, so if you're in plan mode in an unrelated project, edits there are blocked too — it doesn't know whether the session is a udflow task.
 - **Bash is only partly covered.** The hook blocks the structured edit tools and the *obvious* Bash writes (`>`/`>>` to a file, `tee`, `sed -i`, `git apply`), but deliberately allows read-only Bash and won't catch non-obvious writes (e.g. `python -c "open(...,'w')"`). Treat the tripwire as a safety net — udflow's rules still forbid any Bash working-tree write while planning.
 
+### Plan grounding (high-risk)
+
+Before it asks you to approve the plan, on **high-risk or correctness-critical** work udflow runs one extra read-only step (see [`plan-grounding.md`](udflow/skills/universal-dev-flow/references/plan-grounding.md)): it **grounds** the plan in the code's reality (a read-only exploration pass — real call sites, what edge handling already exists) and **sharpens** the requirement into a contract-level intent plus the change's implied edge-input checklist. The sharpened contract feeds the Review Packet (the measured recall lever), the edge checklist feeds the verification gate, and any product ambiguity is surfaced via AskUserQuestion — so you approve with the real picture in front of you. It **assists** the approval, never replaces it; it adds depth, not more reviewers; and it's skipped for low/medium-risk work. With no exploration subagent it falls back to a local grounding and discloses the gap.
+
 ### Verification gate
 
 Before any readiness claim, udflow runs the narrowest meaningful checks (build / test / lint / typecheck, browser evidence for UI). For behavior-changing code it expects a **focused test that exercises the change's risky edge inputs** — empty / zero / overflow / large, multibyte, null / empty / duplicate / multiple values, malformed input, by-value vs receiver, concurrency — because a test that reproduces the boundary catches the idiom/encoding/overflow/omission bugs a code read rationalizes as "looks fine." The `gatekeeper` treats a missing edge-test as a verification gap and withholds `READY`.

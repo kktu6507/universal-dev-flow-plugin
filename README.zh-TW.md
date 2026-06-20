@@ -207,6 +207,10 @@ udflow> [離開 plan mode] 現在才真的改 checkout.tsx ✓
 - **它是全域的。** hook 在每個 session 都跑,所以就算你在一個**跟 udflow 無關的專案**進了 plan mode,那邊的改檔也會被擋——它不知道「這次」是不是 udflow 任務。
 - **Bash 只擋一部分。** hook 會擋結構化編輯工具,以及*明顯的* Bash 寫入(`>`/`>>` 到檔、`tee`、`sed -i`、`git apply`),但刻意放行唯讀 Bash,也擋不到非明顯寫入(例如 `python -c "open(...,'w')"`)。把這個 tripwire 當安全網就好——udflow 規則仍禁止規劃期間用任何 Bash 改工作樹。
 
+### 計劃接地(高風險)
+
+在請你核准計劃前,對**高風險或正確性關鍵**的工作,udflow 會多跑一個唯讀步驟(見 [`plan-grounding.md`](udflow/skills/universal-dev-flow/references/plan-grounding.md)):把計劃**接地**到程式碼現實(一次唯讀探勘——真實的 call sites、既有的邊界處理),並把需求**磨利**成契約級意圖加上這次改動隱含的邊界輸入清單。磨利後的契約灌進 Review Packet(已量測的 recall 槓桿)、邊界清單灌進驗證閘門、任何產品歧義以 AskUserQuestion 浮現——讓你在資訊完整下核准。它**輔助**核准、不取代核准;加的是深度、不是更多審查員;低/中風險會跳過。沒有探勘 subagent 時退回本地接地並揭露缺口。
+
 ### 驗證閘門
 
 在任何「就緒」宣稱之前,udflow 先跑最窄而有意義的檢查(build / test / lint / typecheck、UI 的瀏覽器佐證)。對行為改動,它會**要求一個聚焦測試去跑改動的高風險邊界輸入**——空 / 零 / 溢位 / 大、多位元組、null / 空 / 重複 / 多值、畸形、by-value vs receiver、並行——因為一個重現邊界的測試,才抓得到讀程式會被當成「看起來沒事」放過的慣用/編碼/溢位/遺漏型 bug。`gatekeeper` 會把「缺邊界測試」視為驗證缺口、不給 `READY`。

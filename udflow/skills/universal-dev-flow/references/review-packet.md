@@ -17,6 +17,8 @@ Use a Review Packet before handing work to any reviewer. The packet is the revie
 - Context exclusions: stale decisions, abandoned approaches, or old logs that reviewers should not treat as current.
 - External-capability notes: which optional MCP/skills/subagents were used or were unavailable, and any resulting verification gaps.
 
+On high-risk work where the plan-grounding step ran (`references/plan-grounding.md`), populate Success criteria and Reviewer scope from its **sharpened contract**, and seed Verification evidence / expected tests from its **implied edge checklist**. This contract-level intent is the dominant recall lever (see `references/reviewer-selection.md`, *Recall vs precision*), so carry it into the packet rather than re-deriving a vaguer version.
+
 ## Handoff Template
 
 ```markdown

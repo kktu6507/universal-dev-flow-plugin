@@ -37,6 +37,7 @@ Keep `SKILL.md` as the lightweight entry point. Read these references only when 
 - `references/review-packet.md`: before spawning reviewers or handing work to a reviewer.
 - `references/reviewer-common.md`: the shared reviewer contract (severity vocabulary, scope discipline, base output) referenced by every reviewer.
 - `references/reviewer-selection.md`: before selecting or re-running a review panel.
+- `references/plan-grounding.md`: before presenting the plan on high-risk work (the conditional plan-grounding / intent-sharpening step).
 - `references/runtime-policy.md`: before using subagents, waiting on agents, or closing agents.
 - `references/verification-gate.md`: before verification, final delivery, or failure-memory updates.
 - `references/external-capabilities.md`: before using any MCP tool, external subagent, or external skill (including `ui-ux-pro-max` for UI work).
@@ -54,7 +55,7 @@ Non-trivial work must pass an explicit plan gate before implementation begins. T
    - Else (no programmatic switch), proceed read-only by discipline and **disclose** that the hook's read-only enforcement is not active this session; recommend setting a default plan mode in settings for a hard guarantee.
 2. Run requirement understanding and planning while in plan mode. The hook enforces read-only for **structured edit tools** (Write/Edit/MultiEdit/NotebookEdit) and blocks **obvious Bash writes** (redirect-to-file, `tee`, `sed -i`, `git apply`) — but the Bash check is a narrow tripwire, not full shell coverage (non-obvious writes can still slip), so do not use Bash to modify the working tree during planning; use read-only Bash only.
 3. Present the plan for approval using **ExitPlanMode**. Only proceed to implementation after the user approves.
-4. When a decision has discrete options (e.g. competing designs, ambiguous business behavior, destructive vs. non-destructive paths), surface them with **AskUserQuestion** rather than guessing.
+4. When a decision has discrete options (e.g. competing designs, ambiguous business behavior, destructive vs. non-destructive paths), surface them with **AskUserQuestion** rather than guessing. On high-risk work, the plan-grounding step (`references/plan-grounding.md`) enumerates these options and the change's implied edge inputs so your approval is informed.
 5. Do not spawn `implementer` until the plan is approved and plan mode is exited.
 
 ## Core Rules
@@ -93,6 +94,7 @@ When touching human-readable text, check for mojibake, replacement characters, b
    - Stop for user input (AskUserQuestion) when ambiguity materially affects business behavior, contracts, destructive operations, security posture, or user-visible UX flow.
 
 2. Planning (plan mode)
+   - For high-risk or correctness-critical work (per the `references/reviewer-selection.md` Risk Matrix), first run the conditional **plan-grounding & intent-sharpening** step (`references/plan-grounding.md`): ground the plan in the code's reality (a read-only exploration pass, Detect → Use → Else-Disclose), then sharpen the requirement into a contract-level intent plus an implied edge-input checklist. Route the sharpened contract into the Review Packet's intent, the edge checklist into the verification gate, and any product ambiguity into AskUserQuestion at the gate. It assists the approval decision; it never replaces it. Skip it for low/medium-risk work.
    - Define affected modules or files, implementation approach, data/control-flow impact, risks, verification commands, expected tests, and rollout or rollback concerns when relevant.
    - Plan to the project language/framework's official best practices and the repo's conventions. If the existing code diverges materially from those best practices, state the gap here and propose concrete corrections; do not silently refactor beyond the requested scope.
    - For UI work, include target screens, states, responsive/accessibility concerns, and browser verification target or blocker. If the `ui-ux-pro-max` skill is available, consult it for design decisions (styles, palettes, font pairings, UX guidelines) during planning; if unavailable, fall back to internal `ui-ux-reviewer` guidance and note that ui-ux-pro-max was not used (see `references/external-capabilities.md`).
