@@ -60,8 +60,8 @@ whether the **workflow + verdict** holds up in practice, which is the claim the 
 
 | Metric | Now | Track-1 target | Track-2 target |
 |---|---|---|---|
-| **Real-world verified runs (Type B)** | **1 logged** | — | ≥ 10 |
-| Distinct real projects (Type B) | **1 logged** | — | ≥ 3 |
+| **Real-world verified runs (Type B)** | **3 logged** | — | ≥ 10 |
+| Distinct real projects (Type B) | **1 logged** (all one private repo) | — | ≥ 3 |
 | Independent (non-maintainer) runs | **0** | — | ≥ 1 |
 | External repos (Type A benchmark) | **~13** | ≥ 3 ✓ | — |
 | Languages (Type A) | **6** (C#, JS, Python, Java, Go, Rust) | ≥ 2 ✓ | — |
@@ -77,7 +77,8 @@ lower), and **~29% bug-blind at n=77**. The robust, condition-independent streng
 false-positive rate**. Track 2 (**real-world runs**) is **not yet met** — that is now the honest reason
 "experimental" stays. The defensible relabel is a *characterized* "beta" ("near-zero FP; recall scales with the
 quality of the intent you give it; real-world track record still accumulating"), to be earned by the Type-B
-runs this log is built to collect — the **first of which is now logged below (1 of ≥10)**.
+runs this log is built to collect — the **first three of which are now logged below (3 of ≥10)**, though all on
+one private project, so the **≥3-projects breadth and the ≥1 non-maintainer run remain open**.
 
 ---
 
@@ -122,7 +123,34 @@ shape:
 - **Outcome after follow-up: held up** — committed and **not reverted; the maintainer confirms no regression.**
 - **Cost:** ~2 h 15 m wall-clock for the udflow phase; ~0.87–0.99M subagent tokens (largest single subagent ~199K / ~19 min). · **Evidence:** private repo — commit `e11b177f` (36 files), retained as the maintainer's internal index (not publicly linkable).
 
-_More runs needed for Track 2 — especially at least one **not** by the maintainer. Add yours via the issue template above._
+### Live run 2 — 2026-06-20 · private C#/.NET file-transfer system · verified live task (merged)
+
+- **Task:** validate 7 review follow-ups from a prior merged PR and apply item #1 — remove an obsolete legacy allow-list restore path under the current DB-driven deny-list permission model — **without drifting from the original design**. Codex was enabled as an independent cross-model verifier. Invoked via the `universal-dev-flow` skill (maintainer's run, on an ordinary git branch — the session's opening git-worktree Q&A was abstract; the actual work used branching, **not** a worktree).
+- **Intent given:** very specific — the approved plan named the exact decision (remove the obsolete restore path entirely), the precise per-file edits (a SQL migration + a PowerShell rollback script + a contract test), explicit "keep" items, and a numbered verification section with the criterion "executable on a standard deployment."
+- **Reviewers:** spec / test / operability / security (4-reviewer panel) + gatekeeper, plus **Codex** (`codex-rescue`) as an independent verifier. · **Verdict: blocker found → fixed → READY** (repair loop).
+- **Verification:** `dotnet build` → 0 warn / 0 err; `dotnet test` → 13/13 pass; plus an empirical replay of the PowerShell rollback against the real SQL confirming the guard literal matched and the confirm flag flipped (would-run = true).
+- **Caught — the headline save:** a **BLOCKER that green build + tests missed** — a case-mismatch (`bit` vs `BIT`) between a SQL rollback script's confirmation-guard literal and the PowerShell deploy script that string-matches it; the match is **case-sensitive**, so the guard would always throw and **the rollback could never run**. spec + operability + security each surfaced it independently. (The external Codex verifier was blocked this run by a Windows-sandbox issue and contributed nothing — **udflow's own panel caught the blocker without it**.) Plus a minor: a cross-file casing-lock test added.
+- **False alarms: 0** (udflow reviewers).
+- **External-capability note (disclosed, not a udflow defect):** the external Codex verifier could not execute (Windows sandbox `CreateProcessAsUserW` failure) — the gap was disclosed and udflow continued; the panel still caught the blocker. Root-caused and fixed before the next run. No build-server / zombie / pipe-EOF incident in this session.
+- **Outcome:** committed and **merged to `main`** (PR #7; commit `cb6c70f7` → merge `c37d41b7`). User accepted all findings. Long-term hold-up beyond merge: pending follow-up confirmation.
+- **Cost:** gatekeeper subagent ~34K tokens / ~3.4 min; part of a ~3.5 h multi-run session. · **Evidence:** private repo — commits `cb6c70f7` / merge `c37d41b7` (internal index, not publicly linkable).
+
+### Live run 3 — 2026-06-20 · private C#/.NET file-transfer system · verified live task (merged)
+
+- **Task:** a **verification-only / minimal-change** pass — "check whether `main` still has anything that needs fixing; list the risk points; don't over-diverge." Codex enabled as an independent reviewer. Same codebase (FTP transfer + file-watcher infrastructure), ordinary git branch.
+- **Intent given:** explicitly scoped to "minimal or no change"; the work was then driven by an evidence-based residual-risk list (R1–R5) the reviewers produced, each with a concrete file:line and a stated fix; the user approved the "fix R1–R5" option.
+- **Reviewers:** code / operability (read-only verification panel) + gatekeeper, plus **Codex** (`codex-rescue`) independent; spec / test / ui-ux correctly excluded (no new requirement / tests / UI). · **Verdict: a self-introduced major found in re-review → fixed → READY** (repair loop).
+- **Verification:** multiple `dotnet build` (0/0) + `dotnet test` (13/13) cycles; one transient self-inflicted compile error caught by the build and fixed immediately.
+- **Caught:**
+  - **The panel's headline value:** in re-review, the udflow `code-reviewer` caught a **MAJOR regression the run had just introduced itself** — a `Task.Run(…, cts.Token)` still read the cancellation-token-source field **unlocked**, after a fix meant to serialize its swap under a lock; **the independent Codex reviewer had missed it.** A lone reviewer would have shipped it; the panel did not.
+  - **Reviewer-conflict adjudication:** Codex raised a BLOCKER (a permission guard reusing a stale snapshot on DB-reload failure = "fail-open"); the gatekeeper read the code and **downgraded it to intentional fail-static design** (it reuses a previously-valid deny-list and never widens permissions) — accepted, no change. A conflict resolved by **code evidence, not by vote**.
+  - Five residual-risk hardenings shipped (resource disposal on connect failure, a cancellation race, circuit-breaker counting of cancellations, a startup index-validation guard, a lock around a CTS swap).
+- **False alarms: 0 confirmed** (the Codex "fail-open" blocker was a defensible-but-wrong reading, adjudicated on evidence; udflow reviewers clean).
+- **Outcome:** committed and **merged to `main`** (PR #8; commit `2beafbbb` → merge `153e559d`). User accepted findings; this run is what prompted updating the evidence log. Long-term hold-up: pending follow-up confirmation.
+- **Cost:** gatekeeper subagent ~29K tokens / ~2.6 min; part of the same ~3.5 h session. · **Evidence:** private repo — commits `2beafbbb` / merge `153e559d` (internal index).
+
+_More runs needed for Track 2 — especially at least one **not** by the maintainer, and breadth beyond this one
+private project. Add yours via the issue template above._
 
 ---
 
