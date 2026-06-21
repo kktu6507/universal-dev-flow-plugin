@@ -22,8 +22,6 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-        with:
-          fetch-depth: 0   # full history + tags, for the version/tag consistency check
       - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: "20"
@@ -33,21 +31,6 @@ jobs:
       # agent/skill has frontmatter, and the shipped tree has no dev/runtime artifacts.
       - name: Validate plugin structure
         run: node .github/scripts/validate-structure.mjs
-
-      # Version/tag drift guard — the 5th axis on top of the file-level agreement that
-      # validate-structure.mjs enforces (plugin.json / marketplace / metadata /
-      # package.json / CHANGELOG). Warn-only: a version bump is committed BEFORE its tag
-      # is cut, so failing hard here would block every release commit.
-      - name: Version/tag consistency (warn-only)
-        if: runner.os == 'Linux'
-        shell: bash
-        run: |
-          ver=$(node -p "require('./udflow/.claude-plugin/plugin.json').version")
-          if git rev-parse -q --verify "refs/tags/v$ver" >/dev/null; then
-            echo "OK: git tag v$ver matches manifest version $ver."
-          else
-            echo "::warning::manifest version is $ver but no git tag v$ver exists yet — tag the release: git tag v$ver && git push origin v$ver"
-          fi
 
       # The session hooks run on every session and fail open, so a syntax error
       # would otherwise be invisible. Syntax-check and behaviorally test them.
@@ -77,3 +60,48 @@ jobs:
           # only the root would never check the plugin itself.
           claude plugin validate . || echo "marketplace validate could not run headless; the checks above are the gate."
           claude plugin validate ./udflow || echo "plugin validate could not run headless; the checks above are the gate."
+
+  # Auto-publish the release once Validate passes: the plugin manifest version is the
+  # source of truth — if no matching tag exists yet, cut the annotated tag + GitHub
+  # release (notes from the CHANGELOG). This makes the version / manifests / CHANGELOG /
+  # git tag / release impossible to drift; the maintainer never tags by hand. Idempotent
+  # (skips if the tag already exists); push-to-master only.
+  release:
+    needs: validate
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # push the tag and create the release (overrides the read-only default)
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0   # need existing tags to detect whether this version is already released
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: "20"
+      - name: Tag + release when the manifest version is new
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          ver=$(node -p "require('./udflow/.claude-plugin/plugin.json').version")
+          tag="v$ver"
+          if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+            echo "Tag $tag already exists — nothing to publish."
+            exit 0
+          fi
+          echo "Publishing $tag from manifest version $ver."
+          # Release notes = this version's CHANGELOG section (validate-structure already
+          # guarantees the entry exists); fall back to a pointer if extraction is empty.
+          awk -v v="$ver" '
+            $0 ~ "^## \\[" v "\\]" { grab=1; next }
+            grab && /^## \[/ { exit }
+            grab { print }
+          ' CHANGELOG.md > /tmp/relnotes.md
+          [ -s /tmp/relnotes.md ] || echo "See CHANGELOG.md for $tag." > /tmp/relnotes.md
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$tag" -m "udflow $tag"
+          git push origin "$tag"
+          gh release create "$tag" --title "$tag" --notes-file /tmp/relnotes.md
+          echo "Published $tag."
