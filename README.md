@@ -32,6 +32,8 @@ Use it for non-trivial engineering work where Claude Code should not self-certif
 
 > In one line: udflow makes Claude lay out a plan and get your approval before it touches code, has the right specialist reviewers check the work against your intent, auto-fixes what they raise, and ends with a ship/no-ship verdict — instead of just saying "done."
 
+> 🎬 **See a real run:** [udflow-public-demo](https://github.com/simba6507/udflow-public-demo) — a captured `/udflow:run` walking through the plan gate, risk-selected reviewers, and the gatekeeper verdict end to end.
+
 **What it is — and what it isn't.** udflow is a **review & release-readiness workflow**, not a bug scanner. Its measured edge (see Evidence) is **near-zero false positives + process discipline + a readiness gate** — *not* maximal bug recall. It does catch real, code-visible defects, but treat it as a low-noise reviewer plus a ship/no-ship gate, not a tool that finds every bug. For exhaustive scanning, pair it with linters / static analysis / a dedicated deep review.
 
 > **Status: early / experimental.** The hooks are tested; the multi-agent orchestration is prompt-driven. A cross-language benchmark (6 languages, 100+ real bugs) shows a clear profile: **near-zero false positives throughout** (≈1 in ~110 reviews), and recall that **scales with how specifically you state the change's intent** — ~30% when a reviewer sees only the code, up to ~84% with contract-level intent (real udflow hands reviewers that intent via its Review Packet). See the Evidence note. Treat it as a disciplined scaffold, not a guarantee.
