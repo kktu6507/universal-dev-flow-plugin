@@ -3,6 +3,23 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.9.9]
+
+Hardens the two session "tripwire" hooks against the gaps a security pass found — the gatekeeper's verdict now has an advisory guard, the review-panel check is no longer dodgeable by spawning one agent, and the plan-gate Bash net covers the non-redirect writers it previously missed. Advisory hooks stay advisory (a Stop hook cannot block); the structured-edit plan gate and the workflow discipline remain the real guarantees.
+
+### Added
+- **Verdict-honoring advisory** (`orchestration-check.js`): the Stop hook now warns when the gatekeeper's **last** verdict in the transcript was `FIX REQUIRED`/`NOT READY` but the session ends claiming the work is done without surfacing that block — the previously-unguarded "verdict silently overridden" path. Reads the *last* verdict, so a normal `FIX REQUIRED → repair → READY` loop is not flagged; stays silent when the final message honestly reports the block.
+- **Plan-gate Bash coverage** for non-redirect working-tree writers that were silently allowed (and not even on the documented-miss list): `perl -i`, `truncate`, `dd of=` (exempting `of=/dev/null`), and `ln` (symbolic/hard links). Joins the existing redirect / `tee` / `sed -i` / `git apply` set.
+
+### Changed
+- **Incomplete-panel detection** (`orchestration-check.js`): a `READY` claim now requires **all** core panel agents (`spec-reviewer`, `test-reviewer`, `gatekeeper`) to have run — previously any single agent appearing silenced the check, so spawning only the gatekeeper dodged it. The reminder names the reviewers that did not run; the "none ran" case keeps its stronger wording.
+
+### Docs
+- README (EN/zh) and `SKILL.md` updated to list the broader Bash coverage and to state plainly that interpreter one-liners (`node -e fs.writeFileSync(...)`, `python -c "open(...,'w')"`) and `xargs`-driven writes still slip — the tripwire is a safety net, and a default plan mode in settings is the hard guard. The `orchestration-check` description now covers the verdict-honoring advisory.
+
+### Notes
+- All three hooks remain fail-open and non-blocking. Hook behavior tests extended to lock in the new advisories and Bash patterns (`test/hooks.test.mjs`).
+
 ## [0.9.8]
 
 Marketplace-readiness polish (ahead of an optional community-marketplace submission). One real behavior change — udflow now installs **disabled by default** — plus a readable display name.

@@ -172,7 +172,7 @@ plugin 本體位於 [`udflow/`](udflow/) 子目錄（只有這個子目錄會被
 - `udflow/hooks/` — 三個 Node hook（Windows、macOS、Linux 行為一致，全部 fail-open）：
   - `plan-gate.js`（PreToolUse）—— plan mode 期間擋結構化編輯，並對*明顯的* Bash 寫入觸發；放行 `~/.claude/plans/` 的 plan 檔。
   - `load-failure-memory.js`（SessionStart）—— 注入失敗記憶摘要。
-  - `orchestration-check.js`（Stop）—— 盡力而為、非阻擋：若宣稱 `READY` 但審查 panel 沒真的跑就提醒。
+  - `orchestration-check.js`（Stop）—— 盡力而為、非阻擋：若宣稱 `READY` 但核心審查 panel 沒完整跑就提醒，**或**當 gatekeeper 最後的裁決是 `FIX REQUIRED`/`NOT READY`、session 卻以「已完成」收尾（裁決被無視）時提醒。僅為提示——Stop hook 無法阻擋交付。
 - `udflow/.mcp.json` — 預設為空（零 context 成本）。`udflow/mcp.example.json` 是可複製套用的範本。
 
 ### 9 個 subagent
@@ -209,7 +209,7 @@ udflow> [離開 plan mode] 現在才真的改 checkout.tsx ✓
 
 兩個誠實的邊界：
 - **它是全域的。** hook 在每個 session 都跑，所以就算你在一個**跟 udflow 無關的專案**進了 plan mode，那邊的改檔也會被擋——它不知道「這次」是不是 udflow 任務。
-- **Bash 只擋一部分。** hook 會擋結構化編輯工具，以及*明顯的* Bash 寫入（`>`/`>>` 到檔、`tee`、`sed -i`、`git apply`），但刻意放行唯讀 Bash，也擋不到非明顯寫入（例如 `python -c "open(...,'w')"`）。把這個 tripwire 當安全網就好——udflow 規則仍禁止規劃期間用任何 Bash 改工作樹。
+- **Bash 只擋一部分。** hook 會擋結構化編輯工具，以及*明顯的* Bash 寫入（`>`/`>>` 到檔、`tee`、`sed -i`、`perl -i`、`truncate`、`dd of=`、`ln`、`git apply`），但刻意放行唯讀 Bash，也擋不到非明顯寫入——尤其是直譯器一行式（`node -e "fs.writeFileSync(...)"`、`python -c "open(...,'w')"`）與 `xargs` 驅動的寫入。把這個 tripwire 當安全網、而非保證——udflow 規則仍禁止規劃期間用任何 Bash 改工作樹，真正的硬保證是在 settings 設定預設 plan mode。
 
 ### 計劃接地（高風險）
 
