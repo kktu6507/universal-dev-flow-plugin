@@ -3,6 +3,19 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.9.7]
+
+Tooling + docs only — the shipped plugin (`udflow/`) is unchanged from 0.9.6; this bump realigns the release tag with `master` after the post-0.9.6 CI/docs work. No hook, reviewer, or workflow behavior change.
+
+### Changed
+- **Release tagging is now automated** (`.github/workflows/validate.yml`): a `release` CI job reads the version from `udflow/.claude-plugin/plugin.json` and, once Validate passes on a push to `master`, auto-publishes the annotated `v<version>` tag + GitHub release (notes from this CHANGELOG) when none exists — idempotent. Replaces the earlier warn-only drift check, so plugin version / manifests / CHANGELOG / git tag / release can no longer drift and are never tagged by hand. (v0.9.7 is the first release cut by it.)
+- **CI actions bumped to clear the Node 20 deprecation**: `actions/checkout` → v7.0.0, `actions/setup-node` → v6.4.0 (both run on Node 24; still SHA-pinned).
+
+### Docs
+- **README links to a live showcase**: [`udflow-public-demo`](https://github.com/simba6507/udflow-public-demo) — a public, captured `/udflow:run` (plan gate → risk-selected reviewers → gatekeeper verdict) — near the top of `README.md` / `README.zh-TW.md`.
+- **`EVIDENCE.md` records that demo as a *showcase*, explicitly not a Type-B data point** (a maintainer-authored demonstration, not verified-over-time real-world work), so the graduation tally is unchanged.
+- `README.zh-TW.md` punctuation normalized to full-width; the 0.9.6 tooling note clarified (warn-only, matching what its tag actually shipped).
+
 ## [0.9.6]
 
 Adds a conditional, read-only **plan-grounding & intent-sharpening** step before plan approval on high-risk work — targeting the benchmark's #1 miss category (omission ~36%) at its cheapest point, the plan. Prompt/docs only — no hook or reviewer behavior change, language-neutral.

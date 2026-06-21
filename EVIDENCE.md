@@ -88,6 +88,13 @@ The headline section: real udflow runs on actual work, with verified outcomes. *
 matters most** — and it is honestly near-empty today, because udflow has not yet been used on many *logged*
 real projects. Every entry here moves Track 2 toward graduation.
 
+> **Showcase — not a Type-B data point.** [`udflow-public-demo`](https://github.com/simba6507/udflow-public-demo)
+> is a public, captured `/udflow:run` that *demonstrates the workflow* end to end (plan gate → risk-selected
+> reviewers → gatekeeper verdict). It is a maintainer-authored demonstration, **not** verified-over-time
+> real-world work, so it deliberately does **not** count toward the Type-B tally or graduation — it shows *what a
+> run looks like*, not *that the verdict held up in production*. (Linked from the README so newcomers can watch
+> the flow.)
+
 **To add one:** run udflow on a real task, then open a
 **["Verified udflow run"](.github/ISSUE_TEMPLATE/verified-run.yml)** issue (or PR a section directly). Use this
 shape:
