@@ -147,6 +147,17 @@ test("plan-gate: a junction under ~/.claude/plans whose target escapes is NOT ex
   );
 });
 
+test("plan-gate: on a case-sensitive FS, an uppercase ~/.claude/PLANS path is NOT exempt", (t) => {
+  // The exemption folds case only on case-insensitive filesystems (Windows/macOS). On Linux a
+  // real directory literally named PLANS must not inherit the lowercase 'plans' exemption.
+  if (process.platform === "win32" || process.platform === "darwin") return t.skip("case-insensitive FS");
+  const { home, env } = isolatedHome();
+  t.after(() => { try { fs.rmSync(home, { recursive: true, force: true }); } catch (e) {} });
+  const upper = path.join(home, ".claude", "PLANS", "x.md");
+  assert.strictEqual(gate({ tool_name: "Write", permission_mode: "plan", tool_input: { file_path: upper } }, env), "DENY",
+    "uppercase PLANS must not be exempt on a case-sensitive FS");
+});
+
 test("normal file write is denied in plan mode, allowed otherwise", () => {
   const f = path.join(os.tmpdir(), "proj", "src", "app.ts");
   assert.strictEqual(gate({ tool_name: "Write", permission_mode: "plan", tool_input: { file_path: f } }), "DENY");
@@ -188,6 +199,15 @@ test("Bash tripwire: obvious working-tree writes are denied in plan mode", () =>
     "ls; echo x > f",                // redirect in the second chained command
     "git status; git apply fix.patch", // git apply mid-chain after ;
     "ls && git apply p.patch",       // git apply after &&
+    "perl -i -pe 's/a/b/' app.ts",   // perl in-place edit
+    "perl -i.bak -pe1 src/app.ts",   // perl -i<suffix>
+    "perl -pi -e 's/x/y/' f.txt",    // perl -pi (combined flags)
+    "truncate -s 0 build.log",       // truncate resizes/creates a file
+    "truncate -s0 f",                // truncate, no space
+    "dd if=/dev/zero of=out.bin bs=1 count=1", // dd writing via of=
+    "ln -s ../secret link",          // symlink creation
+    "ln target.txt hardlink.txt",    // hard link creation
+    "ls; ln -sf a b",                // ln after a chain separator
   ]) {
     assert.strictEqual(gate({ tool_name: "Bash", permission_mode: "plan", tool_input: { command } }), "DENY", `should block: ${command}`);
   }
@@ -210,6 +230,12 @@ test("Bash tripwire: read-only / benign commands are allowed in plan mode", () =
     "node --check hooks/plan-gate.js",
     "echo hi > /dev/null",          // /dev/null excluded
     "ls 2>&1 | grep x",             // fd dup, not a file write
+    "perl -ne 'print if /foo/' app.txt", // perl without -i is read-only
+    "perl -pe 's/a/b/' app.txt",    // perl -pe (no -i) writes to stdout, not the file
+    "dd if=/dev/zero of=/dev/null bs=1 count=1", // of=/dev/null excluded
+    "dd if=disk.img bs=1M | sha256sum", // dd without of= writes stdout, not a file
+    "cat truncate.md",              // 'truncate' as an argument, not the command
+    "grep -n println src/app.rs",   // 'ln' inside a word is not the ln command
   ]) {
     assert.strictEqual(gate({ tool_name: "Bash", permission_mode: "plan", tool_input: { command } }), "ALLOW", `should allow: ${command}`);
   }
@@ -356,11 +382,71 @@ test("orchestration-check stays silent when the panel ran", () => {
   assert.strictEqual(orch({ transcript_path: tp }), null);
 });
 
-test("orchestration-check is conservative: silent if ANY panel agent ran", () => {
-  // Only one of the three ran — conservative detection must NOT cry wolf.
+test("orchestration-check flags an incomplete panel (only some core agents ran)", () => {
+  // Only spec-reviewer ran; test-reviewer + gatekeeper were skipped. A READY claim resting on a
+  // partial panel is no longer silently accepted (closes the "spawn one agent to dodge" gap).
   const tp = mkTranscript([
     { role: "assistant", content: [{ type: "tool_use", name: "Task", input: { subagent_type: "udflow:spec-reviewer" } }] },
-    { role: "assistant", content: "Final verdict: READY." },
+    { role: "assistant", content: "Final verdict: READY — readiness confirmed." },
+  ]);
+  const r = orch({ transcript_path: tp });
+  assert.ok(r && /incomplete/.test(r.systemMessage), "expected an incomplete-panel reminder");
+  assert.ok(/test-reviewer/.test(r.systemMessage) && /gatekeeper/.test(r.systemMessage), "names the reviewers that did not run");
+  assert.ok(!r.decision, "must not block the stop");
+});
+
+test("orchestration-check warns when the gatekeeper's blocking verdict is not honored", () => {
+  // Panel ran, gatekeeper returned NOT READY, but the session ends claiming the work is done.
+  const tp = mkTranscript([
+    { role: "assistant", content: [{ type: "tool_use", name: "Task", input: { subagent_type: "udflow:gatekeeper" } }] },
+    { role: "user", content: [{ type: "tool_result", content: "Final verdict: NOT READY — unresolved auth bypass." }] },
+    { role: "assistant", content: "Looks good, you're all set — the change is done." },
+  ]);
+  const r = orch({ transcript_path: tp });
+  assert.ok(r && /NOT READY/.test(r.systemMessage), "expected a verdict-not-honored reminder");
+  assert.ok(/gate delivery|repair loop|report the block/.test(r.systemMessage), "explains the required action");
+  assert.ok(!r.decision, "must not block the stop");
+});
+
+test("orchestration-check honors a FIX REQUIRED -> repair -> READY loop (silent)", () => {
+  // The last verdict is READY, so the earlier FIX REQUIRED must not be flagged as ignored.
+  const tp = mkTranscript([
+    { role: "assistant", content: [{ type: "tool_use", name: "Task", input: { subagent_type: "udflow:spec-reviewer" } }] },
+    { role: "assistant", content: [{ type: "tool_use", name: "Task", input: { subagent_type: "udflow:test-reviewer" } }] },
+    { role: "assistant", content: [{ type: "tool_use", name: "Task", input: { subagent_type: "udflow:gatekeeper" } }] },
+    { role: "user", content: [{ type: "tool_result", content: "Final verdict: FIX REQUIRED — add an edge test." }] },
+    { role: "user", content: [{ type: "tool_result", content: "Final verdict: READY — fix verified." }] },
+    { role: "assistant", content: "Done — gatekeeper verdict: READY. readiness confirmed." },
+  ]);
+  assert.strictEqual(orch({ transcript_path: tp }), null);
+});
+
+test("orchestration-check catches a lowercase ship claim with no panel (closes the dodge)", () => {
+  // Dropping the uppercase READY verdict token for a lowercase "ready to ship" no longer evades
+  // the panel-presence check.
+  const tp = mkTranscript([
+    { role: "user", content: "do it" },
+    { role: "assistant", content: "All implemented — this is ready to ship." },
+  ]);
+  const r = orch({ transcript_path: tp });
+  assert.ok(r && /none of the core review panel/.test(r.systemMessage), "lowercase ship claim must still trigger the panel check");
+});
+
+test("orchestration-check does NOT nag a casual completion with no formal ship claim", () => {
+  // "looks good / done" without a ship decision must stay silent — the panel check must not cry
+  // wolf on trivial work that legitimately never ran a panel.
+  const tp = mkTranscript([
+    { role: "user", content: "tweak the readme wording" },
+    { role: "assistant", content: "Done — looks good now." },
+  ]);
+  assert.strictEqual(orch({ transcript_path: tp }), null);
+});
+
+test("orchestration-check stays silent when the final message honestly reports the block", () => {
+  const tp = mkTranscript([
+    { role: "assistant", content: [{ type: "tool_use", name: "Task", input: { subagent_type: "udflow:gatekeeper" } }] },
+    { role: "user", content: [{ type: "tool_result", content: "Final verdict: NOT READY — schema migration unresolved." }] },
+    { role: "assistant", content: "Stopping at NOT READY: the migration is unresolved and needs a product decision." },
   ]);
   assert.strictEqual(orch({ transcript_path: tp }), null);
 });

@@ -172,7 +172,7 @@ The plugin lives in the [`udflow/`](udflow/) subdirectory (only that subdir is i
 - `udflow/hooks/` — three Node hooks (same behavior on Windows, macOS, Linux; all fail-open):
   - `plan-gate.js` (PreToolUse) — blocks structured edits while in plan mode, and trips on the *obvious* Bash writes; exempts Claude Code's own plan files under `~/.claude/plans/`.
   - `load-failure-memory.js` (SessionStart) — injects a failure-memory digest.
-  - `orchestration-check.js` (Stop) — best-effort, non-blocking: warns if a `READY` verdict is claimed without the review panel actually running.
+  - `orchestration-check.js` (Stop) — best-effort, non-blocking: warns if a `READY` verdict is claimed without the full core review panel running, **or** if the gatekeeper's last verdict was `FIX REQUIRED`/`NOT READY` but the session ends claiming the work is done (an unhonored verdict). Advisory only — a Stop hook can't block delivery.
 - `udflow/.mcp.json` — empty by default (zero context cost). `udflow/mcp.example.json` is a copy-in template.
 
 ### The 9 subagents
@@ -209,7 +209,7 @@ udflow> [exits plan mode] now edits checkout.tsx ✓
 
 Two honest limits:
 - **It's global.** The hook runs in every session while installed, so if you're in plan mode in an unrelated project, edits there are blocked too — it doesn't know whether the session is a udflow task.
-- **Bash is only partly covered.** The hook blocks the structured edit tools and the *obvious* Bash writes (`>`/`>>` to a file, `tee`, `sed -i`, `git apply`), but deliberately allows read-only Bash and won't catch non-obvious writes (e.g. `python -c "open(...,'w')"`). Treat the tripwire as a safety net — udflow's rules still forbid any Bash working-tree write while planning.
+- **Bash is only partly covered.** The hook blocks the structured edit tools and the *obvious* Bash writes (`>`/`>>` to a file, `tee`, `sed -i`, `perl -i`, `truncate`, `dd of=`, `ln`, `git apply`), but deliberately allows read-only Bash and won't catch non-obvious writes — notably interpreter one-liners (`node -e "fs.writeFileSync(...)"`, `python -c "open(...,'w')"`) and `xargs`-driven writes. Treat the tripwire as a safety net, not a guarantee — udflow's rules still forbid any Bash working-tree write while planning, and a default plan mode in settings is the hard guard.
 
 ### Plan grounding (high-risk)
 

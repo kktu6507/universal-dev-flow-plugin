@@ -36,9 +36,12 @@ function realpathDeepest(p) {
 
 // Narrow tripwire: does this Bash command obviously write the working tree? Conservative,
 // defaults to allow — false positives are worse than the documented miss list. It deliberately
-// does NOT catch: no-space redirects (echo x>f), `>|`, $VAR/~ targets, cp/mv/dd, or
-// python -c open(...) — tightening those would false-positive on arithmetic like $((a>b)).
-// git checkout/restore and read-only commands stay allowed.
+// does NOT catch: no-space redirects (echo x>f), `>|`, $VAR/~ targets, cp/mv, or interpreter
+// one-liners (node -e fs.writeFileSync / python -c open(...,'w') / xargs touch) — those are
+// unbounded to classify and tightening the redirect form would false-positive on arithmetic
+// like $((a>b)). git checkout/restore and read-only commands stay allowed. The covered set is a
+// safety net, not a guarantee — the workflow rule (no Bash tree-writes while planning) plus a
+// default plan mode are the real guard; see SKILL.md and the README "Plan gate" section.
 function bashLooksLikePlanWrite(command) {
   const cmd = String(command || "");
   // Drop quoted spans first so a literal ">" inside quotes doesn't count. Kept simple and
@@ -53,6 +56,14 @@ function bashLooksLikePlanWrite(command) {
     /(?:^|[\s;&|])tee\s+(?:-[A-Za-z]+\s+)*(?!\/dev\/null\b|NUL\b)(?:\.{0,2}[\\/]|[A-Za-z]:[\\/]|[A-Za-z0-9_.][A-Za-z0-9_.-]*)/i,
     // sed in place: bare -i, -i<suffix> (e.g. -i.bak), or --in-place, within the sed arg span.
     /(?:^|[\s;&|])sed\b(?=[^;&|]*\s(?:-[A-Za-z]*i[\w.-]*|--in-place\b))/i,
+    // perl in place: -i / -i.bak / -pi / -ni etc. (the -i flag is always an in-place rewrite).
+    /(?:^|[\s;&|])perl\b(?=[^;&|]*\s-[A-Za-z]*i)/i,
+    // truncate: always resizes (and creates) the named file.
+    /(?:^|[\s;&|])truncate\s+\S/i,
+    // dd writing to a file via of= (exempt of=/dev/null, of=NUL); without of= dd writes stdout.
+    /(?:^|[\s;&|])dd\s(?=[^;&|]*\bof=)(?![^;&|]*\bof=(?:\/dev\/null\b|NUL\b))/i,
+    // ln creating a link (symbolic or hard) — writes a new directory entry into the tree.
+    /(?:^|[\s;&|])ln\s+(?:-[A-Za-z]+\s+)*\S/i,
     // git apply that actually applies — exempt dry-run/report-only flags.
     /(?:^|[\s;&|])git\s+apply\b(?![^;&|]*\s--(?:check|stat|numstat|summary)\b)/i
   ];
@@ -80,10 +91,15 @@ process.stdin.on("end", () => {
     let isPlanFile = false; // only relevant for structured edits to ~/.claude/plans
     if (targetPath) {
       try {
+        // Compare case-insensitively ONLY on the case-insensitive filesystems (Windows, macOS).
+        // On case-sensitive systems (Linux), folding case would wrongly exempt a real directory
+        // named e.g. ~/.claude/PLANS — widening the writable-exemption set. Match the FS instead.
+        const caseInsensitiveFS = process.platform === "win32" || process.platform === "darwin";
+        const norm = (s) => { s = s.replace(/\\/g, "/"); return caseInsensitiveFS ? s.toLowerCase() : s; };
         let resolved = path.resolve(String(targetPath));
         try { resolved = realpathDeepest(resolved); } catch (e) {}
-        resolved = resolved.replace(/\\/g, "/").toLowerCase();
-        const planRoot = path.join(os.homedir(), ".claude", "plans").replace(/\\/g, "/").toLowerCase() + "/";
+        resolved = norm(resolved);
+        const planRoot = norm(path.join(os.homedir(), ".claude", "plans")) + "/";
         isPlanFile = resolved.startsWith(planRoot);
       } catch (e) { isPlanFile = false; }
     }
@@ -97,7 +113,7 @@ process.stdin.on("end", () => {
           hookEventName: "PreToolUse",
           permissionDecision: "deny",
           permissionDecisionReason: bashBlocked
-            ? "udflow plan gate: this Bash command looks like a working-tree write (>, tee, sed -i, git apply), so it is blocked while in plan mode. This is a best-effort heuristic — if the command is read-only, writes outside the working tree (e.g. to /tmp), or a dry run, present the plan via ExitPlanMode and run it after approval, or adjust it. Only obvious writes are caught, not all Bash."
+            ? "udflow plan gate: this Bash command looks like a working-tree write (>, tee, sed -i, perl -i, truncate, dd of=, ln, git apply), so it is blocked while in plan mode. This is a best-effort heuristic — if the command is read-only, writes outside the working tree (e.g. to /tmp), or a dry run, present the plan via ExitPlanMode and run it after approval, or adjust it. Only obvious writes are caught, not all Bash (e.g. interpreter one-liners slip), so do not use Bash to modify the tree while planning regardless."
             : "udflow plan gate: file modifications are blocked while in plan mode. Present the plan via ExitPlanMode and get approval before implementing."
         }
       };

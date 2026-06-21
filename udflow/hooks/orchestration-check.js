@@ -1,9 +1,13 @@
 #!/usr/bin/env node
-// udflow Stop hook (best-effort, non-blocking): if the session's final message asserts a
-// READY verdict but the core review panel (spec-reviewer, test-reviewer, gatekeeper) did
-// not actually run as independent subagents, surface a non-blocking reminder.
-// Always fail-open: exit 0, never block the stop, never crash. If the transcript can't be
-// parsed (format differs), it simply does nothing — absence equals current behavior.
+// udflow Stop hook (best-effort, non-blocking). Two advisories, both fail-open:
+//   1. Verdict not honored: the gatekeeper's last verdict in the transcript was a BLOCKING
+//      one (FIX REQUIRED / NOT READY), but the final message claims the work is done/ready
+//      without surfacing that block. This is the highest-value check — it guards the product's
+//      core promise (a ship/no-ship verdict that actually gates delivery).
+//   2. Panel missing/incomplete: a READY verdict is asserted but the core review panel
+//      (spec-reviewer, test-reviewer, gatekeeper) did not all run as independent subagents.
+// A Stop hook can only advise (systemMessage), never block. Always exit 0, never crash. If the
+// transcript can't be parsed (format differs), it does nothing — absence equals prior behavior.
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
@@ -14,6 +18,35 @@ function debug(msg) {
   if (!process.env.UDFLOW_HOOK_DEBUG) return;
   try { fs.appendFileSync(path.join(os.tmpdir(), "udflow-hook.log"), "[orchestration-check] " + msg + "\n"); } catch (e) {}
   try { process.stderr.write("[udflow orchestration-check] " + msg + "\n"); } catch (e) {}
+}
+
+// The last verdict token in a body of transcript text. Verdicts are machine-checked literals
+// (SKILL.md forbids translating them), so a literal scan is reliable. Order the alternation so
+// "NOT READY" / "FIX REQUIRED" are matched whole before the bare "READY" inside "NOT READY".
+function lastVerdict(text) {
+  const re = /\b(NOT READY|FIX REQUIRED|READY)\b/g;
+  let m, last = "";
+  while ((m = re.exec(text)) !== null) last = m[1];
+  return last;
+}
+
+// Does the final message claim the work is finished/shippable? Broader than a formal verdict so
+// it catches an orchestrator that drops the verdict token and just says "looks good, you're set"
+// — the exact way a blocking verdict gets quietly ignored. Safe to be generous here: the
+// verdict-not-honored warning also requires a real blocking verdict token to exist first.
+function claimsComplete(text) {
+  if (/\bREADY\b/.test(text) && /verdict|gatekeeper|readiness/i.test(text)) return true;
+  return /\b(ready to (?:ship|merge|release|go)|good to go|all set|you'?re all set|ship it|shipped|is complete|is done|done!|all done|no (?:remaining |outstanding )?issues|safe to (?:ship|merge|release)|looks good)\b/i.test(text);
+}
+
+// A DELIBERATE ship/readiness decision — used to gate the panel-presence check, which (unlike
+// verdict-honoring) has no blocking-token precondition, so it must stay clear of casual "looks
+// good / done" to avoid crying wolf. Catches the formal verdict AND the lowercase / no-keyword
+// ship phrasings, closing the "drop the verdict word to dodge the check" gap without nagging
+// trivial completions.
+function claimsShipReady(text) {
+  if (/\bREADY\b/.test(text) && /verdict|gatekeeper|readiness/i.test(text)) return true;
+  return /\b(ready to (?:ship|merge|release)|cleared to (?:ship|merge|release)|safe to (?:ship|merge|release)|good to go|ship it|ready for (?:release|production|merge))\b/i.test(text);
 }
 
 let raw = "";
@@ -36,27 +69,54 @@ process.stdin.on("end", () => {
       const re = new RegExp("(?:subagent_type|agentType|agent_type)\"?\\s*[:=]\\s*\"?[^\"]*" + name, "i");
       if (re.test(text)) ran.add(name);
     }
+    const missing = REQUIRED.filter((n) => !ran.has(n));
 
-    // Did the final assistant message assert a READY verdict?
-    let finalText = "";
+    // Locate the final assistant message (the orchestrator's closing summary).
+    let finalText = "", finalIdx = lines.length;
     for (let i = lines.length - 1; i >= 0; i--) {
       try {
         const obj = JSON.parse(lines[i]);
         const role = obj.role || (obj.message && obj.message.role) || obj.type;
-        if (role === "assistant") { finalText = JSON.stringify(obj); break; }
+        if (role === "assistant") { finalText = JSON.stringify(obj); finalIdx = i; break; }
       } catch (e) {}
     }
-    const assertsReady = /\bREADY\b/.test(finalText) && /verdict|gatekeeper|readiness/i.test(finalText);
-    debug("assertsReady=" + assertsReady + " ran=[" + [...ran].join(",") + "]");
 
-    // Conservative on purpose: only warn when a READY verdict is asserted AND NONE of the
-    // core panel agents appear anywhere in the transcript (high-confidence "panel clearly
-    // never ran"). This avoids false reminders if the real transcript serializes subagents
-    // under a shape this scan doesn't match — a fail-open advisory must not cry wolf.
-    if (assertsReady && ran.size === 0) {
-      const msg = "udflow: a READY verdict was asserted but none of the core review panel " +
-        "(spec-reviewer, test-reviewer, gatekeeper) appears to have run as a subagent this session. " +
-        "A self-review is not a formal multi-agent review — run the panel, or downgrade to FIX REQUIRED and disclose it as local self-review.";
+    // The gatekeeper's verdict lives in the transcript BEFORE the final summary. Reading the
+    // last verdict (not just any) means a FIX REQUIRED → repair → READY loop reads as READY,
+    // not as a stale block — so the repair flow is not falsely flagged.
+    const bodyBeforeFinal = lines.slice(0, finalIdx).join("\n");
+    const verdict = lastVerdict(bodyBeforeFinal);
+    const finalReportsBlock = /\b(NOT READY|FIX REQUIRED)\b/.test(finalText);
+    const finalClaimsComplete = claimsComplete(finalText);
+    const finalShipReady = claimsShipReady(finalText);
+    debug("verdict=" + verdict + " claimsComplete=" + finalClaimsComplete + " reportsBlock=" + finalReportsBlock +
+      " shipReady=" + finalShipReady + " ran=[" + [...ran].join(",") + "]");
+
+    // (1) Verdict not honored — highest value. A real blocking verdict was reached, yet the
+    // session ends claiming completion without surfacing it. The blocking token is strong,
+    // specific evidence, so this stays well clear of crying wolf.
+    if ((verdict === "NOT READY" || verdict === "FIX REQUIRED") && finalClaimsComplete && !finalReportsBlock) {
+      const msg = "udflow: the gatekeeper's last verdict was '" + verdict + "', but the session is " +
+        "ending as if the work were complete/ready. A " + verdict + " verdict must gate delivery — " +
+        "either continue the repair loop until the gatekeeper returns READY, or report the block " +
+        "(what remains unresolved and why) instead of claiming done. Do not override the verdict silently.";
+      return process.stdout.write(JSON.stringify({ systemMessage: msg }), () => process.exit(0));
+    }
+
+    // (2) READY asserted but the core panel did not fully run. Graded: distinguish "never ran"
+    // (panel clearly skipped) from "incomplete" (some core reviewers missing — e.g. only the
+    // gatekeeper ran, skipping the spec/test reviewers that do the actual review work).
+    if (finalShipReady && !finalReportsBlock && missing.length > 0) {
+      const msg = ran.size === 0
+        ? "udflow: a READY verdict was asserted but none of the core review panel (spec-reviewer, " +
+          "test-reviewer, gatekeeper) appears to have run as a subagent this session. A self-review is " +
+          "not a formal multi-agent review — run the panel, or downgrade to FIX REQUIRED and disclose " +
+          "it as local self-review."
+        : "udflow: a READY verdict was asserted, but the core review panel is incomplete — " +
+          missing.join(", ") + " did not run as a subagent this session. spec-reviewer and " +
+          "test-reviewer do the actual review work; a verdict resting on a partial panel is not a " +
+          "formal multi-agent review. Run the missing reviewer(s), or downgrade to FIX REQUIRED and " +
+          "disclose the gap.";
       return process.stdout.write(JSON.stringify({ systemMessage: msg }), () => process.exit(0));
     }
   } catch (e) { debug("error: " + (e && e.message)); }
