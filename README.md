@@ -174,7 +174,7 @@ The plugin lives in the [`udflow/`](udflow/) subdirectory (only that subdir is i
 
 - `udflow/skills/universal-dev-flow/` — the auto-invoked orchestrator (with `references/`).
 - `udflow/skills/run/` — manual entry point: `/udflow:run <task>`.
-- `udflow/agents/` — 9 subagents: `implementer` (writes) + 7 read-only reviewers + `gatekeeper`. `security-reviewer` and `gatekeeper` run on `opus`; the rest inherit the current session model.
+- `udflow/agents/` — 9 subagents: `implementer` (writes) + 7 inspection-only reviewers + `gatekeeper`. Reviewers and the gatekeeper get `Read`/`Grep`/`Glob`/`Bash` (Bash for inspection — `git diff`, `rg`, running checks) but **not** the editor tools (`Write`/`Edit`/`MultiEdit`); they are non-mutating by role and instruction, not by sandbox. `security-reviewer` and `gatekeeper` run on `opus`; the rest inherit the current session model.
 - `udflow/hooks/` — three Node hooks (same behavior on Windows, macOS, Linux; all fail-open):
   - `plan-gate.js` (PreToolUse) — blocks structured edits while in plan mode, and trips on the *obvious* Bash writes; exempts Claude Code's own plan files under `~/.claude/plans/`.
   - `load-failure-memory.js` (SessionStart) — injects a failure-memory digest.
@@ -239,7 +239,7 @@ Before any readiness claim, udflow runs the narrowest meaningful checks (build /
 
 udflow records "execution abnormalities that blocked, disrupted, or forced repair of the intended method" as plain Markdown, so future sessions read past lessons on startup. Two files (either or both): project `ai/FAILURE_MEMORY.md`, global `~/.claude/FAILURE_MEMORY.md`.
 
-- **Startup digest (automatic).** The SessionStart hook injects a condensed digest (each entry's title + prevention rule + tags, newest first, capped) — project first → global fallback. It's a small index, not the whole file; injected content is fenced as untrusted reference data. No file → nothing happens.
+- **Startup digest (automatic).** The SessionStart hook injects a condensed digest (each entry's **title + tags**, newest first, capped — the prevention-rule text is read on demand during planning, not injected) — project first → global fallback. It's a small index, not the whole file; injected content is fenced as untrusted reference data. (An unstructured file with no `###` entries falls back to injecting its raw content, role-marker-neutralized and fenced — a best-effort limit.) No file → nothing happens.
 - **Targeted recall (during planning).** The workflow retrieves the full entries relevant to the affected files / area / language / `Tags` — only relevant lessons surface.
 - **Writes** are routed by the lesson's nature (project-specific → project, cross-project → global, both → both), always rereading the global file first to merge instead of duplicating, and performed by a single writer (the main thread / `gatekeeper`) to avoid concurrent corruption. Size is kept down by consolidation, not truncation. A filled-in example: [`udflow/examples/FAILURE_MEMORY.sample.md`](udflow/examples/FAILURE_MEMORY.sample.md).
 

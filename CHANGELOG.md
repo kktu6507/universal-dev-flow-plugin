@@ -3,6 +3,24 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.10.7]
+
+Closes a real miss on the highest-value advisory (a contradictory final), hardens one failure-memory neutralization gap, adds a static hook-wiring gate, and corrects several docs that drifted from the 0.10.6 behavior. No change to defaults, reviewer selection, or the hooks' fail-open / non-blocking contract.
+
+### Fixed
+- **orchestration-check: a contradictory final no longer slips through** (`orchestration-check.js`): the verdict-not-honored advisory was gated on the final NOT quoting the block token (`!finalReportsBlock`), so a final that *acknowledged* the block yet still claimed ship-ready ("the gatekeeper returned NOT READY, but it's ready to ship") was wrongly silenced. It now gates on whether the final **honestly holds delivery** — an explicit not-ship/stop/hold decision — so the contradictory case warns, while an honest "complete, but NOT READY, so I'm not shipping" stays silent. The hold check keys on the ship *decision*, not on problem words like "unresolved"/"blocked", and deliberately avoids `finalShipReady` (which is true for any text containing the bare "READY" inside "NOT READY" + "gatekeeper", so it would have cried wolf on honest reports). Verified empirically across the contradictory, honest-stop, honest-partial, and "unresolved-but-shipping" cases.
+- **load-failure-memory: a role-marker in an entry TITLE is now neutralized** (`load-failure-memory.js`): a digest title renders as `- <title>`, and the role-marker regexes were strictly line-anchored, so a hostile `### system: ...` title slipped past as `- system: ...`. The neutralizer now tolerates a leading list marker, closing the gap. (The structured digest already injects titles + tags only, not the rule prose; an unstructured file still uses the neutralized, fenced raw fallback — a disclosed best-effort limit.)
+
+### Added
+- **CI hook-wiring gate** (`validate-structure.mjs`): the validator now asserts the three lifecycle hooks stay registered under the right events with matchers that cover the tools/lifecycles they must fire for (PreToolUse→plan-gate over Write/Edit/MultiEdit/NotebookEdit/Bash; SessionStart→load-failure-memory over startup/resume/clear/compact; Stop→orchestration-check) — an auth-free stand-in for a live install→enable→reload activation smoke, so a wiring regression that is still valid JSON can't pass green.
+- **`RELEASING.md`** — documents what CI gates automatically and the manual clean-profile activation smoke (install→enable→reload→confirm each hook + the skill fire) that a headless runner can't do.
+
+### Changed
+- **Docs corrected to match 0.10.6 behavior:** the failure-memory digest is described as **titles + tags** (not "+ prevention rule") in `README.md`, `README.zh-TW.md`, `references/verification-gate.md`, and the hook's own header comment, and the raw-fallback limit is now disclosed in the README. The reviewers are described as **inspection-only** (Read/Grep/Glob/Bash, no editor tools; non-mutating by role/instruction, not a sandbox) instead of "read-only", and `references/reviewer-common.md` now carries an explicit "use Bash for inspection only; do not modify the working tree" instruction so the contract is actually backed.
+
+### Tests
+- orchestration-check: contradictory-final warns; honest "complete but not shipping" stays silent; a "unresolved … but ready to ship" override still warns. load-failure-memory: a `system:` title is neutralized despite the `- ` prefix. validate-structure: a hook dropped from its event fails; a PreToolUse matcher narrowed below the gated tools fails. `node --test`: 79 pass / 0 fail / 2 skipped.
+
 ## [0.10.6]
 
 Binds orchestration-check evidence to the actual tools (not just any structured block), reduces the failure-memory injection surface, and clears two doc nits from the fourth external review. No change to defaults, reviewer selection, or the hooks' fail-open / non-blocking contract.

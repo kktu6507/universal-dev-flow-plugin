@@ -59,7 +59,7 @@ Do not perform broad encoding conversion unless the root cause and interoperabil
 
 ## Failure Memory
 
-Read before non-trivial implementation. The SessionStart hook injects only a condensed **digest** (entry titles + prevention rules + tags, newest first) as an index — do not treat it as the full record:
+Read before non-trivial implementation. The SessionStart hook injects only a condensed **digest** (entry titles + tags, newest first; the prevention-rule text is read on demand, not injected) as an index — do not treat it as the full record:
 
 1. `ai/FAILURE_MEMORY.md` when it exists.
 2. `~/.claude/FAILURE_MEMORY.md` otherwise, including consolidated groups.

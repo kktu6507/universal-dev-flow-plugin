@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 // udflow SessionStart: inject a compact FAILURE_MEMORY *digest* into context.
 // Prefer project ai/FAILURE_MEMORY.md, else global ~/.claude/FAILURE_MEMORY.md.
-// The digest is a condensed index (entry title + prevention rule + tags, newest
-// first, capped) — NOT the whole file. Full entries are retrieved on demand
-// during planning. Never crash a session: exit 0 with no output on any problem.
+// The digest is a condensed index (entry title + tags, newest first, capped) — NOT
+// the whole file, and NOT the prevention-rule prose (that is read on demand during
+// planning). Never crash a session: exit 0 with no output on any problem.
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
@@ -88,11 +88,13 @@ function readCapped(file) {
 }
 
 // Neutralize lines that could act as conversational role markers or instruction-block
-// tags inside injected content (on top of the nonce fence).
+// tags inside injected content (on top of the nonce fence). The optional leading list
+// marker ([-*]) matters because a digest title is rendered as "- <title>", so a hostile
+// title like "system: ..." would otherwise slip past a strictly line-anchored role regex.
 function neutralize(text) {
   return String(text).split(/\r?\n/).map((ln) => {
-    if (/^\s*(?:system|assistant|user|human)\s*:/i.test(ln)) return ln.replace(/:/, "："); // fullwidth colon breaks the role marker
-    if (/^\s*<\/?\s*(?:system|assistant|user|human|instructions?)\b/i.test(ln)) return "· " + ln.replace(/[<>]/g, "");
+    if (/^\s*[-*]?\s*(?:system|assistant|user|human)\s*:/i.test(ln)) return ln.replace(/:/, "："); // fullwidth colon breaks the role marker
+    if (/^\s*[-*]?\s*<\/?\s*(?:system|assistant|user|human|instructions?)\b/i.test(ln)) return "· " + ln.replace(/[<>]/g, "");
     return ln;
   }).join("\n");
 }

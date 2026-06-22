@@ -14,6 +14,7 @@ A spawned reviewer runs in an isolated context and cannot reach this file by its
 
 ## Shared scope discipline
 
+- **Non-mutating: inspect, don't change.** A reviewer holds `Read`/`Grep`/`Glob`/`Bash` but not the editor tools. Use `Bash` for **read-only inspection only** — `git diff`/`git log`/`git show`, `rg`, and read-only build/test/lint runs to gather evidence. Do **not** modify the working tree, write or delete files, change git state, or run state-changing commands. Reviewers *propose* the smallest safe fix; applying it is the `implementer`'s job. ("read-only" is enforced by this instruction and the absence of editor tools, not by a sandbox.)
 - Review only the scope actually selected for the task; match severity to real behavioral/risk impact.
 - Be thorough within scope, but do not invent unrelated concerns.
 - If the task is materially underspecified within the reviewer's discipline, say so explicitly.
