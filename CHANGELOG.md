@@ -3,6 +3,16 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.10.5]
+
+Completes the orchestration-check provenance hardening from the external review. No change to defaults, reviewer selection, or the hook's fail-open / non-blocking contract.
+
+### Fixed
+- **orchestration-check now derives evidence from STRUCTURED transcript blocks only** (`orchestration-check.js`): 0.10.3 stopped trusting human-typed text, but still trusted *all* assistant content — so an orchestrator that recapped the verdict vocabulary in its own prose ("…FIX REQUIRED… NOT READY…") before a "done" close could trigger a **false** "verdict not honored", and naming `subagent_type: <reviewer>` in prose (rather than a real Task call) could **silence** the panel-missing check. Panel presence is now read only from `Task` `tool_use` invocations, and the gatekeeper verdict only from `tool_result` (subagent output) — never from free prose, human or assistant. Both spoofs were reproduced against the live hook and now behave correctly, while a real structured panel + `tool_result` verdict still warns as before.
+
+### Tests
+- Two assistant-prose regression tests (a verdict token in the orchestrator's own prose is not read as the gatekeeper's verdict; a `subagent_type:` named in prose does not count as a panel run), alongside the existing human-prose pair. `node --test`: 68 pass / 0 fail / 2 skipped.
+
 ## [0.10.4]
 
 Docs, CI, and least-privilege polish from the external-review backlog, plus one cross-platform `plan-gate` fix the new macOS runner surfaced. No change to defaults or reviewer selection.
