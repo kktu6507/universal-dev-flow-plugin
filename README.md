@@ -282,6 +282,18 @@ MCP tools, external subagents, and external skills are all **optional**. If pres
 
 udflow is **early / experimental** and **solo-maintained** (one author, in spare time). It's dogfooded on real work, but it has a short track record and a **bus factor of one** — weigh that before depending on it for release gating. Issues and PRs are welcome and read, but response time is best-effort, not guaranteed. The most valuable contribution is a **[verified run report](.github/ISSUE_TEMPLATE/verified-run.yml)** — see [`CONTRIBUTING.md`](CONTRIBUTING.md) and the evidence log in [`EVIDENCE.md`](EVIDENCE.md).
 
+### Contribute a verified run
+
+udflow ships **no telemetry**, so a real run only counts toward dropping the "experimental" label if it's written down. If you've run it on real work, please add yours:
+
+**→ [Open a "Verified udflow run" issue](https://github.com/simba6507/universal-dev-flow-plugin/issues/new?template=verified-run.yml)** — the form mirrors the evidence template; the maintainer curates accepted runs into [`EVIDENCE.md`](EVIDENCE.md).
+
+- **Misses and false alarms are wanted too**, not just wins — honest data is the point, and more credible.
+- Sanitize private code and secrets first; a sanitized stack + outcome is fine for private repos.
+- udflow prints a paste-ready "Live run" block at the end of a real run — drop it straight into the issue.
+
+The open gate is in [`EVIDENCE.md`](EVIDENCE.md): **≥10 verified runs, across ≥3 projects, with ≥1 not by the maintainer.**
+
 ---
 
 ## License

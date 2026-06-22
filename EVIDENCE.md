@@ -38,6 +38,22 @@ adoption signals — log them under [Adoption](#adoption-not-counted-toward-grad
 This applies equally to the maintainer's runs and to contributors' runs — the gate is *verifiable ground
 truth*, not *who ran it*.
 
+### Verification tiers
+
+udflow ships no telemetry and many runs happen on private code, so a run's *verifiability* varies — label
+it rather than blur it:
+
+- **Publicly verifiable** — a public repo with a PR / commit link the maintainer can independently inspect
+  (verdict, findings, and the follow-up outcome are all checkable). The strongest evidence.
+- **Self-attested (private)** — a private or proprietary run shared as a sanitized stack + outcome, with no
+  independently-checkable artifact. It still counts, but is **marked self-attested** and leaned on less for
+  the headline rates; the breadth (≥3 projects) and non-maintainer (≥1) requirements keep any single source
+  from dominating.
+
+New `### Live run N …` entries are tagged with their tier. The first three logged below are maintainer
+**self-attested** (private) — which is exactly why the ≥3-projects breadth and the ≥1 non-maintainer
+requirement remain open.
+
 ## Graduation criteria (two tracks)
 
 **Track 1 — Capability validation: MET.** ≥3 external repos ✓, ≥2 languages ✓, ≥20 qualifying Type-A points ✓,
@@ -61,6 +77,7 @@ whether the **workflow + verdict** holds up in practice, which is the claim the 
 | Metric | Now | Track-1 target | Track-2 target |
 |---|---|---|---|
 | **Real-world verified runs (Type B)** | **3 logged** | — | ≥ 10 |
+| — of which **publicly verifiable** (vs self-attested / private) | **0** | — | — |
 | Distinct real projects (Type B) | **1 logged** (all one private repo) | — | ≥ 3 |
 | Independent (non-maintainer) runs | **0** | — | ≥ 1 |
 | External repos (Type A benchmark) | **~13** | ≥ 3 ✓ | — |
@@ -100,7 +117,7 @@ real projects. Every entry here moves Track 2 toward graduation.
 shape:
 
 ```
-### Live run N — YYYY-MM-DD · <project / stack> (<language>) · verified live task
+### Live run N — YYYY-MM-DD · <project / stack> (<language>) · verified live task · <publicly verifiable | self-attested (private)>
 
 - Task: <what udflow was asked to do>
 - Intent given: <the requirement / contract handed to udflow — how specific?>
