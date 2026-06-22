@@ -438,6 +438,67 @@ test("orchestration-check fails open (silent) on an over-cap transcript (>32MB)"
   }
 });
 
+test("orchestration-check still evaluates a just-under-cap transcript — warns, proving the size guard isn't eager", () => {
+  // Pairs with the over-cap test above: a large transcript that is still UNDER the 32 MB cap must be
+  // evaluated normally (here READY with no panel -> the panel-missing advisory fires). Guards against
+  // a flipped '>' or a lowered cap that would wrongly skip real, in-range sessions (a silent regression
+  // the over-cap "big -> silent" test cannot catch on its own).
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "udflow-bigtx-"));
+  const p = path.join(dir, "transcript.jsonl");
+  const pad = JSON.stringify({ role: "user", content: "x".repeat(1024 * 1024) }) + "\n"; // ~1MB/line
+  const fd = fs.openSync(p, "w");
+  try {
+    for (let i = 0; i < 30; i++) fs.writeSync(fd, pad); // ~31MB, comfortably under the 32MB cap
+    fs.writeSync(fd, JSON.stringify({ role: "assistant", content: "Final verdict: READY — readiness confirmed." }) + "\n");
+  } finally { fs.closeSync(fd); }
+  try {
+    const r = orch({ transcript_path: p });
+    assert.ok(r && /none of the core review panel/.test(r.systemMessage),
+      "an under-cap transcript must still be evaluated (a flipped '>' or lowered cap would wrongly silence this)");
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("orchestration-check evaluates a transcript exactly at the cap (locks '>' not '>=')", () => {
+  // At exactly 32 MB the guard must NOT bail (size > cap is false), so the hook still evaluates and
+  // warns. With a '>=' the file would be skipped and this would fail — pinning the boundary operator.
+  const CAP = 32 * 1024 * 1024;
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "udflow-capeq-"));
+  const p = path.join(dir, "transcript.jsonl");
+  const pad = JSON.stringify({ role: "user", content: "x".repeat(1024 * 1024) }) + "\n"; // ASCII -> 1 byte/char
+  const padBytes = Buffer.byteLength(pad);
+  const n = Math.floor((CAP - 4096) / padBytes); // full pad lines, leaving room for the final line
+  // ASCII-only final line so byte length == char length; ends with the READY/no-panel tail that warns.
+  const finalPrefix = '{"role":"assistant","content":"Final verdict: READY readiness confirmed ';
+  const finalSuffix = '"}\n';
+  const remaining = CAP - n * padBytes - Buffer.byteLength(finalPrefix) - Buffer.byteLength(finalSuffix);
+  const fd = fs.openSync(p, "w");
+  try {
+    for (let i = 0; i < n; i++) fs.writeSync(fd, pad);
+    fs.writeSync(fd, finalPrefix + "x".repeat(remaining) + finalSuffix);
+  } finally { fs.closeSync(fd); }
+  try {
+    assert.strictEqual(fs.statSync(p).size, CAP, "fixture must be constructed to exactly the cap");
+    const r = orch({ transcript_path: p });
+    assert.ok(r && /none of the core review panel/.test(r.systemMessage),
+      "a transcript exactly at the cap must still be evaluated (guard is '>' not '>=')");
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("orchestration-check fails open (silent) when the transcript path is a directory", () => {
+  // A non-file path must not crash the hook: statSync succeeds, readFileSync throws EISDIR, the outer
+  // catch swallows it, and nothing is emitted (fail-open). Exercises the guard's robustness on odd paths.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "udflow-dirtx-"));
+  try {
+    assert.strictEqual(orch({ transcript_path: dir }), null, "a directory transcript path must fail open (silent)");
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("orchestration-check warns when READY is asserted and NO panel agent ran", () => {
   const tp = mkTranscript([
     { role: "user", content: "do the thing" },
