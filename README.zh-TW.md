@@ -174,7 +174,7 @@ plugin 本體位於 [`udflow/`](udflow/) 子目錄（只有這個子目錄會被
 
 - `udflow/skills/universal-dev-flow/` — 自動觸發的編排器（含 `references/`）。
 - `udflow/skills/run/` — 手動入口：`/udflow:run <task>`。
-- `udflow/agents/` — 9 個 subagent：`implementer`（可寫）+ 7 個唯讀審查員 + `gatekeeper`。其中 `security-reviewer` 與 `gatekeeper` 跑 `opus`，其餘沿用當前 session 模型。
+- `udflow/agents/` — 9 個 subagent：`implementer`（可寫）+ 7 個檢查型審查員 + `gatekeeper`。審查員與 gatekeeper 拿 `Read`/`Grep`/`Glob`/`Bash`（Bash 僅供檢查——`git diff`、`rg`、跑檢查），但**沒有** editor 工具（`Write`/`Edit`/`MultiEdit`）；它們以角色與指示約束為非改動，而非 sandbox 強制。其中 `security-reviewer` 與 `gatekeeper` 跑 `opus`，其餘沿用當前 session 模型。
 - `udflow/hooks/` — 三個 Node hook（Windows、macOS、Linux 行為一致，全部 fail-open）：
   - `plan-gate.js`（PreToolUse）—— plan mode 期間擋結構化編輯，並對*明顯的* Bash 寫入觸發；放行 `~/.claude/plans/` 的 plan 檔。
   - `load-failure-memory.js`（SessionStart）—— 注入失敗記憶摘要。
@@ -239,7 +239,7 @@ udflow> [離開 plan mode] 現在才真的改 checkout.tsx ✓
 
 udflow 把「讓原訂做法受阻、中斷或被迫修復的執行異常」記成純文字 Markdown，讓未來 session 一開始就讀過去的教訓。用兩個檔（擇一或並用）：專案 `ai/FAILURE_MEMORY.md`、全域 `~/.claude/FAILURE_MEMORY.md`。
 
-- **開場摘要（自動）。** SessionStart hook 注入一份精煉摘要（每條標題 + prevention rule + tags，最新優先、有上限）——專案優先 → 全域備援。它是索引、不是整檔；注入內容以「不可信參考資料」圍欄包住。沒檔就什麼都不做。
+- **開場摘要（自動）。** SessionStart hook 注入一份精煉摘要（每條**標題 + tags**，最新優先、有上限——prevention rule 改在 planning 階段按需讀取，不注入）——專案優先 → 全域備援。它是索引、不是整檔；注入內容以「不可信參考資料」圍欄包住。（沒有 `###` 條目的非結構化檔則退回注入其原始內容，經 role-marker 中和並圍欄包住——盡力而為的界線。）沒檔就什麼都不做。
 - **精準檢索（planning 階段）。** 工作流依本次受影響的檔案/領域/語言/`Tags` 取出相關完整條目——只浮現相關教訓。
 - **寫入**依教訓性質分流（專案專屬寫專案、跨專案寫全域、皆有則兩邊都寫），且寫前一律先重讀全域檔以合併而非重複，並由**單一寫入者**（主線程/`gatekeeper`）執行以避免並發損毀。檔案大小靠整理（consolidation）控管，非靠截斷。範例見 [`udflow/examples/FAILURE_MEMORY.sample.md`](udflow/examples/FAILURE_MEMORY.sample.md)。
 

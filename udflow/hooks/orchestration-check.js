@@ -69,6 +69,19 @@ function claimsShipReady(text) {
   return /\b(ready to (?:ship|merge|release)|cleared to (?:ship|merge|release)|safe to (?:ship|merge|release)|good to go|ship it|ready for (?:release|production|merge))\b/i.test(text);
 }
 
+// Does the final message HONESTLY hold delivery — an explicit not-ship / stop / hold DECISION? Used
+// to gate the verdict-not-honored check so that "the gatekeeper said NOT READY, but it's ready to
+// ship" still warns (no hold cue), while "complete, but NOT READY, so I'm not shipping" stays silent.
+// Keyed on the ship DECISION only — NOT on problem-description words like "unresolved" / "blocked"
+// (those describe the issue, not the choice to stop), so a block acknowledged-then-overridden is not
+// mistaken for an honest hold. Note: assertsReadyVerdict is NOT usable here — it treats the bare
+// "READY" inside "NOT READY" as a ship assertion, so it is true for honest disclosures too.
+function holdsDelivery(text) {
+  return /\b(?:not|won'?t|will not|do(?:es)? not|cannot|can'?t|are not|is not|isn'?t|aren'?t|not going to|not gonna)\s+(?:ship|shipp?ing|merg(?:e|ing)|releas(?:e|ing)|deliver(?:ing)?)\b/i.test(text)
+    || /\bnot\s+ready\s+to\s+(?:ship|merge|release|go)\b/i.test(text)
+    || /\b(?:stopping|halting|holding(?:\s+(?:off|back))?|on hold|withholding|paus(?:e|ing))\b/i.test(text);
+}
+
 let raw = "";
 process.stdin.setEncoding("utf8");
 process.stdin.on("error", () => process.exit(0));
@@ -156,13 +169,16 @@ process.stdin.on("end", () => {
     const finalReportsBlock = /\b(NOT READY|FIX REQUIRED)\b/.test(finalText);
     const finalClaimsComplete = claimsComplete(finalText);
     const finalShipReady = claimsShipReady(finalText);
+    const finalHoldsDelivery = holdsDelivery(finalText);
     debug("verdict=" + verdict + " claimsComplete=" + finalClaimsComplete + " reportsBlock=" + finalReportsBlock +
-      " shipReady=" + finalShipReady + " ran=[" + [...ran].join(",") + "]");
+      " shipReady=" + finalShipReady + " holds=" + finalHoldsDelivery + " ran=[" + [...ran].join(",") + "]");
 
-    // (1) Verdict not honored — highest value. A real blocking verdict was reached, yet the
-    // session ends claiming completion without surfacing it. The blocking token is strong,
-    // specific evidence, so this stays well clear of crying wolf.
-    if ((verdict === "NOT READY" || verdict === "FIX REQUIRED") && finalClaimsComplete && !finalReportsBlock) {
+    // (1) Verdict not honored — highest value. A real blocking verdict was reached, yet the session
+    // ends claiming completion WITHOUT honestly holding delivery. Gating on !finalHoldsDelivery (an
+    // explicit not-ship/stop decision) rather than !finalReportsBlock means a final that *quotes* the
+    // block but still claims ship-ready ("NOT READY, but it's ready to ship") is caught, while an
+    // honest "complete, but NOT READY, so not shipping" is not nagged.
+    if ((verdict === "NOT READY" || verdict === "FIX REQUIRED") && finalClaimsComplete && !finalHoldsDelivery) {
       const msg = "udflow: the gatekeeper's last verdict was '" + verdict + "', but the session is " +
         "ending as if the work were complete/ready. A " + verdict + " verdict must gate delivery — " +
         "either continue the repair loop until the gatekeeper returns READY, or report the block " +

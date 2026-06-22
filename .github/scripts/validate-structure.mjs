@@ -136,6 +136,33 @@ if (fs.existsSync(path.join(root, hooksRel))) {
       if (!readme.includes(base)) fail(`README.md does not mention the hook "${base}" (docs out of sync with hooks.json)`);
     }
   }
+
+  // 5c. Hook WIRING — the auth-free stand-in for a live install->enable->reload activation smoke.
+  // A regression that drops a hook from its event, or narrows a matcher so the hook no longer fires
+  // for a tool/lifecycle it must cover, is still valid JSON (so the parse + node --check + behavioral
+  // tests can all stay green) — assert the wiring structurally so such a regression fails the build.
+  let hj = null;
+  try { hj = JSON.parse(hooksText); } catch (e) { hj = null; } // a parse error is already reported by section 4
+  if (hj) {
+    const h = hj.hooks || {};
+    const entriesFor = (event) => (Array.isArray(h[event]) ? h[event] : []);
+    const cmdsFor = (event) => entriesFor(event).flatMap((e) => (Array.isArray(e.hooks) ? e.hooks : []).map((x) => (x && x.command) || ""));
+    const wiresUnder = (event, hookFile) => cmdsFor(event).some((c) => c.includes("hooks/" + hookFile));
+    const eventMatches = (event, token) => entriesFor(event).some((e) => {
+      try { return new RegExp("^(?:" + (e.matcher || "") + ")$").test(token); } catch (err) { return false; }
+    });
+    const WIRING = [
+      { event: "PreToolUse", hook: "plan-gate.js", tokens: ["Write", "Edit", "MultiEdit", "NotebookEdit", "Bash"] },
+      { event: "SessionStart", hook: "load-failure-memory.js", tokens: ["startup", "resume", "clear", "compact"] },
+      { event: "Stop", hook: "orchestration-check.js", tokens: [] }, // Stop has no matcher
+    ];
+    for (const w of WIRING) {
+      if (!wiresUnder(w.event, w.hook)) fail(`hooks.json: ${w.event} does not wire ${w.hook} (hook would never fire)`);
+      for (const t of w.tokens) {
+        if (!eventMatches(w.event, t)) fail(`hooks.json: the ${w.event} matcher does not cover "${t}" (the hook would never fire for it)`);
+      }
+    }
+  }
 }
 
 // 6. distribution hygiene: runtime/process artifacts must never ship in the
