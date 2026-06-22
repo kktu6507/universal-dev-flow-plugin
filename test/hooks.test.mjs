@@ -1020,3 +1020,246 @@ test("validate-structure: a PreToolUse matcher that stops covering a gated tool 
     assert.match(out, /PreToolUse matcher does not cover "Bash"/, "the failure must name the uncovered tool");
   } finally { fs.rmSync(tree, { recursive: true, force: true }); }
 });
+
+// --- 0.11.0 F4: matcher coverage is bound to the hook's own entry (cross-entry merge gap) ---
+
+test("validate-structure: a second event entry can no longer cover another hook's matcher gap (scoped wiring gate)", () => {
+  // Narrow plan-gate's OWN entry to drop MultiEdit, and add a SECOND PreToolUse entry that wires an
+  // existing, README-named hook and whose matcher DOES cover MultiEdit. Under the old merged `.some()`
+  // logic the gate passed (some entry covered MultiEdit); the scoped check must now fail because
+  // plan-gate's own entry does not cover it.
+  const tree = copyRepoTree();
+  try {
+    const hjPath = path.join(tree, "udflow", "hooks", "hooks.json");
+    const hj = JSON.parse(fs.readFileSync(hjPath, "utf8"));
+    const pre = hj.hooks.PreToolUse;
+    pre[0].matcher = "Write|Edit|NotebookEdit|Bash"; // plan-gate entry: MultiEdit dropped
+    pre.push({ matcher: "MultiEdit", hooks: [{ type: "command", command: pre[0].hooks[0].command.replace("plan-gate.js", "load-failure-memory.js") }] });
+    fs.writeFileSync(hjPath, JSON.stringify(hj, null, 2), "utf8");
+    const { code, out } = runValidator(tree);
+    assert.notStrictEqual(code, 0, "a different entry's matcher must not satisfy plan-gate's own coverage");
+    assert.match(out, /matcher does not cover "MultiEdit"/, "the failure must name the token plan-gate's own entry omits");
+  } finally { fs.rmSync(tree, { recursive: true, force: true }); }
+});
+
+// --- 0.11.0 F3: panel-missing advisory must NOT self-suppress on a mere block-token mention ---
+
+test("orchestration-check F3: a mixed-history final (earlier NOT READY, now READY, shipping) with NO panel still warns", () => {
+  // The gate used to be `!finalReportsBlock`, silenced by ANY NOT READY / FIX REQUIRED token in the
+  // final. A contradictory close that quotes the old block but still asserts READY + ships, with no
+  // panel, must warn (the panel safety-net must not be defeated by a prose mention).
+  const tp = mkTranscript([
+    { role: "user", content: "ship it" },
+    { role: "assistant", content: "Earlier the gatekeeper said NOT READY on auth, but I've confirmed it now. Final verdict: READY — ready to ship." },
+  ]);
+  const r = orch({ transcript_path: tp });
+  assert.ok(r && /none of the core review panel/.test(r.systemMessage), "a mixed-history block mention must not suppress the panel-missing advisory");
+  assert.ok(!r.decision, "must not block the stop");
+});
+
+test("orchestration-check F3: a ship-ready final that ALSO honestly holds (no panel) stays silent — the !holdsDelivery term is load-bearing", () => {
+  // This is the input where the F3 gate change is decisive: finalShipReady is TRUE (affirmative READY +
+  // "verdict") AND holdsDelivery is TRUE ("not shipping"), with NO block token. Under the OLD gate
+  // (!finalReportsBlock — false here, so the term was true) the panel advisory would FIRE; under the NEW
+  // gate (!finalHoldsDelivery) it is suppressed. So this test fails if the F3 change is reverted — unlike a
+  // no-ship-claim hold (silenced by finalShipReady=false regardless), it actually exercises the fix.
+  const tp = mkTranscript([
+    { role: "user", content: "do it" },
+    { role: "assistant", content: "Final verdict: READY — readiness confirmed, but I'm holding off and not shipping yet until QA signs off." },
+  ]);
+  assert.strictEqual(orch({ transcript_path: tp }), null, "a ship-ready-but-honestly-holding final must stay silent (holdsDelivery suppresses)");
+});
+
+// --- 0.11.0 B (#1): verification sentinel udflow:verify= + advisory 3 (exit status over reviewer prose) ---
+
+test("orchestration-check: udflow:verify=fail while delivering WARNS (exit status is authority)", () => {
+  const tp = mkTranscript([
+    { role: "user", content: "done?" },
+    { role: "assistant", content: "All implemented and reviewed.\n\nudflow:verify=fail\nudflow:delivery=shipped" },
+  ]);
+  const r = orch({ transcript_path: tp });
+  assert.ok(r && /verification sentinel reports/.test(r.systemMessage), "verify=fail + delivering must warn");
+  assert.ok(/exit status is authority/.test(r.systemMessage) && /required check/.test(r.systemMessage), "message names exit-status authority and the required check");
+  assert.ok(!r.decision, "must not block the stop");
+});
+
+test("orchestration-check: udflow:verify=unrun while delivering WARNS (claimed but never run)", () => {
+  const tp = mkTranscript([
+    { role: "assistant", content: "Looks complete.\nudflow:verify=unrun\nudflow:delivery=shipped" },
+  ]);
+  const r = orch({ transcript_path: tp });
+  assert.ok(r && /verification sentinel reports/.test(r.systemMessage) && /never actually run/.test(r.systemMessage),
+    "verify=unrun + delivering must warn about a claimed-but-unrun check");
+});
+
+test("orchestration-check: verify happy/held paths stay silent (pass+shipped, na+shipped, fail+held, unrun+held)", () => {
+  const silent = (c) => assert.strictEqual(orch({ transcript_path: mkTranscript([{ role: "assistant", content: c }]) }), null, "should be silent: " + c);
+  silent("Shipping.\nudflow:verify=pass\nudflow:delivery=shipped");          // green checks, shipping
+  silent("Docs only, shipping.\nudflow:verify=na\nudflow:delivery=shipped"); // no required checks
+  silent("Build is red.\nudflow:verify=fail\nudflow:delivery=held");         // honest hold on a red check
+  silent("A check could not run.\nudflow:verify=unrun\nudflow:delivery=held"); // honest hold on an unrun check
+});
+
+test("orchestration-check: the LAST udflow:verify line wins over an earlier in-prose mention (last-match)", () => {
+  // Locks the last-match fix: an earlier udflow:verify=fail discussed in prose must not beat the
+  // authoritative final rollup (pass). First-match .exec would wrongly read 'fail' and emit a spurious warning.
+  const tp = mkTranscript([{ role: "assistant", content: "Earlier udflow:verify=fail, after the fix it is green.\nudflow:verify=pass\nudflow:delivery=shipped" }]);
+  assert.strictEqual(orch({ transcript_path: tp }), null, "the final rollup (pass) must win, not the earlier prose 'fail'");
+});
+
+test("orchestration-check: udflow:verify=fail with no delivery token but an honest hold stays silent", () => {
+  // sessionDelivers uses the prose fallback (no delivery sentinel): claimsComplete is TRUE ("is complete"),
+  // so the OPERATIVE suppressor is holdsDelivery ("not shipping") -> sessionDelivers = complete && !hold = false.
+  // This pins the prose-hold path (a regression weakening holdsDelivery's suppression would fire here).
+  const tp = mkTranscript([{ role: "assistant", content: "The migration is complete, but the build is red so I'm not shipping. udflow:verify=fail" }]);
+  assert.strictEqual(orch({ transcript_path: tp }), null, "verify=fail + completion claim + honest prose hold must stay silent");
+});
+
+test("orchestration-check: with NO udflow:verify token the new advisory is inert (regression guard)", () => {
+  // Panel ran + shipping + no verify token -> nothing new fires; behavior is exactly as before the sentinel.
+  const tp = mkTranscript([
+    { role: "assistant", content: [{ type: "tool_use", name: "Task", input: { subagent_type: "udflow:spec-reviewer" } }] },
+    { role: "assistant", content: [{ type: "tool_use", name: "Task", input: { subagent_type: "udflow:test-reviewer" } }] },
+    { role: "assistant", content: [{ type: "tool_use", name: "Task", input: { subagent_type: "udflow:gatekeeper" } }] },
+    { role: "assistant", content: "Final verdict: READY — readiness confirmed. udflow:delivery=shipped" },
+  ]);
+  assert.strictEqual(orch({ transcript_path: tp }), null, "no verify token -> the verify branch is dead, nothing fires");
+});
+
+test("orchestration-check: verdict-not-honored takes precedence over the verify advisory (single emit)", () => {
+  const tp = mkTranscript([
+    { role: "assistant", content: [{ type: "tool_use", id: "g", name: "Task", input: { subagent_type: "udflow:gatekeeper" } }] },
+    { role: "user", content: [{ type: "tool_result", tool_use_id: "g", content: "Final verdict: NOT READY — auth bypass unresolved." }] },
+    { role: "assistant", content: "Done.\nudflow:verify=fail\nudflow:delivery=shipped" },
+  ]);
+  const r = orch({ transcript_path: tp });
+  assert.ok(r && /gatekeeper's last verdict was 'NOT READY'/.test(r.systemMessage), "advisory 1 must win");
+  assert.ok(!/verification sentinel/.test(r.systemMessage), "must not be the verify advisory (precedence + exactly one emit)");
+});
+
+test("orchestration-check: panel-missing (advisory 2) takes precedence over the verify advisory (single emit)", () => {
+  // READY + no panel + verify=fail + shipped: advisory 2 early-returns before advisory 3, so only ONE
+  // systemMessage is emitted. Pins the documented priority order so a future reorder is caught.
+  const tp = mkTranscript([
+    { role: "assistant", content: "Final verdict: READY — readiness confirmed.\nudflow:verify=fail\nudflow:delivery=shipped" },
+  ]);
+  const r = orch({ transcript_path: tp });
+  assert.ok(r && /none of the core review panel/.test(r.systemMessage), "advisory 2 (panel-missing) must fire");
+  assert.ok(!/verification sentinel/.test(r.systemMessage), "advisory 3 must not also fire (single emit, advisory 2 precedence)");
+});
+
+test("orchestration-check: the verify advisory fires on the array-of-typed-blocks final shape (real transcript shape)", () => {
+  // The other verify tests use string content; real Claude Code transcripts use content as an array of
+  // typed blocks. Pin the array path so a future finalText-extraction change cannot silently regress it.
+  const tp = mkTranscript([
+    { role: "assistant", content: [{ type: "text", text: "All implemented.\nudflow:verify=fail\nudflow:delivery=shipped" }] },
+  ]);
+  const r = orch({ transcript_path: tp });
+  assert.ok(r && /verification sentinel reports/.test(r.systemMessage), "verify=fail must warn on the array-block final shape too");
+});
+
+test("orchestration-check: verify sentinel is case/space tolerant and udflow:-anchored", () => {
+  const mk = (c) => mkTranscript([{ role: "assistant", content: c + "\nudflow:delivery=shipped" }]);
+  const warns = (c) => /verification sentinel/.test((orch({ transcript_path: mk(c) }) || {}).systemMessage || "");
+  assert.ok(warns("udflow : verify = FAILED"), "spacey 'FAILED' folds to fail and warns");
+  assert.ok(warns("udflow:verify=skipped"), "'skipped' folds to unrun and warns when delivering");
+  assert.strictEqual(orch({ transcript_path: mk("udflow:verify=green") }), null, "'green' folds to pass -> silent");
+  const r = orch({ transcript_path: mk("the verify=fail flag in our config") });
+  assert.ok(!r || !/verification sentinel/.test(r.systemMessage || ""), "'verify=fail' without the udflow: prefix must not match");
+});
+
+test("orchestration-check: a localized (zh) summary with udflow:verify=fail + delivery=shipped still warns", () => {
+  const tp = mkTranscript([{ role: "assistant", content: "完成了，準備出貨。\nudflow:verify=fail\nudflow:delivery=shipped" }]);
+  const r = orch({ transcript_path: tp });
+  assert.ok(r && /verification sentinel/.test(r.systemMessage), "the language-neutral sentinel still warns in a localized summary");
+});
+
+test("orchestration-check: a udflow:verify token only in a USER message stays silent (finalText-scoped)", () => {
+  const tp = mkTranscript([
+    { role: "user", content: "note from my old log: udflow:verify=fail and udflow:delivery=shipped" },
+    { role: "assistant", content: [{ type: "tool_use", name: "Task", input: { subagent_type: "udflow:spec-reviewer" } }] },
+    { role: "assistant", content: [{ type: "tool_use", name: "Task", input: { subagent_type: "udflow:test-reviewer" } }] },
+    { role: "assistant", content: [{ type: "tool_use", name: "Task", input: { subagent_type: "udflow:gatekeeper" } }] },
+    { role: "assistant", content: "All green and shipping. Final verdict: READY." },
+  ]);
+  assert.strictEqual(orch({ transcript_path: tp }), null, "a verify token only in a user message must not trip the advisory (reads finalText only)");
+});
+
+// --- 0.11.0 F1: load-failure-memory realpath containment (symlink/junction escapes are not injected) ---
+
+test("load-failure-memory F1: a junction at ai/ escaping the project is not read/injected (containment)", (t) => {
+  const { home, env } = isolatedHome(); // no global ~/.claude/FAILURE_MEMORY.md -> no fallback to mask the result
+  const proj = fs.mkdtempSync(path.join(os.tmpdir(), "udflow-f1proj-"));
+  const external = fs.mkdtempSync(path.join(os.tmpdir(), "udflow-f1ext-"));
+  t.after(() => {
+    try { fs.rmSync(home, { recursive: true, force: true }); } catch (e) {}
+    try { fs.rmSync(proj, { recursive: true, force: true }); } catch (e) {}
+    try { fs.rmSync(external, { recursive: true, force: true }); } catch (e) {}
+  });
+  fs.writeFileSync(path.join(external, "FAILURE_MEMORY.md"), "# FM\n\n### 2026-06-23 — EXTERNAL-LEAK-MARKER\n- **Tags**: x.\n", "utf8");
+  try {
+    fs.symlinkSync(external, path.join(proj, "ai"), "junction"); // junction on Windows; dir symlink elsewhere
+  } catch (e) {
+    return t.skip("cannot create a junction/dir-symlink here: " + (e && e.code));
+  }
+  const ctx = digestOf({ cwd: proj }, env);
+  assert.ok(!ctx.includes("EXTERNAL-LEAK-MARKER"), "an ai/ junction escaping the project must not be read/injected");
+  assert.strictEqual(ctx, "", "containment skip yields no injection (no global fallback in the isolated home)");
+});
+
+test("load-failure-memory F1: ai/FAILURE_MEMORY.md symlinked to an out-of-project file is not injected", (t) => {
+  const { home, env } = isolatedHome();
+  const proj = fs.mkdtempSync(path.join(os.tmpdir(), "udflow-f1bproj-"));
+  const external = fs.mkdtempSync(path.join(os.tmpdir(), "udflow-f1bext-"));
+  t.after(() => {
+    try { fs.rmSync(home, { recursive: true, force: true }); } catch (e) {}
+    try { fs.rmSync(proj, { recursive: true, force: true }); } catch (e) {}
+    try { fs.rmSync(external, { recursive: true, force: true }); } catch (e) {}
+  });
+  const secret = path.join(external, "secret.md");
+  fs.writeFileSync(secret, "EXTERNAL-FILE-MARKER contents\n", "utf8");
+  fs.mkdirSync(path.join(proj, "ai"));
+  try {
+    fs.symlinkSync(secret, path.join(proj, "ai", "FAILURE_MEMORY.md"), "file");
+  } catch (e) {
+    return t.skip("cannot create a file symlink here: " + (e && e.code));
+  }
+  const ctx = digestOf({ cwd: proj }, env);
+  assert.ok(!ctx.includes("EXTERNAL-FILE-MARKER"), "a symlinked FAILURE_MEMORY.md escaping the project must not be injected");
+  assert.strictEqual(ctx, "", "the escape is skipped and there is no global fallback in the isolated home");
+});
+
+test("load-failure-memory F1: a normal in-tree ai/FAILURE_MEMORY.md still injects (containment allows the legit case)", () => {
+  const ctx = digestOf({ cwd: mkProject("# FM\n\n### 2026-06-23 — in-tree entry\n- **Prevention rule**: r.\n- **Tags**: x.\n") });
+  assert.ok(ctx.includes("in-tree entry"), "a regular in-tree memory file must still be read after the containment change");
+});
+
+test("load-failure-memory F1: a normal ~/.claude/FAILURE_MEMORY.md still injects through the global containment guard", (t) => {
+  // Exercises the SECOND call site, containedRegularFile(globalPath, globalRoot): a regular global file
+  // must still inject through the new guard (regression guard for the global call site / its rootDir arg).
+  const { home, env } = isolatedHome();
+  t.after(() => { try { fs.rmSync(home, { recursive: true, force: true }); } catch (e) {} });
+  fs.mkdirSync(path.join(home, ".claude"), { recursive: true });
+  fs.writeFileSync(path.join(home, ".claude", "FAILURE_MEMORY.md"), "# FM\n\n### 2026-06-23 — global entry\n- **Tags**: x.\n", "utf8");
+  const ctx = digestOf({ cwd: mkProject(null) }, env); // project has no ai/ -> falls back to the global file
+  assert.ok(ctx.includes("global entry"), "a regular global memory file must inject through the global-path containment guard");
+});
+
+test("load-failure-memory F1: a ~/.claude/FAILURE_MEMORY.md symlinked outside ~/.claude is not injected", (t) => {
+  const { home, env } = isolatedHome();
+  const external = fs.mkdtempSync(path.join(os.tmpdir(), "udflow-gext-"));
+  t.after(() => {
+    try { fs.rmSync(home, { recursive: true, force: true }); } catch (e) {}
+    try { fs.rmSync(external, { recursive: true, force: true }); } catch (e) {}
+  });
+  fs.mkdirSync(path.join(home, ".claude"), { recursive: true });
+  const secret = path.join(external, "secret.md");
+  fs.writeFileSync(secret, "GLOBAL-ESCAPE-MARKER\n", "utf8");
+  try {
+    fs.symlinkSync(secret, path.join(home, ".claude", "FAILURE_MEMORY.md"), "file");
+  } catch (e) {
+    return t.skip("cannot create a file symlink here: " + (e && e.code));
+  }
+  const ctx = digestOf({ cwd: mkProject(null) }, env);
+  assert.ok(!ctx.includes("GLOBAL-ESCAPE-MARKER"), "a global memory symlink escaping ~/.claude must not be injected");
+});

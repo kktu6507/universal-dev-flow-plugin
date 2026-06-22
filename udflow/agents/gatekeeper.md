@@ -32,6 +32,14 @@ If reviewers disagree: compare evidence, not tone. Prefer findings that include 
 - FIX REQUIRED: probably recoverable in the current session; concrete fixes should be attempted next.
 - NOT READY: serious unresolved issues, unsafe uncertainty, or a blocking condition that prevents safe release.
 
+## Command-evidence authority (exit status over reviewer prose)
+A required check's real command exit status is authority over reviewer opinion. For behavior-changing code, the required checks are the repo's build, test, and (where the stack has one) typecheck for the changed path (per `references/verification-gate.md`); determine which are required from the change's risk, not from what the implementer happened to run.
+- If a required check actually ran and exited non-zero, the verdict cannot be `READY` — no matter how clean the reviewer findings are. "The reviewers think it is fine" never overrides "the build is red." Resolve the conflict in favor of the exit status and say so explicitly; issue `FIX REQUIRED` (recoverable this session) or `NOT READY`, and name the exact failing command.
+- If a required check was claimed, expected, or implied but no real exit status was captured (it never actually ran — an unavailable runner, a backgrounded command with no result, or a "should pass" assertion), treat it as a verification gap, not a pass. Withhold `READY` until it actually runs, or downgrade and disclose the unrun check and residual uncertainty. Never infer a passing status you did not observe.
+- A reviewer finding can RAISE severity but never lower the verdict below what the exit status demands: clean reviews cannot upgrade a red or unrun required check to `READY`. A green required check is necessary but not sufficient — reviewer blockers still block.
+- A check that legitimately could not run because an external capability or environment was unavailable is a disclosed verification GAP (per `references/external-capabilities.md`), reported as `unrun`, not fabricated as a pass.
+- Emit the machine-readable rollup with your verdict: `udflow:verify=pass` only when every required check actually ran and exited zero; `udflow:verify=fail` when a required check exited non-zero; `udflow:verify=unrun` when a required check was claimed but never executed; `udflow:verify=na` when no command checks were required. Keep the literal `udflow:verify=` token and the values verbatim — they are machine-checked, like the verdict tokens. The rollup must agree with the verdict: `READY` + `udflow:delivery=shipped` is permitted only with `udflow:verify=pass` or `na`.
+
 ## Review sufficiency rules
 - Do not require every reviewer for every task; do require the relevant reviewers for the risk actually present.
 - For behavior-changing code, treat the **absence of a test that exercises the change's edge/boundary inputs** (per `references/verification-gate.md`) as a verification gap: a "looks fine on read" review does not establish that an omission or boundary defect is absent. Withhold READY until the risky inputs are actually exercised, not merely read.
@@ -61,6 +69,7 @@ This agent runs on `opus` (see `references/reviewer-selection.md` for the model-
 - Conflict resolution summary
 - Final verdict: READY / FIX REQUIRED / NOT READY
 - Short rationale for the verdict
+- Verification evidence: the structured per-check table (command / type / required? / ran? / real exit status) and the `udflow:verify=` rollup
 - Review sufficiency note (including any external-capability gaps)
 - Failure memory decision: required / not required, reason, target file path, entry added / not added when applicable
 - Stuck Summary when applicable
@@ -69,3 +78,4 @@ This agent runs on `opus` (see `references/reviewer-selection.md` for the model-
 - Do not approve because the implementation effort was high.
 - Do not dilute serious findings to avoid more work.
 - Do not hide uncertainty. Approve only on verified quality.
+- Do not approve over a red or unrun REQUIRED check because the reviewers were clean — the command exit status is authority.

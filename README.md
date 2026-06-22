@@ -106,7 +106,7 @@ Custom marketplaces do **not** auto-update, so run `marketplace update` manually
 - **Plan gate blocking a project you don't want it in?** Set `"udflow": { "planGate": false }` in that project's `.claude/settings.json` to opt it out; the gate stays on in every other project.
 - **Nothing seems to happen / gate never blocks** — check `node --version`. With no Node on PATH the hooks no-op silently. For deeper insight, set `UDFLOW_HOOK_DEBUG=1` to make the hooks write a trace (stderr / temp file); unset, they stay silent.
 - **opus unavailable** — `security-reviewer` and `gatekeeper` fall back to the available model and say so in their output; verdict confidence may be lower.
-- **Failure memory shows up in an unrelated project?** With no project-local `ai/FAILURE_MEMORY.md`, udflow falls back to the global `~/.claude/FAILURE_MEMORY.md` and injects its digest into *every* session — this is intended (global lessons travel with you). To scope it per project, add a project-local `ai/FAILURE_MEMORY.md`; to stop it entirely, remove the global file. Injected content is wrapped in a per-run nonce fence and role-marker–neutralized, so a repo's memory file can't act as instructions.
+- **Failure memory shows up in an unrelated project?** With no project-local `ai/FAILURE_MEMORY.md`, udflow falls back to the global `~/.claude/FAILURE_MEMORY.md` and injects its digest into *every* session — this is intended (global lessons travel with you). To scope it per project, add a project-local `ai/FAILURE_MEMORY.md`; to stop it entirely, remove the global file. Injected content is wrapped in a per-run nonce fence and role-marker–neutralized, so a repo's memory file is treated as untrusted reference data, not instructions — defense-in-depth, not an absolute guarantee.
 
 ---
 
@@ -178,7 +178,7 @@ The plugin lives in the [`udflow/`](udflow/) subdirectory (only that subdir is i
 - `udflow/hooks/` — three Node hooks (same behavior on Windows, macOS, Linux; all fail-open):
   - `plan-gate.js` (PreToolUse) — blocks structured edits while in plan mode, and trips on the *obvious* Bash writes; exempts Claude Code's own plan files under `~/.claude/plans/`.
   - `load-failure-memory.js` (SessionStart) — injects a failure-memory digest.
-  - `orchestration-check.js` (Stop) — best-effort, non-blocking: warns if a `READY` verdict is claimed without the full core review panel running, **or** if the gatekeeper's last verdict was `FIX REQUIRED`/`NOT READY` but the session ends claiming the work is done (an unhonored verdict). Advisory only — a Stop hook can't block delivery.
+  - `orchestration-check.js` (Stop) — best-effort, non-blocking: warns if a `READY` verdict is claimed without the full core review panel running, **or** if the gatekeeper's last verdict was `FIX REQUIRED`/`NOT READY` but the session ends claiming the work is done (an unhonored verdict), **or** if the verification sentinel `udflow:verify=` reports a required check failed/never-ran while the session is delivering. Advisory only — a Stop hook can't block delivery.
 - `udflow/.mcp.json` — empty by default (zero context cost). `udflow/mcp.example.json` is a copy-in template.
 
 ### Hooks — safety posture
@@ -224,7 +224,7 @@ udflow> [exits plan mode] now edits checkout.tsx ✓
 ```
 
 Two honest limits:
-- **It's global — but a project can opt out.** The hook runs in every session while installed, so if you're in plan mode in an unrelated project, edits there are blocked too (it can't tell whether the session is a udflow task). To turn the plan gate off for one project, set `"udflow": { "planGate": false }` in that project's `.claude/settings.json` (or `.claude/settings.local.json`, which takes precedence); the gate stays on everywhere else. A missing or malformed setting keeps the gate **on** (fail-safe), so a broken config can never silently drop the guard.
+- **It's global — but a project can opt out.** The hook runs in every session while the plugin is enabled, so if you're in plan mode in an unrelated project, edits there are blocked too (it can't tell whether the session is a udflow task). To turn the plan gate off for one project, set `"udflow": { "planGate": false }` in that project's `.claude/settings.json` (or `.claude/settings.local.json`, which takes precedence); the gate stays on everywhere else. A missing or malformed setting keeps the gate **on** (fail-safe), so a broken config can never silently drop the guard.
 - **Bash is only partly covered.** The hook blocks the structured edit tools and the *obvious* Bash writes (`>`/`>>` to a file, `tee`, `sed -i`, `perl -i`, `truncate`, `dd of=`, `ln`, `git apply`), but deliberately allows read-only Bash and won't catch non-obvious writes — notably interpreter one-liners (`node -e "fs.writeFileSync(...)"`, `python -c "open(...,'w')"`) and `xargs`-driven writes. Treat the tripwire as a safety net, not a guarantee — udflow's rules still forbid any Bash working-tree write while planning, and a default plan mode in settings is the hard guard.
 
 ### Plan grounding (high-risk)
@@ -233,7 +233,7 @@ Before it asks you to approve the plan, on **high-risk or correctness-critical**
 
 ### Verification gate
 
-Before any readiness claim, udflow runs the narrowest meaningful checks (build / test / lint / typecheck, browser evidence for UI). For behavior-changing code it expects a **focused test that exercises the change's risky edge inputs** — empty / zero / overflow / large, multibyte, null / empty / duplicate / multiple values, malformed input, by-value vs receiver, concurrency — because a test that reproduces the boundary catches the idiom/encoding/overflow/omission bugs a code read rationalizes as "looks fine." The `gatekeeper` treats a missing edge-test as a verification gap and withholds `READY`.
+Before any readiness claim, udflow runs the narrowest meaningful checks (build / test / lint / typecheck, browser evidence for UI). For behavior-changing code it expects a **focused test that exercises the change's risky edge inputs** — empty / zero / overflow / large, multibyte, null / empty / duplicate / multiple values, malformed input, by-value vs receiver, concurrency — because a test that reproduces the boundary catches the idiom/encoding/overflow/omission bugs a code read rationalizes as "looks fine." The `gatekeeper` treats a missing edge-test as a verification gap and withholds `READY`. It also surfaces a structured per-check rollup — `udflow:verify=pass|fail|unrun|na` — and treats the **real command exit status as authority over reviewer prose** (a red or unrun required check blocks `READY` no matter how clean the review reads), then ends substantial runs with a user-visible **Run Card** (verdict + checks + reviewers + top findings + auto-fixed + remaining + approximate cost).
 
 ### Failure memory
 
