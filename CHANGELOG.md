@@ -3,6 +3,19 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.10.8]
+
+Fixes a localized false positive that 0.10.7 itself introduced, by repairing the leaky base predicate behind it — and adds the **architectural** fix that ends the prose-inference cycle: an optional, language-neutral delivery sentinel. No change to defaults, reviewer selection, or the hooks' fail-open / non-blocking contract.
+
+### Fixed
+- **orchestration-check: an honest, non-English "not shipping" no longer cries wolf** (`orchestration-check.js`). Root cause: `assertsReadyVerdict` matched the bare `READY` inside `NOT READY`, so `claimsComplete`/`claimsShipReady` were true for honest *disclosures* of a block — and 0.10.7's `holdsDelivery` is English-only, so a localized honest hold carrying the verbatim `Blocker/Major/Minor` labels was wrongly nagged. `assertsReadyVerdict` now requires an **affirmative** `READY` (not the one in `NOT READY`), de-leaking every dependent predicate at once (this was also the latent cause of the `finalShipReady` over-fire). A localized honest hold is silent again; a localized *dishonest* "claims READY despite NOT READY" still warns.
+
+### Added
+- **Delivery sentinel — the structural fix (signal at the source).** The orchestrator MAY end its final summary with a machine-readable line — `udflow:delivery=held` (not delivering / honoring a block) or `udflow:delivery=shipped` (delivering) — and the Stop hook reads it **deterministically and language-neutrally** instead of inferring "shipping vs holding" from translated prose (the fragile part that produced the repeated false-positive class). When present it is authoritative for both advisories; when absent the prose heuristic remains as the fallback, so nothing hard-depends on it. `SKILL.md` step 9 instructs the orchestrator to emit it. This is the move that ends the "fix one prose case, break another" cycle for the verdict-not-honored check.
+
+### Tests
+- A non-English honest hold (verbatim severity labels) stays silent; `udflow:delivery=held` silences both advisories even with ship-ready prose; `udflow:delivery=shipped` warns on a blocking verdict even with hold-sounding prose. Verified empirically across the English contradictory / honest-partial / localized-honest / localized-dishonest / sentinel cases before adoption. `node --test`: 82 pass / 0 fail / 2 skipped.
+
 ## [0.10.7]
 
 Closes a real miss on the highest-value advisory (a contradictory final), hardens one failure-memory neutralization gap, adds a static hook-wiring gate, and corrects several docs that drifted from the 0.10.6 behavior. No change to defaults, reviewer selection, or the hooks' fail-open / non-blocking contract.

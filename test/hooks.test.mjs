@@ -860,6 +860,34 @@ test("orchestration-check: a problem word like 'unresolved' does not silence a s
     "a problem-description word must not be treated as a not-ship decision");
 });
 
+test("orchestration-check: a localized (non-English) honest hold with verbatim severity labels stays silent (base-predicate fix)", () => {
+  // 0.10.7 regressed this: `holdsDelivery` is English-only and `assertsReadyVerdict` matched the READY
+  // inside "NOT READY" + the verbatim Blocker/Major/Minor labels, so an honest zh "NOT READY, so not
+  // shipping" was nagged. assertsReadyVerdict now requires an AFFIRMATIVE READY (not the one in NOT READY),
+  // so claimsComplete is false for a pure block disclosure with no English completion phrase.
+  const tp = mkTranscript([...GK_NOT_READY,
+    { role: "assistant", content: "最終裁決 NOT READY；auth 未解，所以我不出貨，下一輪繼續修。Blocker：1、Major：0、Minor：0。" }]);
+  assert.strictEqual(orch({ transcript_path: tp }), null,
+    "a non-English honest hold must not be nagged (the READY inside NOT READY is not an affirmative ready)");
+});
+
+test("orchestration-check: delivery=held sentinel is authoritative — silent even with ship-ready prose", () => {
+  // The architecture fix: an explicit, language-neutral delivery decision overrides prose inference for
+  // BOTH advisories, so the verdict-not-honored false-positive class cannot reappear via prose parsing.
+  const tp = mkTranscript([...GK_NOT_READY,
+    { role: "assistant", content: "Everything's ready to ship and good to go. udflow:delivery=held" }]);
+  assert.strictEqual(orch({ transcript_path: tp }), null,
+    "udflow:delivery=held must silence both advisories regardless of ship-ready prose");
+});
+
+test("orchestration-check: delivery=shipped sentinel is authoritative — warns even with hold prose", () => {
+  const tp = mkTranscript([...GK_NOT_READY,
+    { role: "assistant", content: "Not shipping for now, just a note. udflow:delivery=shipped" }]);
+  const r = orch({ transcript_path: tp });
+  assert.ok(r && /gatekeeper's last verdict was 'NOT READY'/.test(r.systemMessage),
+    "udflow:delivery=shipped must warn on a blocking verdict regardless of hold-sounding prose");
+});
+
 // --- validate-structure CI guards: negative-path coverage (v0.10.2) ---
 // The text-integrity (U+FFFD) and bilingual-README-parity checks are fail-only guards; lock in that they
 // actually FAIL on a violation (not merely pass on the clean tree) by running the real validator against a
