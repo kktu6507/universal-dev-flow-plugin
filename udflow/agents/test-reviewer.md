@@ -4,6 +4,7 @@ description: QA and test architect covering missing tests, edge cases, and regre
 tools: Read, Grep, Glob, Bash
 # When a browser MCP is connected (for UI evidence), enable read-only:
 # tools: Read, Grep, Glob, Bash, mcp__playwright__*
+# Prefer specific read-only tools over the wildcard — see references/external-capabilities.md.
 model: inherit
 ---
 

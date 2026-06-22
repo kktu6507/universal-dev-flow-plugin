@@ -8,10 +8,10 @@
 //      (spec-reviewer, test-reviewer, gatekeeper) did not all run as independent subagents.
 // A Stop hook can only advise (systemMessage), never block. Always exit 0, never crash. If the
 // transcript can't be parsed (format differs), it does nothing — absence equals prior behavior.
-// Provenance is structured: panel presence is read only from Task tool_use invocations, and the
-// gatekeeper verdict only from tool_result (subagent output) — never from free prose, human OR
-// assistant. So neither a pasted "subagent_type:" string nor a prose recap of the verdict
-// vocabulary can spoof either advisory.
+// Provenance is structured AND tool-bound: panel presence is read only from real `Task` invocations,
+// and the gatekeeper verdict only from a gatekeeper Task's own tool_result — never from free prose, a
+// non-Task tool_use that merely contains "subagent_type:", or an unrelated tool_result that merely
+// contains the verdict vocabulary. So none of those can spoof either advisory.
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
@@ -90,40 +90,45 @@ process.stdin.on("end", () => {
     const lines = text.split(/\r?\n/).filter(Boolean);
     const parsed = lines.map((ln) => { try { return JSON.parse(ln); } catch (e) { return null; } });
 
-    // Provenance is STRUCTURED, not role-based: panel presence is read only from Task tool_use
-    // invocations, and the gatekeeper verdict only from tool_result (subagent output). Free prose
-    // — human OR assistant — is never trusted, because an orchestrator that recaps the verdict
-    // vocabulary ("…FIX REQUIRED… NOT READY…") or names "subagent_type: <reviewer>" in its own
-    // narration would otherwise spoof either advisory. The shapes handled: {role,content} and
-    // {message:{content}}; content may be a string or an array of typed blocks.
-    const contentOf = (obj) => obj ? ((obj.message && obj.message.content !== undefined) ? obj.message.content : obj.content) : null;
-    const toolUseTextOf = (obj) => {
-      const c = contentOf(obj);
-      if (!Array.isArray(c)) return "";
-      return c.filter((b) => b && (b.type === "tool_use" || b.type === "tool-use"))
-              .map((b) => JSON.stringify(b.input != null ? b.input : b)).join("\n");
+    // Provenance is STRUCTURED and TOOL-BOUND. Panel presence is read only from real `Task`
+    // invocations (a tool_use whose name is "Task"); the gatekeeper verdict only from the
+    // tool_result of a gatekeeper Task. Free prose — human OR assistant — is never trusted, and
+    // neither is a non-Task tool_use whose input merely contains "subagent_type: ..." (e.g. an Edit
+    // writing that string) nor an unrelated tool_result that merely contains the verdict vocabulary
+    // (e.g. a Bash log printing "NOT READY"). Shapes handled: {role,content} and {message:{content}};
+    // content may be a string or an array of typed blocks.
+    const blocksOf = (obj) => {
+      const c = obj ? ((obj.message && obj.message.content !== undefined) ? obj.message.content : obj.content) : null;
+      return Array.isArray(c) ? c : [];
     };
-    const toolResultTextOf = (obj) => {
-      const c = contentOf(obj);
-      if (!Array.isArray(c)) return "";
-      return c.filter((b) => b && (b.type === "tool_result" || b.type === "tool-result"))
-              .map((b) => {
-                const rc = b.content;
-                if (typeof rc === "string") return rc;
-                if (Array.isArray(rc)) return rc.map((x) => (x && typeof x.text === "string") ? x.text : "").join("\n");
-                return rc != null ? JSON.stringify(rc) : "";
-              }).join("\n");
+    const isTaskUse = (b) => b && (b.type === "tool_use" || b.type === "tool-use") && b.name === "Task";
+    const isToolResult = (b) => b && (b.type === "tool_result" || b.type === "tool-result");
+    const resultTextOf = (b) => {
+      const rc = b.content;
+      if (typeof rc === "string") return rc;
+      if (Array.isArray(rc)) return rc.map((x) => (x && typeof x.text === "string") ? x.text : "").join("\n");
+      return rc != null ? JSON.stringify(rc) : "";
     };
+    const allBlocks = parsed.flatMap(blocksOf);
 
-    // Did the panel actually run? Only structured Task tool_use invocations count — prose (human or
-    // assistant) that merely contains a "subagent_type: <name>" string is ignored.
-    const panelText = parsed.map(toolUseTextOf).join("\n");
+    // Did the panel actually run? Only real `Task` invocations count; a non-Task tool_use whose
+    // input happens to contain a "subagent_type: <name>" string does not.
+    const taskInputText = allBlocks.filter(isTaskUse)
+      .map((b) => JSON.stringify(b.input != null ? b.input : {})).join("\n");
     const ran = new Set();
     for (const name of REQUIRED) {
       const re = new RegExp("(?:subagent_type|agentType|agent_type)\"?\\s*[:=]\\s*\"?[^\"]*" + name, "i");
-      if (re.test(panelText)) ran.add(name);
+      if (re.test(taskInputText)) ran.add(name);
     }
     const missing = REQUIRED.filter((n) => !ran.has(n));
+
+    // Ids of gatekeeper `Task` invocations, so the verdict binds to that Task's own result rather
+    // than any tool_result that happens to mention the vocabulary.
+    const gkRe = /(?:subagent_type|agentType|agent_type)"?\s*[:=]\s*"?[^"]*gatekeeper/i;
+    const gatekeeperIds = new Set();
+    for (const b of allBlocks) {
+      if (isTaskUse(b) && b.id != null && gkRe.test(JSON.stringify(b.input != null ? b.input : {}))) gatekeeperIds.add(b.id);
+    }
 
     // Locate the final assistant message (the orchestrator's closing summary).
     let finalText = "", finalIdx = lines.length;
@@ -134,11 +139,20 @@ process.stdin.on("end", () => {
       if (role === "assistant") { finalText = JSON.stringify(obj); finalIdx = i; break; }
     }
 
-    // The gatekeeper's verdict lives in tool_result output BEFORE the final summary — never in free
-    // prose. Reading the LAST verdict (not just any) means a FIX REQUIRED → repair → READY loop
-    // reads as READY, not a stale block, so the repair flow is not falsely flagged.
-    const verdictBody = parsed.slice(0, finalIdx).map(toolResultTextOf).join("\n");
-    const verdict = lastVerdict(verdictBody);
+    // The gatekeeper's verdict comes ONLY from a gatekeeper Task's tool_result, before the final
+    // summary. Bind by tool_use_id; when the transcript carries no ids at all (binding impossible)
+    // fall back to any pre-final tool_result. Reading the LAST verdict means a FIX REQUIRED →
+    // repair → READY loop reads as READY, not a stale block.
+    const verdictParts = [];
+    for (let i = 0; i < finalIdx; i++) {
+      for (const b of blocksOf(parsed[i])) {
+        if (!isToolResult(b)) continue;
+        const id = b.tool_use_id != null ? b.tool_use_id : b.toolUseId;
+        if (id != null) { if (gatekeeperIds.has(id)) verdictParts.push(resultTextOf(b)); }
+        else verdictParts.push(resultTextOf(b)); // no id to bind on -> best-effort (test / older format)
+      }
+    }
+    const verdict = lastVerdict(verdictParts.join("\n"));
     const finalReportsBlock = /\b(NOT READY|FIX REQUIRED)\b/.test(finalText);
     const finalClaimsComplete = claimsComplete(finalText);
     const finalShipReady = claimsShipReady(finalText);

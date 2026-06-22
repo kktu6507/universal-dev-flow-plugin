@@ -146,7 +146,7 @@ udflow> [實作] implementer 依計劃做最小變更。
 ## 你在意什麼（安裝代價）
 
 - **比一般對話更耗 token。** 一次任務會 spawn `implementer`、依風險挑選的審查員與 `gatekeeper`（其中兩個跑 `opus`）。一次任務（實作 → 審查 → 修復 → 收口）通常是數分鐘、數百萬個「實際處理」的 token（首次處理量）；你在 `/cost` 看到的數字會大得多，因為每個 agent 每一回合都會重讀被快取的 context。簡單任務更少；多增量功能會疊好幾次 run。完整說明見 [每次執行的粗估](#每次執行的粗估)。
-- **三個常駐 hook，平常工作時隱形** —— plan mode 寫檔閘門、開場注入失敗記憶、收尾的編排檢查。只要 plugin 裝著就在*每一個* session 跑（非僅 udflow 任務）；沒 Node 就 no-op。細節見 [計劃閘門](#計劃閘門) 與 [失敗記憶](#失敗記憶)。
+- **三個常駐 hook，平常工作時隱形** —— plan mode 寫檔閘門、開場注入失敗記憶、收尾的編排檢查。只要 plugin **啟用**著就在*每一個* session 跑（非僅 udflow 任務；只安裝不啟用不會做事）；沒 Node 就 no-op。細節見 [計劃閘門](#計劃閘門) 與 [失敗記憶](#失敗記憶)。
 - **它會寫失敗記憶檔** —— repo 內 `ai/FAILURE_MEMORY.md`、家目錄 `~/.claude/FAILURE_MEMORY.md`（專案那份要 commit 還是加進 `.gitignore` 由你）。
 - **外部模型預設關閉，要你開才用** —— Codex 與 MCP 都是 opt-in；否則 udflow standalone 運作並揭露任何缺口。
 - **它會自己介入——你也能讓它停。** 遇到非瑣碎工程工作會自動接手；想「只用手動」，平常別用自然語言描述工程任務、要用時才打 `/udflow:run`。修復迴圈有硬上限（同 blocker 連兩輪即 Stuck Summary），升級到更深/opus-heavy 之前會先問你。

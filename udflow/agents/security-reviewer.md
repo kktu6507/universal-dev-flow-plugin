@@ -4,6 +4,7 @@ description: Application security review of auth, input handling, secrets, and t
 tools: Read, Grep, Glob, Bash
 # When SAST / dependency MCP is connected, enable read-only (never grant secret access):
 # tools: Read, Grep, Glob, Bash, mcp__semgrep__*, mcp__osv__*
+# Prefer specific read-only tools over the wildcard — see references/external-capabilities.md.
 model: opus
 ---
 

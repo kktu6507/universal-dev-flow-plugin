@@ -4,6 +4,7 @@ description: Checks whether the implementation matches the requirement, business
 tools: Read, Grep, Glob, Bash
 # When an issue/PM tracker MCP is connected, enable read-only (e.g. Jira/Linear/GitHub Issues):
 # tools: Read, Grep, Glob, Bash, mcp__linear__*
+# Prefer specific read-only tools over the wildcard — see references/external-capabilities.md.
 model: inherit
 ---
 

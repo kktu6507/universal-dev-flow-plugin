@@ -4,6 +4,7 @@ description: Checks observability, deployment, rollback, and resilience in produ
 tools: Read, Grep, Glob, Bash
 # When an observability MCP is connected (production data is sensitive; read-only, minimal scope):
 # tools: Read, Grep, Glob, Bash, mcp__sentry__*
+# Prefer specific read-only tools over the wildcard — see references/external-capabilities.md.
 model: inherit
 ---
 

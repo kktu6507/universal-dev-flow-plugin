@@ -3,6 +3,21 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.10.6]
+
+Binds orchestration-check evidence to the actual tools (not just any structured block), reduces the failure-memory injection surface, and clears two doc nits from the fourth external review. No change to defaults, reviewer selection, or the hooks' fail-open / non-blocking contract.
+
+### Fixed
+- **orchestration-check is now tool-BOUND, not just structure-scoped** (`orchestration-check.js`): 0.10.5 read evidence from any `tool_use` / `tool_result`, so a non-`Task` tool_use whose input merely contained `subagent_type: <reviewer>` (e.g. an `Edit` writing that string) could satisfy the panel check, and any `tool_result` that merely contained the verdict vocabulary (e.g. a `Bash` log printing "NOT READY") could trip the verdict-not-honored advisory. Panel presence is now read **only from real `Task` invocations** (a tool_use whose `name` is `"Task"`), and the gatekeeper verdict **only from a gatekeeper Task's own `tool_result`** (bound by `tool_use_id`; falls back to any pre-final tool_result when the transcript carries no ids, e.g. older formats). Both were reproduced against the live hook and now behave correctly, while a real gatekeeper Task result still warns.
+
+### Changed
+- **Failure-memory digest no longer injects prevention-rule prose** (`load-failure-memory.js`): the auto-injected SessionStart digest now lists entry **titles + tags only**; the imperative prevention-rule text is read on demand during planning (the full file is unchanged). This keeps repo-controlled imperative prose out of the always-on context — a smaller injection surface than relying on the nonce fence + untrusted-data label alone. (Unstructured memory files still use the raw, neutralized, fenced fallback — a disclosed best-effort limit.)
+- **README "installed" → "enabled"** (`README.md`, `README.zh-TW.md`): the always-on-hooks line said hooks run "while the plugin is installed", which contradicted the opt-in / `defaultEnabled:false` framing; it now says "enabled" (installing without enabling does nothing).
+- **MCP wildcard examples carry a narrow-it caveat** (`agents/spec-reviewer.md`, `security-reviewer.md`, `test-reviewer.md`, `ui-ux-reviewer.md`, `operability-reviewer.md`): each commented `mcp__<server>__*` example now points to the read-only-narrowing guidance in `references/external-capabilities.md` (the `code-reviewer` GitHub example was already de-wildcarded in 0.10.4).
+
+### Tests
+- orchestration-check: a non-Task tool_use carrying `subagent_type` does not count as a panel run; a verdict token in a non-gatekeeper tool_result is not read as the verdict; a gatekeeper Task's bound tool_result still IS. load-failure-memory: the digest indexes title + tags but omits the rule prose; hostile content stays nonce-fenced, labeled untrusted, and role-markers neutralized. `node --test`: 73 pass / 0 fail / 2 skipped.
+
 ## [0.10.5]
 
 Completes the orchestration-check provenance hardening from the external review. No change to defaults, reviewer selection, or the hook's fail-open / non-blocking contract.
