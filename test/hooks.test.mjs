@@ -668,7 +668,9 @@ function copyRepoTree() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "udflow-vtree-"));
   fs.cpSync(root, dir, { recursive: true, filter: (src) => {
     const b = path.basename(src);
-    return b !== ".git" && b !== "node_modules"; // skipping a dir skips its whole subtree
+    // Skip vcs/deps and the same scratch globs validate-structure forbids, so a dirty local working
+    // tree can't false-fail the CONTROL copy (cpSync snapshots the tree, not the git index).
+    return b !== ".git" && b !== "node_modules" && !/^_|\.(tmp|bak|log)$|~$/.test(b);
   }});
   return dir;
 }
