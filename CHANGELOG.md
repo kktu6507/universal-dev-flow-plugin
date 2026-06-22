@@ -5,7 +5,10 @@ The format follows [Keep a Changelog](https://keepachangelog.com/), and this pro
 
 ## [0.10.4]
 
-Docs, CI, and least-privilege polish from the external-review backlog. No change to defaults, reviewer selection, or hook behavior.
+Docs, CI, and least-privilege polish from the external-review backlog, plus one cross-platform `plan-gate` fix the new macOS runner surfaced. No change to defaults or reviewer selection.
+
+### Fixed
+- **plan-gate now resolves symlinks on the exemption root, not just the target** (`plan-gate.js`): the `~/.claude/plans` write-exemption realpath-resolved the *target* path but built the exemption root straight from `os.homedir()`. When the home path itself contains a symlink (e.g. a symlinked home, or a temp-dir home that resolves through macOS's `/var → /private/var`), the two sides compared in different spaces and a legitimate plan-file write was wrongly denied. Both sides are now realpath-resolved. Surfaced by adding `macos-latest` to CI; real `/Users/...` homes were unaffected, but a symlinked home would have hit it.
 
 ### Changed
 - **MCP examples steer away from server wildcards** (`agents/code-reviewer.md`, `references/external-capabilities.md`, `docs/advanced/external-capabilities.md`): a `mcp__<server>__*` allowlist grants *every* tool the server exposes — including mutating ones (a GitHub MCP's create-PR / comment / merge), which silently breaks the read-only reviewer contract. The commented `code-reviewer` example now lists specific read tools (e.g. `mcp__github__get_pull_request`) instead of `mcp__github__*`, and both capability docs warn to narrow any wildcard whose server has write tools.

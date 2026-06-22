@@ -158,6 +158,35 @@ test("plan-gate: a junction under ~/.claude/plans whose target escapes is NOT ex
   );
 });
 
+test("plan-gate: a symlinked HOME still exempts ~/.claude/plans (realpath BOTH sides)", (t) => {
+  // The exemption compares realpath(target) against realpath(~/.claude/plans). If HOME itself is
+  // reached through a symlink (e.g. macOS, where the temp dir resolves via /var -> /private/var, or
+  // any symlinked home), the root must be resolved too or the legitimate plan write is wrongly denied.
+  // Fails on every platform if only the target is realpath-resolved. Skip where a dir symlink can't be
+  // created (Windows without privilege).
+  const realHome = fs.mkdtempSync(path.join(os.tmpdir(), "udflow-realhome-"));
+  const linkParent = fs.mkdtempSync(path.join(os.tmpdir(), "udflow-linkhome-"));
+  const linkHome = path.join(linkParent, "home-link");
+  t.after(() => {
+    try { fs.rmSync(realHome, { recursive: true, force: true }); } catch (e) {}
+    try { fs.rmSync(linkParent, { recursive: true, force: true }); } catch (e) {}
+  });
+  try {
+    fs.mkdirSync(path.join(realHome, ".claude", "plans"), { recursive: true });
+    fs.symlinkSync(realHome, linkHome, "dir");
+  } catch (e) {
+    return t.skip("cannot create a directory symlink here: " + (e && e.code));
+  }
+  const env = { ...process.env, HOME: linkHome, USERPROFILE: linkHome };
+  delete env.CLAUDE_PROJECT_DIR;
+  const planFile = path.join(linkHome, ".claude", "plans", "p.md"); // under the SYMLINKED home
+  assert.strictEqual(
+    gate({ tool_name: "Write", permission_mode: "plan", tool_input: { file_path: planFile } }, env),
+    "ALLOW",
+    "a plan file under a symlinked home's ~/.claude/plans must stay exempt"
+  );
+});
+
 test("plan-gate: on a case-sensitive FS, an uppercase ~/.claude/PLANS path is NOT exempt", (t) => {
   // The exemption folds case only on case-insensitive filesystems (Windows/macOS). On Linux a
   // real directory literally named PLANS must not inherit the lowercase 'plans' exemption.

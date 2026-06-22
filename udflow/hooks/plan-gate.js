@@ -161,7 +161,14 @@ process.stdin.on("end", () => {
         let resolved = path.resolve(String(targetPath));
         try { resolved = realpathDeepest(resolved); } catch (e) {}
         resolved = norm(resolved);
-        const planRoot = norm(path.join(os.homedir(), ".claude", "plans")) + "/";
+        // Resolve symlinks on the exemption root too, so BOTH sides compare in realpath space. The
+        // target above is already realpath-resolved; if the home path itself contains a symlink (e.g.
+        // macOS, where the per-user temp dir resolves through /var -> /private/var, or any symlinked
+        // home), a non-resolved planRoot would never prefix the resolved target and the legitimate
+        // ~/.claude/plans write would be wrongly denied.
+        let planRootAbs = path.join(os.homedir(), ".claude", "plans");
+        try { planRootAbs = realpathDeepest(planRootAbs); } catch (e) {}
+        const planRoot = norm(planRootAbs) + "/";
         isPlanFile = resolved.startsWith(planRoot);
       } catch (e) { isPlanFile = false; }
     }
