@@ -269,6 +269,8 @@ This table is **per run** — one `/udflow:run` that goes implement → review �
 
 Cost driver: **≈ context/repo size × turns × number of subagents.** `opus` reviewers, `--deep`, and extra repair loops multiply it; running reviewers in parallel shortens wall-clock but not token count.
 
+**Adjustable.** Cost is risk-proportional by default; dial it with `--lite` (force the smallest panel + skip the costly deep tier, primarily for small low-risk changes — a directly-relevant safety reviewer is kept and disclosed if a high-risk signal is present), `--deep` (adversarial verification + max effort), or `--no-deep` (opt out of the deterministic Workflow). The chosen panel + cost tier is stated up-front at the plan gate and recapped in the Run Card, so you can see what a run will cost and adjust before approving.
+
 ### Optional external capabilities (Detect → Use → Else-Disclose)
 
 MCP tools, external subagents, and external skills are all **optional**. If present, they're used; if absent, the work is done locally and the gap is disclosed.

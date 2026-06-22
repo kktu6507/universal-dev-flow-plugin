@@ -9,6 +9,8 @@ Deep mode makes the review/repair core **deterministic** instead of model-follow
 
 Deep mode raises **depth, not breadth.** The reviewer *selection* is unchanged — still the smallest sufficient set from `reviewer-selection.md`. It never adds reviewers.
 
+The downward cost knob is separate: `--lite` (see `reviewer-selection.md`, *Lite path*) lowers **breadth** — it forces the smallest panel and skips deep mode for small, low-risk changes, the counterpart to `--deep` raising depth. Deep manages the depth ceiling; lite manages the breadth floor (with a safety floor that keeps a needed safety reviewer and discloses it). Both are opt-in and orchestrator-followed.
+
 ## Two tiers (enforcement is cheap; extra effort is not)
 
 Deep mode is split into two tiers so its *enforcement* benefit can be had cheaply without paying its *cost*:
