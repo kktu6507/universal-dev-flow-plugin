@@ -150,10 +150,12 @@ process.stdin.on("end", () => {
     if (targetPath) {
       try {
         // Compare case-insensitively ONLY on a case-insensitive filesystem, detected EMPIRICALLY
-        // (probe the home volume) rather than guessed from the OS — a case-sensitive APFS or a
-        // case-insensitive Linux mount would fool a platform check and wrongly widen/narrow the
-        // ~/.claude/plans write-exemption. Fall back to the platform default when undeterminable.
-        const probed = fsCaseInsensitiveNear(os.homedir());
+        // rather than guessed from the OS — a case-sensitive APFS or a case-insensitive Linux mount
+        // would fool a platform check and wrongly widen/narrow the ~/.claude/plans write-exemption.
+        // Probe the exemption subtree itself (deepest existing ancestor of ~/.claude/plans, e.g.
+        // ~/.claude — a cased basename, so it also engages for numeric/caseless home dir names), and
+        // fall back to the platform default only when undeterminable.
+        const probed = fsCaseInsensitiveNear(path.join(os.homedir(), ".claude", "plans"));
         const caseInsensitiveFS = probed === null ? (process.platform === "win32" || process.platform === "darwin") : probed;
         const norm = (s) => { s = s.replace(/\\/g, "/"); return caseInsensitiveFS ? s.toLowerCase() : s; };
         let resolved = path.resolve(String(targetPath));

@@ -184,9 +184,13 @@ scanTextIntegrity(".");
 // READMEs must have the same number of top-level (## ) sections — a structural-drift guard that does
 // not compare translated prose.
 const enReadme = path.join(root, "README.md"), zhReadme = path.join(root, "README.zh-TW.md");
-if (fs.existsSync(enReadme) && fs.existsSync(zhReadme)) {
+if (fs.existsSync(enReadme) && !fs.existsSync(zhReadme)) {
+  fail(`README parity: README.md exists but README.zh-TW.md is missing (the bilingual pair must not drift by deletion)`);
+} else if (fs.existsSync(enReadme) && fs.existsSync(zhReadme)) {
   const en = fs.readFileSync(enReadme, "utf8"), zh = fs.readFileSync(zhReadme, "utf8");
-  const sectionCount = (s) => (s.match(/^##\s+/gm) || []).length;
+  // Count top-level (## ) sections, ignoring any inside fenced code blocks so the structural guard is
+  // not tripped by a Markdown/shell sample that happens to contain a "## " line.
+  const sectionCount = (s) => (s.replace(/```[\s\S]*?```/g, "").match(/^##\s+/gm) || []).length;
   if (sectionCount(en) !== sectionCount(zh)) {
     fail(`README parity: README.md has ${sectionCount(en)} top-level (##) sections but README.zh-TW.md has ${sectionCount(zh)}`);
   }

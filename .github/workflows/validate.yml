@@ -11,7 +11,10 @@ permissions:
 
 concurrency:
   group: validate-${{ github.ref }}
-  cancel-in-progress: true
+  # Cancel superseded PR runs to save CI, but NEVER cancel a master-push run — its release job must
+  # not be killed mid-publish (that would leave a tag with no release). The release job's own
+  # concurrency group then serializes publishes.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   validate:
@@ -103,9 +106,10 @@ jobs:
           echo "Publishing $tag from manifest version $ver."
           # Release notes = this version's CHANGELOG section (validate-structure already
           # guarantees the entry exists); fall back to a pointer if extraction is empty.
+          # POSIX literal-bracket class [[] / []] (not \[ \]) so this matches on both mawk and gawk.
           awk -v v="$ver" '
-            $0 ~ "^## \\[" v "\\]" { grab=1; next }
-            grab && /^## \[/ { exit }
+            $0 ~ "^## [[]" v "[]]" { grab=1; next }
+            grab && /^## [[]/ { exit }
             grab { print }
           ' CHANGELOG.md > /tmp/relnotes.md
           [ -s /tmp/relnotes.md ] || echo "See CHANGELOG.md for $tag." > /tmp/relnotes.md

@@ -170,10 +170,14 @@ test("plan-gate: on a case-insensitive FS, an uppercase ~/.claude/PLANS path IS 
   if (process.platform !== "win32" && process.platform !== "darwin") return t.skip("case-sensitive FS");
   const { home, env } = isolatedHome();
   t.after(() => { try { fs.rmSync(home, { recursive: true, force: true }); } catch (e) {} });
-  fs.mkdirSync(path.join(home, ".claude", "plans"), { recursive: true }); // the real (lowercase) plans dir
+  fs.mkdirSync(path.join(home, ".claude", "plans"), { recursive: true }); // the probe samples this subtree
   const upper = path.join(home, ".claude", "PLANS", "plan-x.md");
   assert.strictEqual(gate({ tool_name: "Write", permission_mode: "plan", tool_input: { file_path: upper } }, env), "ALLOW",
     "uppercase PLANS must be exempt on a case-insensitive FS (it is the same directory as plans)");
+  // The case-fold is scoped to the plans root: a same-home NON-plans uppercase path stays denied.
+  const notes = path.join(home, ".claude", "NOTES", "x.md");
+  assert.strictEqual(gate({ tool_name: "Write", permission_mode: "plan", tool_input: { file_path: notes } }, env), "DENY",
+    "case-folding must be scoped to the plans root, not blanket-lowercasing every path into exemption");
 });
 
 test("normal file write is denied in plan mode, allowed otherwise", () => {
@@ -512,7 +516,8 @@ test("orchestration-check fails open (silent) when the transcript path is a dire
 });
 
 test("orchestration-check fails open (silent) on a non-existent transcript path", () => {
-  // With the existsSync guard dropped, a missing path must still fail open via statSync's ENOENT catch.
+  // With the existsSync guard dropped, a missing transcript path must still fail open (silent) — statSync
+  // throws ENOENT and the hook exits 0 with no output (the surrounding try/catch swallows it).
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "udflow-nope-"));
   const p = path.join(dir, "missing.jsonl"); // never created -> guaranteed absent
   try {
@@ -651,4 +656,61 @@ test("orchestration-check P1.2: a bare incidental READY (no verdict/severity voc
     { role: "assistant", content: "The build environment is READY for the next major push." },
   ]);
   assert.strictEqual(orch({ transcript_path: tp }), null, "incidental READY without the verdict vocabulary must not warn");
+});
+
+// --- validate-structure CI guards: negative-path coverage (v0.10.2) ---
+// The text-integrity (U+FFFD) and bilingual-README-parity checks are fail-only guards; lock in that they
+// actually FAIL on a violation (not merely pass on the clean tree) by running the real validator against a
+// temp copy of the repo with one injected defect. A future edit that silently disables a guard breaks these.
+
+const VALIDATOR = path.join(root, ".github", "scripts", "validate-structure.mjs");
+function copyRepoTree() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "udflow-vtree-"));
+  fs.cpSync(root, dir, { recursive: true, filter: (src) => {
+    const b = path.basename(src);
+    return b !== ".git" && b !== "node_modules"; // skipping a dir skips its whole subtree
+  }});
+  return dir;
+}
+function runValidator(treeDir) {
+  const r = cp.spawnSync("node", [VALIDATOR], { cwd: treeDir, encoding: "utf8" });
+  return { code: r.status, out: (r.stdout || "") + (r.stderr || "") };
+}
+
+test("validate-structure: passes on a clean copy of the repo (control)", () => {
+  const tree = copyRepoTree();
+  try {
+    assert.strictEqual(runValidator(tree).code, 0, "the validator must pass on an unmodified copy");
+  } finally { fs.rmSync(tree, { recursive: true, force: true }); }
+});
+
+test("validate-structure: text-integrity check FAILS on a planted U+FFFD", () => {
+  const tree = copyRepoTree();
+  try {
+    fs.appendFileSync(path.join(tree, "README.md"), "\nmojibake " + String.fromCharCode(0xFFFD) + " here\n");
+    const { code, out } = runValidator(tree);
+    assert.notStrictEqual(code, 0, "a tracked text file with U+FFFD must fail the build");
+    assert.match(out, /text integrity/, "the failure must name the text-integrity check");
+  } finally { fs.rmSync(tree, { recursive: true, force: true }); }
+});
+
+test("validate-structure: README parity FAILS on a top-level section-count mismatch", () => {
+  const tree = copyRepoTree();
+  try {
+    fs.appendFileSync(path.join(tree, "README.md"), "\n## An English-only extra section\n\nbody\n");
+    const { code, out } = runValidator(tree);
+    assert.notStrictEqual(code, 0, "an asymmetric ## section count must fail the build");
+    assert.match(out, /README parity/, "the failure must name README parity");
+  } finally { fs.rmSync(tree, { recursive: true, force: true }); }
+});
+
+test("validate-structure: README parity FAILS when the zh README omits a wired hook name", () => {
+  const tree = copyRepoTree();
+  try {
+    const zhPath = path.join(tree, "README.zh-TW.md");
+    fs.writeFileSync(zhPath, fs.readFileSync(zhPath, "utf8").split("plan-gate").join("PLANGATE_removed"), "utf8");
+    const { code, out } = runValidator(tree);
+    assert.notStrictEqual(code, 0, "zh omitting a wired hook name must fail the build");
+    assert.match(out, /plan-gate/, "the failure must name the missing hook");
+  } finally { fs.rmSync(tree, { recursive: true, force: true }); }
 });
