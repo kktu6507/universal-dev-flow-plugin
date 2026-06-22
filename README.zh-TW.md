@@ -181,6 +181,16 @@ plugin 本體位於 [`udflow/`](udflow/) 子目錄（只有這個子目錄會被
   - `orchestration-check.js`（Stop）—— 盡力而為、非阻擋：若宣稱 `READY` 但核心審查 panel 沒完整跑就提醒，**或**當 gatekeeper 最後的裁決是 `FIX REQUIRED`/`NOT READY`、session 卻以「已完成」收尾（裁決被無視）時提醒。僅為提示——Stop hook 無法阻擋交付。
 - `udflow/.mcp.json` — 預設為空（零 context 成本）。`udflow/mcp.example.json` 是可複製套用的範本。
 
+### Hooks —— 安全聲明
+
+給安全審查者或謹慎使用者，把完整足跡集中講清楚：
+
+- **Opt-in 出貨。** plugin 以 `defaultEnabled: false` 出貨——只安裝**不會做任何事**，要你在 `/plugin` 明確啟用後才生效。
+- **純本地、不連網。** 這些 hook **不做任何網路呼叫**、不把任何東西送出你的機器——只用 Node 內建的 `fs` / `os` / `path` / `crypto`，不開子行程、不執行任何下載來的程式碼。
+- **Fail-open。** PATH 上沒有 Node、或遇到任何錯誤，每個 hook 都靜默 exit 0、什麼都不做——絕不會弄壞一個 session。
+- **各自能做什麼：** `plan-gate` 只在你**處於 plan mode 時**能*擋下* Write/Edit/明顯的 Bash 寫檔（可逐專案用 `"udflow": { "planGate": false }` opt-out）；`load-failure-memory` 只*讀取*你本地的 `FAILURE_MEMORY.md`，把經 nonce 圍欄與 role-marker 中和的摘要注入你自己的 session；`orchestration-check` 只在 session 收尾*發出提示訊息*——絕不能阻擋交付。
+- **它們絕不會：** 改系統或安全設定、改檔案權限、刪任何東西，或把你的程式碼或 transcript 傳到任何地方。
+
 ### 9 個 subagent
 
 | Agent | 角色 | 何時加入 | 模型 |

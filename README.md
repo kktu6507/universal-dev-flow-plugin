@@ -181,6 +181,16 @@ The plugin lives in the [`udflow/`](udflow/) subdirectory (only that subdir is i
   - `orchestration-check.js` (Stop) — best-effort, non-blocking: warns if a `READY` verdict is claimed without the full core review panel running, **or** if the gatekeeper's last verdict was `FIX REQUIRED`/`NOT READY` but the session ends claiming the work is done (an unhonored verdict). Advisory only — a Stop hook can't block delivery.
 - `udflow/.mcp.json` — empty by default (zero context cost). `udflow/mcp.example.json` is a copy-in template.
 
+### Hooks — safety posture
+
+The full footprint in one place, for a security reviewer or a cautious user:
+
+- **Opt-in.** The plugin ships `defaultEnabled: false` — installing it does **nothing** until you explicitly enable it in `/plugin`.
+- **Local-only, no network.** The hooks make **no network calls** and send nothing off your machine — they require only Node's built-in `fs` / `os` / `path` / `crypto`, spawn no subprocess, and run no downloaded code.
+- **Fail-open.** With no Node on `PATH`, or on any error, every hook silently exits 0 and does nothing — it can never break a session.
+- **What each can do:** `plan-gate` can *deny* a Write/Edit/obvious-Bash-write **only while you are in plan mode** (per-project opt-out via `"udflow": { "planGate": false }`); `load-failure-memory` *reads* your local `FAILURE_MEMORY.md` and injects a nonce-fenced, role-marker-neutralized digest into your own session; `orchestration-check` only *emits an advisory message* at session end — it can never block delivery.
+- **What they never do:** change system or security settings, alter file permissions, delete anything, or transmit your code or transcript anywhere.
+
 ### The 9 subagents
 
 | Agent | Role | When it's added | Model |
