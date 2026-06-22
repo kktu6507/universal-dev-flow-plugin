@@ -3,6 +3,20 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.10.4]
+
+Docs, CI, and least-privilege polish from the external-review backlog. No change to defaults, reviewer selection, or hook behavior.
+
+### Changed
+- **MCP examples steer away from server wildcards** (`agents/code-reviewer.md`, `references/external-capabilities.md`, `docs/advanced/external-capabilities.md`): a `mcp__<server>__*` allowlist grants *every* tool the server exposes — including mutating ones (a GitHub MCP's create-PR / comment / merge), which silently breaks the read-only reviewer contract. The commented `code-reviewer` example now lists specific read tools (e.g. `mcp__github__get_pull_request`) instead of `mcp__github__*`, and both capability docs warn to narrow any wildcard whose server has write tools.
+- **`Fail-open` is stated precisely** (`README.md`, `README.zh-TW.md`): the safety-posture line conflated two mechanisms. It now distinguishes the hook's own try/catch → exit-0 (a plugin property) from the no-Node case, where the hook process never starts and Claude Code treats the failed spawn as non-fatal (a host property) — so the "nothing is blocked" guarantee isn't over-attributed to the plugin.
+
+### CI
+- **macOS is now in the test matrix** (`.github/workflows/validate.yml`): added `macos-latest` alongside ubuntu/windows so the README's "same behavior on macOS" claim is actually exercised — in particular `plan-gate.js`'s APFS case-folding branch and the darwin-specific case-insensitivity tests, previously never run in CI.
+
+### Tests
+- **Negative-path coverage for the release gate** (`test/hooks.test.mjs`): `validate-structure` now has failing-case tests for a version mismatch, a missing SKILL-linked reference, a shipped forbidden artifact, and a missing CHANGELOG entry — so a future edit that silently weakens any of those guards is caught.
+
 ## [0.10.3]
 
 Hardening from an external review: the Stop hook no longer trusts free-typed text as evidence of a review verdict or a panel run, the failure-memory hook resolves the project root the same way the plan gate does, and machine-local Claude settings are repo-ignored. No change to defaults, reviewer selection, or hook contracts.

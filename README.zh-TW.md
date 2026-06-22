@@ -187,7 +187,7 @@ plugin 本體位於 [`udflow/`](udflow/) 子目錄（只有這個子目錄會被
 
 - **Opt-in 出貨。** plugin 以 `defaultEnabled: false` 出貨——只安裝**不會做任何事**，要你在 `/plugin` 明確啟用後才生效。
 - **純本地、不連網。** 這些 hook **不做任何網路呼叫**、不把任何東西送出你的機器——只用 Node 內建的 `fs` / `os` / `path` / `crypto`，不開子行程、不執行任何下載來的程式碼。
-- **Fail-open。** PATH 上沒有 Node、或遇到任何錯誤，每個 hook 都靜默 exit 0、什麼都不做——絕不會弄壞一個 session。
+- **Fail-open。** 遇到任何錯誤時，hook 會自己捕捉並 exit 0、什麼都不做。而 PATH 上若沒有 Node，hook 程序根本不會啟動；Claude Code 會把 hook 啟動失敗視為非致命、繼續執行 session。兩種情況都不會擋下任何事，session 也弄不壞。
 - **各自能做什麼：** `plan-gate` 只在你**處於 plan mode 時**能*擋下* Write/Edit/明顯的 Bash 寫檔（可逐專案用 `"udflow": { "planGate": false }` opt-out）；`load-failure-memory` 只*讀取*你本地的 `FAILURE_MEMORY.md`，把經 nonce 圍欄與 role-marker 中和的摘要注入你自己的 session；`orchestration-check` 只在 session 收尾*發出提示訊息*——絕不能阻擋交付。
 - **它們絕不會：** 改系統或安全設定、改檔案權限、刪任何東西，或把你的程式碼或 transcript 傳到任何地方。
 

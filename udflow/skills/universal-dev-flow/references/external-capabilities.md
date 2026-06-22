@@ -34,6 +34,8 @@ Never hard-depend on a plan-mode entry tool and never claim "always enforces rea
 
 MCP is high context cost, so it ships disabled. The plugin's `.mcp.json` has no active servers; each reviewer's `tools:` has its `mcp__*` allowlist line commented out. To enable: add the server to `.mcp.json` (see `mcp.example.json`), then uncomment the matching `mcp__*` line in the reviewer's frontmatter. Keep reviewers read-only — only grant read-type MCP tools.
 
+**Prefer specific tool names over a `mcp__<server>__*` wildcard.** The wildcard grants *every* tool that server exposes — including any mutating ones (e.g. a GitHub MCP's create-PR / comment / merge tools), which silently breaks the read-only contract. For a server that has write tools, list only the read tools the reviewer needs (e.g. `mcp__github__get_pull_request`, `mcp__github__get_pull_request_diff`) instead of `mcp__github__*`.
+
 Suggested mapping (all read-only):
 - `security-reviewer`: `mcp__semgrep`, `mcp__osv` (SAST, CVE/dependency) — never let it touch secrets.
 - `test-reviewer` / `ui-ux-reviewer`: `mcp__playwright` (browser evidence).

@@ -2,8 +2,10 @@
 name: code-reviewer
 description: Reviews local implementation quality, maintainability, framework usage, and efficiency on changed paths without forcing broad rewrites. Conditional reviewer; include for non-trivial code changes.
 tools: Read, Grep, Glob, Bash
-# When a GitHub MCP is connected (diff/PR context), enable read-only:
-# tools: Read, Grep, Glob, Bash, mcp__github__*
+# When a GitHub MCP is connected (diff/PR context), enable read-only — but DON'T ship the wildcard:
+# mcp__github__* grants every tool the server exposes, including writes (create PR, comment, merge).
+# List only the read tools you need, e.g.:
+# tools: Read, Grep, Glob, Bash, mcp__github__get_pull_request, mcp__github__get_pull_request_diff, mcp__github__get_pull_request_files
 model: inherit
 ---
 

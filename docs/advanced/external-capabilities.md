@@ -20,6 +20,8 @@ To enable one for a reviewer:
 2. Uncomment the matching `mcp__*` line in that reviewer's frontmatter `tools:` list.
 3. Keep reviewers **read-only** — grant only read-type MCP tools, and never give a reviewer access to secrets.
 
+> **Avoid the `mcp__<server>__*` wildcard for servers that have write tools.** The wildcard grants *every* tool the server exposes, including mutating ones (a GitHub MCP's create-PR / comment / merge tools, for example), which breaks the read-only contract. List the specific read tools the reviewer needs instead — e.g. `mcp__github__get_pull_request`, `mcp__github__get_pull_request_diff` rather than `mcp__github__*`.
+
 Suggested read-only mapping:
 
 | Reviewer | MCP | Purpose |
