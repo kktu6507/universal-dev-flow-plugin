@@ -20,8 +20,13 @@ const globalMemExists = fs.existsSync(path.join(os.homedir(), ".claude", "FAILUR
 function runHook(hookPath, input, env) {
   return cp.execFileSync("node", [hookPath], { input: JSON.stringify(input), env: env || process.env }).toString();
 }
-function digestOf(input) {
-  const out = runHook(MEM, input);
+function digestOf(input, env) {
+  // Hermetic by default: strip CLAUDE_PROJECT_DIR so the hook's project-root resolution falls back
+  // to the event cwd (the temp project under test), not the developer's ambient project dir. Tests
+  // that exercise the CLAUDE_PROJECT_DIR precedence pass an explicit env.
+  let e = env;
+  if (!e) { e = { ...process.env }; delete e.CLAUDE_PROJECT_DIR; }
+  const out = runHook(MEM, input, e);
   return out.trim() ? JSON.parse(out).hookSpecificOutput.additionalContext : "";
 }
 function mkProject(memFile) {
@@ -310,6 +315,17 @@ test("project ai/FAILURE_MEMORY.md takes precedence and is named in the digest",
   const ctx = digestOf({ cwd: mkProject("# FM\n\n### 2026-06-19 — proj entry\n- **Prevention rule**: r.\n") });
   assert.ok(ctx.includes("proj entry"));
   assert.ok(/FAILURE_MEMORY\.md/.test(ctx), "source path disclosed in the digest header");
+});
+
+test("load-failure-memory resolves the project root from CLAUDE_PROJECT_DIR (matching plan-gate)", () => {
+  // A session launched from a subdirectory passes that subdir as the event cwd, but CLAUDE_PROJECT_DIR
+  // points at the real project root. The digest must follow CLAUDE_PROJECT_DIR (where ai/FAILURE_MEMORY.md
+  // lives), not the event cwd — otherwise the plan gate and failure-memory anchor to different roots.
+  const projectRoot = mkProject("# FM\n\n### 2026-06-21 — root entry\n- **Prevention rule**: r.\n");
+  const subdir = mkProject(null); // a different dir with no memory file (stands in for the event cwd)
+  const env = { ...process.env, CLAUDE_PROJECT_DIR: projectRoot };
+  const ctx = digestOf({ cwd: subdir }, env);
+  assert.ok(ctx.includes("root entry"), "digest must come from CLAUDE_PROJECT_DIR's memory file, not the event cwd");
 });
 
 // --- plan-gate: field alias + stdin cap (findings I/J) ---
@@ -656,6 +672,36 @@ test("orchestration-check P1.2: a bare incidental READY (no verdict/severity voc
     { role: "assistant", content: "The build environment is READY for the next major push." },
   ]);
   assert.strictEqual(orch({ transcript_path: tp }), null, "incidental READY without the verdict vocabulary must not warn");
+});
+
+// --- orchestration-check: provenance — human-typed text must not spoof the checks (C3.4 / C3.5) ---
+// Verdict/panel detection trusts only model & subagent output (assistant turns, tool_result blocks),
+// never free human-typed prose. These pin the two reproduced spoofs: a user message that quotes the
+// verdict vocabulary must not be read as a gatekeeper verdict, and a "subagent_type: ..." string pasted
+// into a user message must not be counted as a real panel run.
+
+test("orchestration-check: a NOT READY token in a HUMAN message is not read as the gatekeeper's verdict (C3.5)", () => {
+  // The verdict word exists only in human-typed text and no gatekeeper ran; the highest-value
+  // advisory must stay silent (the old raw-text scan fired a false 'verdict not honored' here).
+  const tp = mkTranscript([
+    { role: "user", content: "Remember the verdict vocabulary: READY / FIX REQUIRED / NOT READY. Use exactly one." },
+    { role: "assistant", content: "All done, looks good. The change is complete." },
+  ]);
+  const r = orch({ transcript_path: tp });
+  assert.ok(!r || !/gatekeeper's last verdict/.test(r.systemMessage || ""),
+    "a NOT READY token that exists only in human-typed text must not be read as the gatekeeper's verdict");
+});
+
+test("orchestration-check: 'subagent_type:' pasted in a HUMAN message does not count as a panel run (C3.4)", () => {
+  // The panel never actually ran (the strings are human-typed), so a READY claim must still trip the
+  // panel-missing advisory rather than being silenced by the pasted text.
+  const tp = mkTranscript([
+    { role: "user", content: "FYI the reviewers are subagent_type: udflow:spec-reviewer, subagent_type: udflow:test-reviewer, subagent_type: udflow:gatekeeper." },
+    { role: "assistant", content: "Final verdict: READY — readiness confirmed." },
+  ]);
+  const r = orch({ transcript_path: tp });
+  assert.ok(r && /none of the core review panel/.test(r.systemMessage),
+    "pasted subagent_type strings in a user message must not count as a real panel run");
 });
 
 // --- validate-structure CI guards: negative-path coverage (v0.10.2) ---

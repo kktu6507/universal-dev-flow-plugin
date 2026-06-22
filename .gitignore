@@ -14,3 +14,8 @@ _*.cjs
 
 # Node
 node_modules/
+
+# Local, machine-private Claude Code settings (per-developer permission allowlists, etc.).
+# Never commit — and don't rely on each contributor's *global* git excludes to ignore it;
+# keeping the rule here means the protection travels with the clone.
+.claude/settings.local.json

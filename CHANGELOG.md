@@ -3,6 +3,20 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.10.3]
+
+Hardening from an external review: the Stop hook no longer trusts free-typed text as evidence of a review verdict or a panel run, the failure-memory hook resolves the project root the same way the plan gate does, and machine-local Claude settings are repo-ignored. No change to defaults, reviewer selection, or hook contracts.
+
+### Fixed
+- **orchestration-check reads verdict/panel evidence only from model & subagent output** (`orchestration-check.js`): both checks scanned the *entire* raw transcript, so human-typed text could spoof them — a user message quoting the verdict vocabulary (`READY / FIX REQUIRED / NOT READY`, with `NOT READY` last) plus a benign "all done / looks good" close fired a false *verdict-not-honored* advisory, and pasting `subagent_type: …` into a user message silently satisfied the panel-presence check. Detection is now scoped to trusted lines — assistant turns and `tool_result` blocks (the gatekeeper's verdict arrives as a `tool_result` inside a user-role line, so those stay trusted); free human-typed user text is excluded. This closes a false positive on the highest-value check (the bad failure direction) and the panel false-negative.
+- **load-failure-memory resolves the project root via `CLAUDE_PROJECT_DIR` first** (`load-failure-memory.js`): it used `process.cwd()` / the event cwd and never consulted `CLAUDE_PROJECT_DIR`, so it could anchor the failure-memory lookup to a different root than `plan-gate.js` (e.g. a session launched from a subdirectory finding no `ai/FAILURE_MEMORY.md`). It now matches the plan gate's precedence (`CLAUDE_PROJECT_DIR` → event cwd → `process.cwd()`).
+
+### Chore
+- **`.gitignore` now ignores `.claude/settings.local.json`**: the machine-local settings file (per-developer permission allowlists) was protected only by each developer's *global* git excludes, so a contributor whose global excludes lacked the rule could accidentally commit it. The rule now travels with the clone.
+
+### Tests
+- Two orchestration-check regression tests pin the reproduced spoofs (a `NOT READY` token in a human message is not read as the gatekeeper's verdict; a pasted `subagent_type:` does not count as a panel run), plus one load-failure-memory test pinning the `CLAUDE_PROJECT_DIR` resolution. The memory-digest tests are now hermetic (they strip ambient `CLAUDE_PROJECT_DIR`). `node --test`: 62 pass / 0 fail / 1 skipped.
+
 ## [0.10.2]
 
 Follow-up polish from the 0.10.1 review backlog — boundary tests, release-job resilience, an empirically-detected plan-gate case check, and two new CI guards. No change to defaults, reviewer selection, or hook contracts.

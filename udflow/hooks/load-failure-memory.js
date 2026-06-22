@@ -32,8 +32,12 @@ process.stdin.on("data", (c) => {
 });
 process.stdin.on("end", () => {
   try {
-    let cwd = process.cwd();
-    try { const i = JSON.parse(raw || "{}"); if (i.cwd) cwd = i.cwd; } catch (e) {}
+    // Resolve the project root the SAME way plan-gate.js does (CLAUDE_PROJECT_DIR first, then the
+    // event cwd, then process.cwd()), so the plan gate and failure-memory injection anchor to one
+    // root — e.g. a session launched from a subdirectory still finds the project's
+    // ai/FAILURE_MEMORY.md instead of a subdir that has none.
+    let cwd = process.env.CLAUDE_PROJECT_DIR || process.cwd();
+    try { const i = JSON.parse(raw || "{}"); if (!process.env.CLAUDE_PROJECT_DIR && i.cwd) cwd = i.cwd; } catch (e) {}
 
     const projectPath = path.join(cwd, "ai", "FAILURE_MEMORY.md");
     const globalPath = path.join(os.homedir(), ".claude", "FAILURE_MEMORY.md");

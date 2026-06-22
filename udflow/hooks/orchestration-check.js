@@ -8,6 +8,9 @@
 //      (spec-reviewer, test-reviewer, gatekeeper) did not all run as independent subagents.
 // A Stop hook can only advise (systemMessage), never block. Always exit 0, never crash. If the
 // transcript can't be parsed (format differs), it does nothing — absence equals prior behavior.
+// Provenance: verdict/panel detection reads only model & subagent output (assistant turns and
+// tool_result blocks), never free human-typed text — so a user message that quotes the verdict
+// vocabulary or pastes a "subagent_type:" string cannot spoof either advisory.
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
@@ -85,28 +88,48 @@ process.stdin.on("end", () => {
     const text = fs.readFileSync(tpath, "utf8");
     const lines = text.split(/\r?\n/).filter(Boolean);
 
-    // Did the panel actually run? Look for the reviewer/gatekeeper subagent types anywhere.
+    // Parse each line once and tag provenance. Verdict/panel detection must trust only MODEL /
+    // subagent output, never free human-typed text — otherwise a user message that merely quotes
+    // the verdict vocabulary ("READY / FIX REQUIRED / NOT READY") fires a false "verdict not
+    // honored", and a pasted "subagent_type: ..." string silently satisfies the panel check. The
+    // gatekeeper's own verdict arrives as a tool_result INSIDE a user-role line, so tool_result
+    // content stays trusted; only a human-typed user turn (string / text content, no tool_result)
+    // is excluded. An unparseable line can't be vouched for, so it is treated as untrusted —
+    // fail-open (at worst it suppresses an advisory, the accepted failure direction).
+    const parsed = lines.map((ln) => { try { return JSON.parse(ln); } catch (e) { return null; } });
+    const isHumanTurn = (obj) => {
+      if (!obj) return true;
+      const role = obj.role || (obj.message && obj.message.role) || obj.type;
+      if (role !== "user" && role !== "human") return false; // assistant / tool / system -> model-side, trusted
+      const content = (obj.message && obj.message.content !== undefined) ? obj.message.content : obj.content;
+      if (Array.isArray(content)) return !content.some((b) => b && (b.type === "tool_result" || b.type === "tool-result"));
+      return true; // string / object content with no tool_result block -> human-typed
+    };
+    const trusted = parsed.map((o) => !isHumanTurn(o));
+
+    // Did the panel actually run? Look for the reviewer/gatekeeper subagent types in TRUSTED lines
+    // only (a real Task invocation is an assistant tool_use; pasted "subagent_type:" text is ignored).
+    const trustedText = lines.filter((_, i) => trusted[i]).join("\n");
     const ran = new Set();
     for (const name of REQUIRED) {
       const re = new RegExp("(?:subagent_type|agentType|agent_type)\"?\\s*[:=]\\s*\"?[^\"]*" + name, "i");
-      if (re.test(text)) ran.add(name);
+      if (re.test(trustedText)) ran.add(name);
     }
     const missing = REQUIRED.filter((n) => !ran.has(n));
 
     // Locate the final assistant message (the orchestrator's closing summary).
     let finalText = "", finalIdx = lines.length;
     for (let i = lines.length - 1; i >= 0; i--) {
-      try {
-        const obj = JSON.parse(lines[i]);
-        const role = obj.role || (obj.message && obj.message.role) || obj.type;
-        if (role === "assistant") { finalText = JSON.stringify(obj); finalIdx = i; break; }
-      } catch (e) {}
+      const obj = parsed[i];
+      if (!obj) continue;
+      const role = obj.role || (obj.message && obj.message.role) || obj.type;
+      if (role === "assistant") { finalText = JSON.stringify(obj); finalIdx = i; break; }
     }
 
-    // The gatekeeper's verdict lives in the transcript BEFORE the final summary. Reading the
-    // last verdict (not just any) means a FIX REQUIRED → repair → READY loop reads as READY,
-    // not as a stale block — so the repair flow is not falsely flagged.
-    const bodyBeforeFinal = lines.slice(0, finalIdx).join("\n");
+    // The gatekeeper's verdict lives in the transcript BEFORE the final summary, in TRUSTED
+    // (assistant / tool_result) lines only — never in human-typed prose. Reading the last verdict
+    // (not just any) means a FIX REQUIRED → repair → READY loop reads as READY, not a stale block.
+    const bodyBeforeFinal = lines.filter((_, i) => i < finalIdx && trusted[i]).join("\n");
     const verdict = lastVerdict(bodyBeforeFinal);
     const finalReportsBlock = /\b(NOT READY|FIX REQUIRED)\b/.test(finalText);
     const finalClaimsComplete = claimsComplete(finalText);
