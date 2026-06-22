@@ -179,6 +179,28 @@ For substantial tasks, end with:
 
 If blocked, also include a Stuck Summary with unresolved blocker, attempted remedies, why progress is blocked, and what is needed next.
 
+## Run Card
+
+For substantial tasks, end the final summary with a compact, user-visible **Run Card** so the user can see what happened without reading the whole transcript — verdict, which checks/reviewers ran, top findings, what was auto-fixed, what remains, and roughly what it cost. It directly answers "many agents ran for a long time and cost a lot, but I can't tell what happened." Use the same threshold as the Final Output Contract (omit it for trivial edits and pure Q&A, which emit no sentinel tokens).
+
+Write the labels and prose in the **user's language**, but keep the machine-checked literals verbatim: the verdict `READY` / `FIX REQUIRED` / `NOT READY`, the severities `blocker` / `major` / `minor`, and the sentinel tokens `udflow:verify=` / `udflow:delivery=`. The two sentinel lines are the machine-readable rollup the Stop hook reads, so they must be the **last lines** of the summary.
+
+```markdown
+## Run Card
+- Verdict: READY | FIX REQUIRED | NOT READY
+- Checks: <command> <pass|fail|unrun>, … (e.g. `npm test` pass, `tsc --noEmit` pass) — exit status, not opinion
+- Reviewers: <which ran, e.g. spec-reviewer, test-reviewer, gatekeeper | "self-review (no panel)">
+- Top findings: up to 3, each `blocker`|`major`|`minor` + one line (or "none")
+- Auto-fixed: <what the repair loop fixed this session | "nothing">
+- Remaining: <unresolved blocker/major + missing required tests | "none">
+- Cost (approx): <~new tokens / wall-clock / subagent count | "not measured"> — approximate, never fabricated
+
+udflow:verify=<pass|fail|unrun|na>
+udflow:delivery=<held|shipped>
+```
+
+The card restates Verdict → `udflow:delivery=` and Checks → `udflow:verify=` directly above the tokens so the human-readable card and the machine rollup cannot silently disagree. The `udflow:verify=` rollup is authoritative for the Stop hook's verification advisory (see the gatekeeper's "Command-evidence authority"): `pass` only when every required check actually ran and exited zero, `fail` on a non-zero required check, `unrun` when a required check was claimed but never ran, `na` when no command checks were required. `Cost` is a best-effort self-estimate (udflow ships no telemetry) and may be "not measured" — never fabricate exact numbers (same rule as the Evidence Record below).
+
 ## Evidence Record (real runs only)
 
 When udflow actually ran the workflow on a **real task in an actual project** (not a throwaway demo or a benchmark experiment), also emit one compact, paste-ready record the user can drop into the project's `EVIDENCE.md` *Real-world runs* section — or a [`Verified udflow run`](.github/ISSUE_TEMPLATE/verified-run.yml) issue — with no reformatting. This is the only way real-use evidence gets logged: udflow ships no telemetry, so a run that isn't written down does not count.

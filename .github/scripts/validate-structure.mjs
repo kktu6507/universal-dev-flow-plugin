@@ -148,7 +148,14 @@ if (fs.existsSync(path.join(root, hooksRel))) {
     const entriesFor = (event) => (Array.isArray(h[event]) ? h[event] : []);
     const cmdsFor = (event) => entriesFor(event).flatMap((e) => (Array.isArray(e.hooks) ? e.hooks : []).map((x) => (x && x.command) || ""));
     const wiresUnder = (event, hookFile) => cmdsFor(event).some((c) => c.includes("hooks/" + hookFile));
-    const eventMatches = (event, token) => entriesFor(event).some((e) => {
+    // Matcher coverage must be bound to the entry that ACTUALLY wires the target hook, not satisfied by
+    // some OTHER entry's matcher. Without this scoping, once a second entry (a different hook) with a
+    // broad matcher exists, it could falsely "cover" a token the target hook's own entry omits — so a
+    // real plan-gate matcher regression ("Write|Edit", dropping MultiEdit/NotebookEdit/Bash) could pass
+    // green. Filtering to entries whose command wires `hookFile` is strictly more restrictive.
+    const eventMatchesForHook = (event, token, hookFile) => entriesFor(event).some((e) => {
+      const wiresIt = (Array.isArray(e.hooks) ? e.hooks : []).some((x) => x && typeof x.command === "string" && x.command.includes("hooks/" + hookFile));
+      if (!wiresIt) return false;
       try { return new RegExp("^(?:" + (e.matcher || "") + ")$").test(token); } catch (err) { return false; }
     });
     const WIRING = [
@@ -159,7 +166,7 @@ if (fs.existsSync(path.join(root, hooksRel))) {
     for (const w of WIRING) {
       if (!wiresUnder(w.event, w.hook)) fail(`hooks.json: ${w.event} does not wire ${w.hook} (hook would never fire)`);
       for (const t of w.tokens) {
-        if (!eventMatches(w.event, t)) fail(`hooks.json: the ${w.event} matcher does not cover "${t}" (the hook would never fire for it)`);
+        if (!eventMatchesForHook(w.event, t, w.hook)) fail(`hooks.json: the ${w.event} matcher does not cover "${t}" (the hook would never fire for it)`);
       }
     }
   }

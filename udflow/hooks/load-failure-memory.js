@@ -20,6 +20,25 @@ function debug(msg) {
   try { process.stderr.write("[udflow load-failure-memory] " + msg + "\n"); } catch (e) {}
 }
 
+// Containment guard: returns the RESOLVED realpath of `file` iff it is a REGULAR file whose realpath stays
+// inside `rootDir`'s realpath, else null. This blocks a hostile repo from redirecting the SessionStart
+// auto-read to an out-of-tree file via a symlink/junction at `ai/` (or a symlinked `ai/FAILURE_MEMORY.md`)
+// — the read would otherwise follow the link and inject an arbitrary file's content. Mirrors plan-gate.js's
+// realpath containment. Realpath BOTH sides so a legitimately symlinked root (a symlinked home, or macOS
+// /var -> /private/var) still matches; a benign in-tree symlink resolves and is allowed. The caller reads
+// the RETURNED realpath (not the original path), so the validated inode is the one read — no second,
+// unvalidated resolution to race (closes the TOCTOU/double-resolution gap). Any fs error (ENOENT / loop /
+// EPERM) -> null, so a missing or odd path simply injects nothing (fail-open).
+function containedRegularFile(file, rootDir) {
+  try {
+    const realFile = fs.realpathSync(file);
+    const realRoot = fs.realpathSync(rootDir);
+    const rel = path.relative(realRoot, realFile);
+    if (rel === "" || rel === ".." || rel.startsWith(".." + path.sep) || path.isAbsolute(rel)) return null;
+    return fs.statSync(realFile).isFile() ? realFile : null;
+  } catch (e) { return null; }
+}
+
 let raw = "";
 let rawBytes = 0;
 process.stdin.setEncoding("utf8");
@@ -40,11 +59,15 @@ process.stdin.on("end", () => {
     try { const i = JSON.parse(raw || "{}"); if (!process.env.CLAUDE_PROJECT_DIR && i.cwd) cwd = i.cwd; } catch (e) {}
 
     const projectPath = path.join(cwd, "ai", "FAILURE_MEMORY.md");
-    const globalPath = path.join(os.homedir(), ".claude", "FAILURE_MEMORY.md");
+    const globalRoot = path.join(os.homedir(), ".claude");
+    const globalPath = path.join(globalRoot, "FAILURE_MEMORY.md");
 
-    let chosen = null;
-    if (fs.existsSync(projectPath)) chosen = projectPath;
-    else if (fs.existsSync(globalPath)) chosen = globalPath;
+    // Only inject from a regular file whose realpath stays within its intended root (project `ai/` under
+    // the project root; the global file under ~/.claude). containedRegularFile returns the validated
+    // realpath (or null when the path is missing / escapes / is not a regular file — subsuming the previous
+    // existsSync check), and `chosen` is THAT realpath, so readCapped reads the inode we validated rather
+    // than re-resolving the symlink a second time. Symlink/junction escapes are silently skipped (fail-open).
+    const chosen = containedRegularFile(projectPath, cwd) || containedRegularFile(globalPath, globalRoot);
     if (!chosen) return process.exit(0);
 
     const content = readCapped(chosen);              // only reads the first MAX_READ bytes of a huge file

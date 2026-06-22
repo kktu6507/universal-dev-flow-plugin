@@ -1,11 +1,15 @@
 #!/usr/bin/env node
-// udflow Stop hook (best-effort, non-blocking). Two advisories, both fail-open:
+// udflow Stop hook (best-effort, non-blocking). Three advisories, all fail-open:
 //   1. Verdict not honored: the gatekeeper's last verdict in the transcript was a BLOCKING
 //      one (FIX REQUIRED / NOT READY), but the final message claims the work is done/ready
 //      without surfacing that block. This is the highest-value check — it guards the product's
 //      core promise (a ship/no-ship verdict that actually gates delivery).
 //   2. Panel missing/incomplete: a READY verdict is asserted but the core review panel
 //      (spec-reviewer, test-reviewer, gatekeeper) did not all run as independent subagents.
+//   3. Verification not honored: the verification sentinel (udflow:verify=) reports a REQUIRED
+//      check failed or never ran, yet the session is delivering. The command exit status is
+//      authority over reviewer prose — a red/unrun required check must gate delivery. Fires ONLY
+//      on the explicit sentinel (no prose inference), mirroring advisory 1's delivery-sentinel path.
 // A Stop hook can only advise (systemMessage), never block. Always exit 0, never crash. If the
 // transcript can't be parsed (format differs), it does nothing — absence equals prior behavior.
 // Provenance is structured AND tool-bound: panel presence is read only from real `Task` invocations,
@@ -99,9 +103,41 @@ function holdsDelivery(text) {
 // When present it is AUTHORITATIVE; when absent the prose heuristic (claimsComplete && !holdsDelivery)
 // is the fallback. SKILL.md instructs the orchestrator to emit it; this hook never depends on it.
 function deliverySentinel(text) {
-  const m = /udflow\s*:\s*delivery\s*=\s*(held|hold|holding|stop|stopped|blocked|shipped|ship|shipping|delivered|deliver|delivering|merged|released)/i.exec(text);
-  if (!m) return null;
-  return /^(?:held|hold|holding|stop|stopped|blocked)$/i.test(m[1]) ? "held" : "shipped";
+  // Last-match (like lastVerdict): the orchestrator's final rollup line wins even if an earlier
+  // delivery decision is discussed in prose above it.
+  const re = /udflow\s*:\s*delivery\s*=\s*(held|hold|holding|stop|stopped|blocked|shipped|ship|shipping|delivered|deliver|delivering|merged|released)/ig;
+  let m, last = null;
+  while ((m = re.exec(text)) !== null) last = m[1];
+  if (last === null) return null;
+  return /^(?:held|hold|holding|stop|stopped|blocked)$/i.test(last) ? "held" : "shipped";
+}
+
+// THE VERIFICATION SENTINEL (the structural fix for advisory 3, language-neutral, deterministic): the
+// orchestrator MAY end its final summary with a machine-readable rollup of whether the REQUIRED checks
+// actually passed, so the hook does NOT have to infer "is the build green?" from prose or from Bash
+// exit codes scattered in the transcript (the fragile part). Format (case/space tolerant), distinct
+// stem from `delivery` so the two regexes never cross-match:
+//   udflow:verify=pass   → every required check ran and exited zero
+//   udflow:verify=fail   → a required check ran and exited non-zero
+//   udflow:verify=unrun  → a required check was claimed/expected but never actually ran
+//   udflow:verify=na     → no command checks were required (docs-only / trivial)
+// When present it is AUTHORITATIVE; when absent advisory 3 is a dead branch (no prose fallback — the
+// near-zero-false-positive posture the delivery sentinel established). Last-match scan (like lastVerdict /
+// deliverySentinel) so the final rollup line wins over an earlier in-prose mention. TOLERANT DECODER: the
+// CONTRACT surface is exactly the four literals pass|fail|unrun|na (what the gatekeeper emits and the docs
+// publish); the extra synonyms (passed/green/ok, failed/red/broken, skipped/blocked/not-run) are defensive
+// folds for human/LLM variance, mirroring deliverySentinel — they fail safe (each folds to its nearest
+// favorable meaning; an unrecognized value yields null).
+function verifySentinel(text) {
+  const re = /udflow\s*:\s*verify\s*=\s*(pass|passed|green|ok|fail|failed|red|broken|unrun|not-?run|notrun|skipped|blocked|na|n\/?a)/ig;
+  let m, last = null;
+  while ((m = re.exec(text)) !== null) last = m[1];
+  if (last === null) return null;
+  const v = last.toLowerCase();
+  if (/^(?:pass|passed|green|ok)$/.test(v)) return "pass";
+  if (/^(?:fail|failed|red|broken)$/.test(v)) return "fail";
+  if (/^(?:na|n\/?a)$/.test(v)) return "na";
+  return "unrun";
 }
 
 let raw = "";
@@ -193,6 +229,7 @@ process.stdin.on("end", () => {
     const finalShipReady = claimsShipReady(finalText);
     const finalHoldsDelivery = holdsDelivery(finalText);
     const finalDelivery = deliverySentinel(finalText); // "held" | "shipped" | null
+    const finalVerify = verifySentinel(finalText);     // "pass" | "fail" | "unrun" | "na" | null
     // Is the session delivering without honoring the block? The delivery sentinel is authoritative
     // when present (deterministic, language-neutral); otherwise fall back to the English prose
     // heuristic. This is the structural fix for the false-positive class that prose-parsing produced.
@@ -201,7 +238,7 @@ process.stdin.on("end", () => {
       : (finalClaimsComplete && !finalHoldsDelivery);
     debug("verdict=" + verdict + " claimsComplete=" + finalClaimsComplete + " reportsBlock=" + finalReportsBlock +
       " shipReady=" + finalShipReady + " holds=" + finalHoldsDelivery + " sentinel=" + finalDelivery +
-      " delivers=" + sessionDelivers + " ran=[" + [...ran].join(",") + "]");
+      " verify=" + finalVerify + " delivers=" + sessionDelivers + " ran=[" + [...ran].join(",") + "]");
 
     // (1) Verdict not honored — highest value. A real blocking verdict was reached, yet the session
     // is DELIVERING (per the sentinel, or per the prose heuristic when no sentinel). An honest hold —
@@ -217,10 +254,13 @@ process.stdin.on("end", () => {
 
     // (2) READY asserted but the core panel did not fully run. Graded: distinguish "never ran"
     // (panel clearly skipped) from "incomplete" (some core reviewers missing — e.g. only the
-    // gatekeeper ran, skipping the spec/test reviewers that do the actual review work). An explicit
-    // delivery=held sentinel overrides the ship-ready prose: if the session isn't delivering, panel
-    // completeness is moot, so the sentinel stays authoritative for this advisory too.
-    if (finalShipReady && !finalReportsBlock && missing.length > 0 && finalDelivery !== "held") {
+    // gatekeeper ran, skipping the spec/test reviewers that do the actual review work). Suppression
+    // is gated on an HONEST HOLD (the delivery=held sentinel, or `holdsDelivery`), NOT on mere
+    // presence of a block token: a mixed-history close that *mentions* an earlier NOT READY yet still
+    // claims READY + ships ("was NOT READY, but it's ready now") must still warn. Gating on the bare
+    // `NOT READY`/`FIX REQUIRED` token wrongly silenced that case (the panel safety-net defeated by a
+    // prose mention); `holdsDelivery` keys on the ship DECISION, and `delivery=held` is authoritative.
+    if (finalShipReady && !finalHoldsDelivery && missing.length > 0 && finalDelivery !== "held") {
       const msg = ran.size === 0
         ? "udflow: a READY verdict was asserted but none of the core review panel (spec-reviewer, " +
           "test-reviewer, gatekeeper) appears to have run as a subagent this session. A self-review is " +
@@ -231,6 +271,25 @@ process.stdin.on("end", () => {
           "test-reviewer do the actual review work; a verdict resting on a partial panel is not a " +
           "formal multi-agent review. Run the missing reviewer(s), or downgrade to FIX REQUIRED and " +
           "disclose the gap.";
+      return process.stdout.write(JSON.stringify({ systemMessage: msg }), () => process.exit(0));
+    }
+
+    // (3) Verification not honored. The verification sentinel reports a REQUIRED check failed or was
+    // never run, yet the session is delivering. Placed LAST (lowest priority): the two advisories above
+    // early-return, so at most one systemMessage is ever emitted and this branch never perturbs them.
+    // Fires ONLY on the explicit literal udflow:verify=fail|unrun — never inferred from prose, a Bash
+    // exit code, or the word "failed"; absent the sentinel this branch is dead and behavior is exactly
+    // as before. Gated on sessionDelivers (delivery sentinel authoritative; prose fallback) so an honest
+    // hold — udflow:verify=fail + udflow:delivery=held — stays silent (holding on a red check is correct).
+    if ((finalVerify === "fail" || finalVerify === "unrun") && sessionDelivers) {
+      const what = finalVerify === "fail"
+        ? "a required check (build/test/typecheck on behavior-changing code) exited non-zero"
+        : "a required check was claimed but never actually run";
+      const msg = "udflow: the verification sentinel reports " + what + " (udflow:verify=" + finalVerify +
+        "), but the session is ending as if the work were complete/ready. A red or unrun required check " +
+        "must gate delivery — the command's exit status is authority, reviewer findings cannot override " +
+        "a red build. Fix and rerun the check until it is green (udflow:verify=pass), or hold delivery " +
+        "(udflow:delivery=held) and report what failed or was not run.";
       return process.stdout.write(JSON.stringify({ systemMessage: msg }), () => process.exit(0));
     }
   } catch (e) { debug("error: " + (e && e.message)); }

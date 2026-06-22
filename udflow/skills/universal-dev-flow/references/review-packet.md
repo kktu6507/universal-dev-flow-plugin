@@ -11,7 +11,7 @@ Use a Review Packet before handing work to any reviewer. The packet is the revie
 - Assumptions: only assumptions that affected implementation or verification.
 - Implementation summary: what changed and why.
 - Changed files: paths and short purpose for each relevant changed area.
-- Verification evidence: commands/checks, status, outputs summarized, and blockers.
+- Verification evidence: a structured per-check table — one row per check with command, check type (build / test / typecheck / lint / …), required? (yes/no), ran? (yes/no), real exit status (0 / non-zero / —), and blocked-with-reason when not run — plus a one-line summary. The `gatekeeper` reads the real exit status as authority over reviewer prose (see `agents/gatekeeper.md`, "Command-evidence authority"); a single rollup is surfaced as `udflow:verify=pass|fail|unrun|na`.
 - Known risks: remaining uncertainty, migration/rollback concern, external dependency, or runtime limitation.
 - Reviewer scope: exact question each selected reviewer should answer.
 - Context exclusions: stale decisions, abandoned approaches, or old logs that reviewers should not treat as current.
@@ -38,7 +38,7 @@ Implementation summary:
 
 Changed files:
 
-Verification evidence:
+Verification evidence (per-check table: command / type / required? / ran? / exit status / blocked-reason, + one-line summary):
 
 Known risks:
 
