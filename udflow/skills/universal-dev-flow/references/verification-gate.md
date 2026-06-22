@@ -205,6 +205,46 @@ udflow:delivery=<held|shipped>
 
 The card restates Verdict → `udflow:delivery=` and Checks → `udflow:verify=` directly above the tokens so the human-readable card and the machine rollup cannot silently disagree. The `udflow:verify=` rollup is authoritative for the Stop hook's verification advisory (see the gatekeeper's "Command-evidence authority"): `pass` only when every required check actually ran and exited zero, `fail` on a non-zero required check, `unrun` when a required check was claimed but never ran, `na` when no command checks were required. `Cost` is a best-effort self-estimate (udflow ships no telemetry) and may be "not measured" — never fabricate exact numbers (same rule as the Evidence Record below).
 
+## Run Report
+
+For substantial tasks, follow the compact Run Card with a fuller, table-based **Run Report** the user can actually read — what each agent did, what it found and fixed, what the change achieved, and what it cost. The Run Card stays above as the at-a-glance header; the Run Report is the detail. Omit it for trivial edits and pure Q&A. Labels/prose follow the user's language; keep the machine-checked tokens verbatim.
+
+### Outcome — requirement → change → effect
+One row per requirement or acceptance criterion: what the user asked, what changed to satisfy it, and the resulting effect / improvement (before → after). State only verified effects; mark anything not yet confirmed "to be confirmed".
+
+| Requirement / acceptance criterion | What changed | Effect / improvement (before → after) |
+|---|---|---|
+| <the ask / AC1> | <the change> | <what is better now: before → after> |
+
+### Per-agent activity
+One row per agent/phase that actually ran (the implementer, each selected reviewer, the gatekeeper, and any plan-grounding / diagnosis pass):
+
+| Agent | What it did | Found | Fixed |
+|---|---|---|---|
+| implementer | <the change it made> | — | — |
+| spec-reviewer | <scope reviewed> | <n blocker / n major / n minor + the key one-liner, or "none"> | <finding applied, if any> |
+| … | … | … | … |
+| gatekeeper | aggregated findings + verdict | <verdict + per-criterion acceptance> | — |
+
+### Token & cost (no telemetry — observed vs estimated)
+| Agent / phase | Tokens | Source | ~Cost |
+|---|---:|---|---:|
+| spec-reviewer | <n> | observed | <~$ or —> |
+| … (each subagent) | <n> | observed | … |
+| orchestrator (main thread) | <n> | **estimate** | … |
+| **Total** | **<sum>** | observed + estimate | **<~$ band>** |
+
+Honesty rules (extend the Run Card's "never fabricate"):
+- **Subagent tokens are observed** — report the per-agent token figure the harness surfaces for a finished subagent (the field name varies by harness; e.g. a `subagent_tokens`-style field). If no figure is surfaced for an agent, write **"not reported"** — do not guess.
+- **The orchestrator (main-thread) figure is an estimate** — label it; udflow ships no telemetry and the main thread cannot read its own exact running total. Because the grand total folds in this estimated figure, **the total is itself an estimate** — do not present it as a measured count.
+- These are **new tokens** (first-processed). The **billable** total (`/cost`) counts cached context re-contributed every turn — ~20–30× the new-token figure *in tokens*; but cache reads bill at roughly a tenth of the input rate, so the **dollar** cost scales much closer to the new-token figure (see README, "Cost per run"). Don't over-scare on cost.
+- **`~Cost` is a rough band, not a bill** — state the assumed per-model rate(s) and the date used; if rates are unknown, give tokens only and write "× your plan's rate". Carry the cost **tier** (lite / default / deep) from the Run Card.
+
+### UI/UX evidence
+- If the task changed UI/UX: include the **after-change screenshot** (embed `![after](path)` or give the path) plus a one-line before → after and the browser/tool used (record per "Browser Evidence" above; follow Detect → Use → Else-Disclose, see `references/external-capabilities.md`). If browser automation could not run, state the exact blocker and the fallback evidence instead.
+- If there was no UI/UX impact: write "no UI/UX impact".
+- Only include a screenshot you actually captured — never fabricate a screen (same rule as the Evidence Record below).
+
 ## Evidence Record (real runs only)
 
 When udflow actually ran the workflow on a **real task in an actual project** (not a throwaway demo or a benchmark experiment), also emit one compact, paste-ready record the user can drop into the project's `EVIDENCE.md` *Real-world runs* section — or a [`Verified udflow run`](.github/ISSUE_TEMPLATE/verified-run.yml) issue — with no reformatting. This is the only way real-use evidence gets logged: udflow ships no telemetry, so a run that isn't written down does not count.
