@@ -70,13 +70,17 @@ Gatekeeper 裁決：READY / FIX REQUIRED / NOT READY
     cd path/to/your-project
     claude
 
-**2. 🤖 在 Claude Code 裡安裝（依序輸入三行）**
+**2. 🤖 在 Claude Code 裡安裝 + 啟用**
 
     /plugin marketplace add simba6507/universal-dev-flow-plugin
     /plugin install udflow@kktmarketplace
+
+udflow 是 **opt-in 出貨（預設停用）**，所以只安裝還不夠——必須啟用。開 `/plugin` → **Installed** 把 `udflow` 切開（或執行 `claude plugin enable udflow@kktmarketplace`），再 reload：
+
     /reload-plugins
 
 > marketplace 名稱是 `kktmarketplace`（不是 repo 名），所以安裝是 `udflow@kktmarketplace`。
+> **安裝 ≠ 啟用。** 因為是 opt-in，外掛在你於 `/plugin` 啟用前，hooks 與 skills 都不會運作。
 
 **3. 🤖 交付任務**
 
@@ -102,6 +106,7 @@ Gatekeeper 裁決：READY / FIX REQUIRED / NOT READY
 - **計劃閘門擋到你不想擋的專案？** 在該專案的 `.claude/settings.json` 設 `"udflow": { "planGate": false }` 即可關閉；其他專案照常生效。
 - **好像沒反應 / 閘門從不擋** — 檢查 `node --version`。PATH 上沒有 Node 時 hook 會靜默 no-op。要看細節，設 `UDFLOW_HOOK_DEBUG=1` 讓 hook 寫 trace（stderr / 暫存檔）；未設時保持安靜。
 - **opus 不可用** — `security-reviewer` 與 `gatekeeper` 會退回可用模型並在輸出中聲明；裁決信心可能較低。
+- **failure memory 出現在不相關的專案?** 沒有專案層 `ai/FAILURE_MEMORY.md` 時，udflow 會退回全域 `~/.claude/FAILURE_MEMORY.md` 並把摘要注入**每個** session——這是預期行為（全域教訓跟著你走）。想限定在單一專案，放一個專案層 `ai/FAILURE_MEMORY.md`；想完全停用，移除全域檔。注入內容包在每次執行的 nonce 圍欄內並中和角色標記，repo 的 memory 檔無法被當成指令執行。
 
 ---
 

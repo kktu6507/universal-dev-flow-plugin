@@ -70,13 +70,17 @@ Prerequisites: **Claude Code**, and `node --version` must work (the hooks are No
     cd path/to/your-project
     claude
 
-**2. 🤖 Inside Claude Code, install (run these three lines in order)**
+**2. 🤖 Inside Claude Code, install + enable**
 
     /plugin marketplace add simba6507/universal-dev-flow-plugin
     /plugin install udflow@kktmarketplace
+
+udflow ships **opt-in (disabled)**, so installing is not enough — you must enable it. Open `/plugin` → **Installed** and toggle `udflow` on (or run `claude plugin enable udflow@kktmarketplace`), then reload:
+
     /reload-plugins
 
 > The marketplace's name is `kktmarketplace` (not the repo name), so install is `udflow@kktmarketplace`.
+> **Installing ≠ enabling.** Because the plugin is opt-in, the hooks and skills stay inactive until you enable it in `/plugin`.
 
 **3. 🤖 Hand it a task**
 
@@ -102,6 +106,7 @@ Custom marketplaces do **not** auto-update, so run `marketplace update` manually
 - **Plan gate blocking a project you don't want it in?** Set `"udflow": { "planGate": false }` in that project's `.claude/settings.json` to opt it out; the gate stays on in every other project.
 - **Nothing seems to happen / gate never blocks** — check `node --version`. With no Node on PATH the hooks no-op silently. For deeper insight, set `UDFLOW_HOOK_DEBUG=1` to make the hooks write a trace (stderr / temp file); unset, they stay silent.
 - **opus unavailable** — `security-reviewer` and `gatekeeper` fall back to the available model and say so in their output; verdict confidence may be lower.
+- **Failure memory shows up in an unrelated project?** With no project-local `ai/FAILURE_MEMORY.md`, udflow falls back to the global `~/.claude/FAILURE_MEMORY.md` and injects its digest into *every* session — this is intended (global lessons travel with you). To scope it per project, add a project-local `ai/FAILURE_MEMORY.md`; to stop it entirely, remove the global file. Injected content is wrapped in a per-run nonce fence and role-marker–neutralized, so a repo's memory file can't act as instructions.
 
 ---
 

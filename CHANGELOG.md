@@ -3,6 +3,21 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.10.1]
+
+Patch: makes the documented install flow actually enable the plugin, and hardens two best-effort robustness gaps a re-review surfaced. Single-file hook change plus CI/docs; defaults, reviewer selection, and all hook contracts unchanged.
+
+### Fixed
+- **Quick start now enables the plugin** (`README.md`, `README.zh-TW.md`): the plugin ships `defaultEnabled: false` (opt-in), so `add → install → reload` left it **installed but disabled** — hooks and skills inactive. The quick start now includes the explicit enable step (`/plugin` → Installed → toggle, or `claude plugin enable`), with a note that installing ≠ enabling.
+- **orchestration-check transcript read is now bounded** (`orchestration-check.js`): the Stop hook read the whole transcript synchronously with no cap, and the 5s watchdog cannot interrupt a synchronous read. It now stat-checks the transcript and fails open (does nothing) above 32 MB — far above any realistic session (typically single-digit MB), so it never clips real work while bounding the pathological case. Matches the existing `MAX_READ` / `MAX_STDIN` caps on the sibling hooks.
+- **Release publish no longer drifts** (`.github/workflows/validate.yml`): the auto-release pushed the tag before creating the GitHub release and gated reruns on the *tag*, so a failure between the two left a tag with no release that reruns would skip forever. The idempotency guard now keys off the *published* release (`gh release view … --json isDraft`, so a stray draft can't wedge it into skipping forever), tag creation is itself idempotent, and `gh release create --verify-tag` refuses to mint a lightweight tag if the annotated one is missing — so a failed run cleanly completes the release on rerun, and annotated tags are preserved on every path.
+
+### Docs
+- **Global failure-memory injection documented** (`README.md`, `README.zh-TW.md`): troubleshooting now states that without a project-local `ai/FAILURE_MEMORY.md`, the global `~/.claude/FAILURE_MEMORY.md` digest is injected into every session (intended), how to scope or disable it, and that injected content is nonce-fenced and role-marker–neutralized. No behavior change.
+
+### Notes
+- New hook tests: the orchestration-check over-cap fail-open path, and a `hooks.json` Stop-hook wiring assertion. All three hooks remain fail-open / fail-safe and non-blocking.
+
 ## [0.10.0]
 
 Closes the external review's "claimed vs enforced" and "global footprint" gaps: deep mode splits into a cheap **Tier 1** that can auto-engage deterministic enforcement on high-risk work, the Stop hook's advisories now survive a non-English summary, and a project can opt **out** of the otherwise-global plan gate. Two single-file hook changes plus prompt/docs; defaults and reviewer selection are unchanged.

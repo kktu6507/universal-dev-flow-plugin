@@ -65,7 +65,7 @@ jobs:
   # source of truth — if no matching tag exists yet, cut the annotated tag + GitHub
   # release (notes from the CHANGELOG). This makes the version / manifests / CHANGELOG /
   # git tag / release impossible to drift; the maintainer never tags by hand. Idempotent
-  # (skips if the tag already exists); push-to-master only.
+  # (skips if the release already exists); push-to-master only.
   release:
     needs: validate
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
@@ -86,8 +86,8 @@ jobs:
         run: |
           ver=$(node -p "require('./udflow/.claude-plugin/plugin.json').version")
           tag="v$ver"
-          if git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
-            echo "Tag $tag already exists — nothing to publish."
+          if [ "$(gh release view "$tag" --json isDraft -q '.isDraft' 2>/dev/null)" = "false" ]; then
+            echo "Release $tag already published — nothing to publish."
             exit 0
           fi
           echo "Publishing $tag from manifest version $ver."
@@ -101,7 +101,9 @@ jobs:
           [ -s /tmp/relnotes.md ] || echo "See CHANGELOG.md for $tag." > /tmp/relnotes.md
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -a "$tag" -m "udflow $tag"
-          git push origin "$tag"
-          gh release create "$tag" --title "$tag" --notes-file /tmp/relnotes.md
+          if ! git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
+            git tag -a "$tag" -m "udflow $tag"
+            git push origin "$tag"
+          fi
+          gh release create "$tag" --title "$tag" --notes-file /tmp/relnotes.md --verify-tag
           echo "Published $tag."

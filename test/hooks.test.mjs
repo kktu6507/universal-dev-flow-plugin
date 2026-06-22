@@ -402,6 +402,12 @@ test("hooks.json SessionStart matcher includes compact", () => {
   assert.ok(new RegExp(`^(?:${matcher})$`).test("compact"), "compact must be in the SessionStart matcher");
 });
 
+test("hooks.json wires the Stop hook to orchestration-check.js", () => {
+  const hj = JSON.parse(fs.readFileSync(path.join(HOOKS, "hooks.json"), "utf8"));
+  const cmd = hj.hooks.Stop[0].hooks[0].command;
+  assert.match(cmd, /orchestration-check\.js/, "Stop hook must invoke orchestration-check.js");
+});
+
 // --- orchestration-check Stop hook (finding D) ---
 
 const ORCH = path.join(HOOKS, "orchestration-check.js");
@@ -415,6 +421,22 @@ function orch(input) {
   const out = cp.execFileSync("node", [ORCH], { input: JSON.stringify(input) }).toString();
   return out.trim() ? JSON.parse(out) : null;
 }
+
+test("orchestration-check fails open (silent) on an over-cap transcript (>32MB)", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "udflow-bigtx-"));
+  const p = path.join(dir, "transcript.jsonl");
+  const pad = JSON.stringify({ role: "user", content: "x".repeat(1024 * 1024) }) + "\n"; // ~1MB/line
+  const fd = fs.openSync(p, "w");
+  try {
+    for (let i = 0; i < 33; i++) fs.writeSync(fd, pad); // ~33MB, over the 32MB cap
+    fs.writeSync(fd, JSON.stringify({ role: "assistant", content: "Final verdict: READY — readiness confirmed." }) + "\n");
+  } finally { fs.closeSync(fd); }
+  try {
+    assert.strictEqual(orch({ transcript_path: p }), null, "over-cap transcript must be skipped (fail-open)");
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
 
 test("orchestration-check warns when READY is asserted and NO panel agent ran", () => {
   const tp = mkTranscript([

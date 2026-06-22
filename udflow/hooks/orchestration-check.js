@@ -13,6 +13,7 @@ const os = require("os");
 const path = require("path");
 
 const REQUIRED = ["spec-reviewer", "test-reviewer", "gatekeeper"];
+const MAX_TRANSCRIPT = 32 * 1024 * 1024; // cap the synchronous transcript read; fail-open (skip) above it
 
 function debug(msg) {
   if (!process.env.UDFLOW_HOOK_DEBUG) return;
@@ -75,6 +76,9 @@ process.stdin.on("end", () => {
     const tpath = input.transcript_path || input.transcriptPath || "";
     if (!tpath || !fs.existsSync(tpath)) return process.exit(0);
 
+    let tsize = 0;
+    try { tsize = fs.statSync(tpath).size; } catch (e) { return process.exit(0); }
+    if (tsize > MAX_TRANSCRIPT) { debug("transcript over cap (" + tsize + " bytes); skipping"); return process.exit(0); }
     const text = fs.readFileSync(tpath, "utf8");
     const lines = text.split(/\r?\n/).filter(Boolean);
 
