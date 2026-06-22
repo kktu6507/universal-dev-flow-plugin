@@ -67,6 +67,7 @@ Non-trivial work must pass an explicit plan gate before implementation begins. T
 - Modify only requested scope unless a broader change is required for correctness, safety, buildability, or testability.
 - Verify with commands, browser evidence, text-integrity checks, or explicit blockers as applicable.
 - Use the smallest sufficient formal review panel when subagents are authorized and available.
+- Keep cost risk-proportional and **user-adjustable**: the panel auto-scales to risk by default; `--lite` forces the smallest panel and skips deep mode (with a safety floor — see `references/reviewer-selection.md`), and `--deep`/`--no-deep` tune deep mode. State the selected panel + cost tier up-front at the plan gate and recap it in the Run Card.
 - Do not spawn non-applicable reviewers merely to satisfy process.
 - Do not use full thread history as the default reviewer input.
 - Do not present local self-review as formal multi-agent review.
@@ -101,6 +102,7 @@ When touching human-readable text, check for mojibake, replacement characters, b
    - For UI work, include target screens, states, responsive/accessibility concerns, and browser verification target or blocker. If the `ui-ux-pro-max` skill is available, consult it for design decisions (styles, palettes, font pairings, UX guidelines) during planning; if unavailable, fall back to internal `ui-ux-reviewer` guidance and note that ui-ux-pro-max was not used (see `references/external-capabilities.md`).
    - Before non-trivial implementation, consult failure memory — project-specific `ai/FAILURE_MEMORY.md` when it exists, otherwise `~/.claude/FAILURE_MEMORY.md`. The SessionStart digest is only an index; here, retrieve the full entries relevant to this task's affected files, area, language, and error type (filter by `Tags`) and read them. Before any failure-memory write, reread the global `~/.claude/FAILURE_MEMORY.md` and merge with a similar existing entry when one exists.
    - **Define acceptance criteria.** For non-trivial work, turn the requirement into a short, numbered checklist of observable / verifiable outcomes that define done, and present it **as part of the plan** for user approval at ExitPlanMode (no separate approval step). On high-risk work these *are* the plan-grounding **sharpened contract** (do not duplicate it); skip them for trivial work. Route any ambiguous criterion through AskUserQuestion, carry the approved list into the Review Packet, and the `gatekeeper` checks each one at the gate (step 7). The deepest release signal is not "no bugs" — it is "did what you asked, and confirmed it."
+   - **State the cost up-front.** In the plan, name the selected review panel and its cost tier (lite / default / deep) so the user sees roughly what the run will cost and can adjust it (`--lite` / `--deep` / `--no-deep`) before approving (see `references/reviewer-selection.md`, *Lite path*).
    - Present the plan via ExitPlanMode **in the user's language** (keep identifiers, file names, commands, and verdict tokens verbatim — see Language And Text Integrity) and wait for approval (Plan Gate).
 
 3. Implementation
@@ -119,6 +121,7 @@ When touching human-readable text, check for mojibake, replacement characters, b
 5. Review panel selection
    - Always include `spec-reviewer` and `test-reviewer` for non-trivial formal review.
    - Add conditional reviewers only when their risk criteria apply.
+   - The panel size is risk-proportional and user-adjustable: `--lite` forces the smallest sufficient panel (core + `code-reviewer` when code changed) and skips deep mode, except it keeps a directly-relevant safety reviewer when a high-risk signal is present and discloses it (see `references/reviewer-selection.md`, *Lite path*).
    - Prepare a Review Packet before reviewer handoff, and fill the "Shared reviewer contract" block into each handoff verbatim (a spawned reviewer cannot reach `references/reviewer-common.md` by path).
    - Read `references/review-packet.md` and `references/reviewer-selection.md`.
 

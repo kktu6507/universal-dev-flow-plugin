@@ -197,7 +197,7 @@ Write the labels and prose in the **user's language**, but keep the machine-chec
 - Top findings: up to 3, each `blocker`|`major`|`minor` + one line (or "none")
 - Auto-fixed: <what the repair loop fixed this session | "nothing">
 - Remaining: <unresolved blocker/major + missing required tests | "none">
-- Cost (approx): <~new tokens / wall-clock / subagent count | "not measured"> — approximate, never fabricated
+- Cost (approx): <tier: lite | default | deep> · <~new tokens / wall-clock / subagent count | "not measured"> — approximate, never fabricated
 
 udflow:verify=<pass|fail|unrun|na>
 udflow:delivery=<held|shipped>

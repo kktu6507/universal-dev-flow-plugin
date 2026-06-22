@@ -3,6 +3,20 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.13.0]
+
+Adds suggestion #4 — a downward **`--lite` cost knob** plus up-front cost visibility, so cost is "visible **and** adjustable" (**prose/persona only**; no hook). It complements the existing risk-proportional auto-scaling and the `--deep`/`--no-deep` upward knob.
+
+### Added
+- **`--lite` cost floor** (`references/reviewer-selection.md`, `references/deep-mode.md`, `skills/run/SKILL.md`, `SKILL.md`): `/udflow:run --lite` forces the smallest sufficient panel (core `spec-reviewer` + `test-reviewer`, plus `code-reviewer` when code changed), skips the other conditional reviewers and deep mode — the downward counterpart to `--deep`. **Safety floor:** when a genuine high-risk signal is present (auth / secrets / schema-migration / destructive / …), `--lite` keeps the one directly-relevant safety reviewer and discloses it rather than silently dropping coverage — a disclosed recall/cost tradeoff, not a license to skip a needed discipline.
+- **Up-front cost visibility**: the orchestrator states the selected review panel and its cost tier (lite / default / deep) at the plan gate so the user can adjust before approving; the Run Card's `Cost` line now carries the tier (`references/verification-gate.md`, `SKILL.md` step 2 + step 5). The "which panel / how much" was already recapped in the Run Card after the fact (0.11.0); this makes it visible and adjustable up-front too.
+
+### Changed
+- `README.md` / `README.zh-TW.md`: the "Cost per run" section documents the three cost knobs (lite / default / deep) and up-front adjustability.
+
+### Tests
+- **No new behavioral tests** — prose/persona change with no new hook code or machine-checked surface (panel selection is orchestrator-followed, not hook-enforced). `node --test` is unchanged at 104 tests / 100 pass / 0 fail / 4 skipped (the 4 skipped are platform symlink/case tests; confirming no hook was disturbed), and `node .github/scripts/validate-structure.mjs` passes (version 0.13.0 agreement across the four manifests, CHANGELOG entry, README parity, hook wiring).
+
 ## [0.12.0]
 
 Adds suggestion #3 — user-approved **acceptance criteria** with a per-item gate check (**prose/persona only**; no hook and no new sentinel, keeping udflow's "gate = gatekeeper" philosophy and minimal surface). The deepest release signal isn't "no bugs," it's "did what you asked, and confirmed it."

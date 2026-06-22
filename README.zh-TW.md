@@ -269,6 +269,8 @@ udflow 的 deterministic Workflow 分兩層：
 
 成本主因：**≈ context/repo 大小 × 回合數 × subagent 數量。** `opus` 審查員、`--deep`、多輪修復都會再乘上去；審查員並行能縮短耗時，但不會減少 token 量。
 
+**可調。** 成本預設依風險比例；可用 `--lite`（強制最小 panel + 跳過昂貴的 deep tier，主要給低風險小改動——若有高風險訊號仍保留並揭露那個直接相關的 safety reviewer）、`--deep`（對抗式驗證 + 最大 effort）、`--no-deep`（退出 deterministic Workflow）調整。選定的 panel + 成本 tier 會在 plan gate 事先攤開、並於 Run Card 重述，讓你在核可前看清這次大概花多少、並能調整。
+
 ### 選用的外部能力（Detect → Use → Else-Disclose）
 
 MCP 工具、外部 subagent、外部 skill 都是**選用**的。有就用、沒有就在本地完成並如實揭露缺口。
