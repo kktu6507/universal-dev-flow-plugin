@@ -733,6 +733,30 @@ test("orchestration-check: 'subagent_type:' pasted in a HUMAN message does not c
     "pasted subagent_type strings in a user message must not count as a real panel run");
 });
 
+test("orchestration-check: a NOT READY token in ASSISTANT prose is not read as the gatekeeper's verdict (C3.5b)", () => {
+  // An orchestrator that recaps the verdict history in its own prose (with no gatekeeper tool_result)
+  // must not trip the verdict-not-honored advisory — only a structured tool_result counts as a verdict.
+  const tp = mkTranscript([
+    { role: "assistant", content: "Recap: the gatekeeper first said FIX REQUIRED, then NOT READY on the migration." },
+    { role: "assistant", content: "All done, looks good. The change is complete." },
+  ]);
+  const r = orch({ transcript_path: tp });
+  assert.ok(!r || !/gatekeeper's last verdict/.test(r.systemMessage || ""),
+    "a verdict token in the orchestrator's own prose must not be read as the gatekeeper's verdict");
+});
+
+test("orchestration-check: 'subagent_type:' in ASSISTANT prose does not count as a panel run (C3.4b)", () => {
+  // Naming subagent_type in the assistant's own prose (not a real Task tool_use) must not satisfy the
+  // panel check, so a READY claim with no actual panel still warns.
+  const tp = mkTranscript([
+    { role: "assistant", content: "For the record I used subagent_type: udflow:spec-reviewer, subagent_type: udflow:test-reviewer, and subagent_type: udflow:gatekeeper." },
+    { role: "assistant", content: "Final verdict: READY — readiness confirmed." },
+  ]);
+  const r = orch({ transcript_path: tp });
+  assert.ok(r && /none of the core review panel/.test(r.systemMessage),
+    "subagent_type named in prose (no real tool_use) must not count as a panel run");
+});
+
 // --- validate-structure CI guards: negative-path coverage (v0.10.2) ---
 // The text-integrity (U+FFFD) and bilingual-README-parity checks are fail-only guards; lock in that they
 // actually FAIL on a violation (not merely pass on the clean tree) by running the real validator against a
