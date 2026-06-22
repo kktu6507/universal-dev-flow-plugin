@@ -164,6 +164,18 @@ test("plan-gate: on a case-sensitive FS, an uppercase ~/.claude/PLANS path is NO
     "uppercase PLANS must not be exempt on a case-sensitive FS");
 });
 
+test("plan-gate: on a case-insensitive FS, an uppercase ~/.claude/PLANS path IS exempt (same dir)", (t) => {
+  // Mirror of the case-sensitive test: empirical FS detection must treat PLANS == plans on a
+  // case-insensitive volume (Windows/macOS), so a home-dir plan file under either casing is exempt.
+  if (process.platform !== "win32" && process.platform !== "darwin") return t.skip("case-sensitive FS");
+  const { home, env } = isolatedHome();
+  t.after(() => { try { fs.rmSync(home, { recursive: true, force: true }); } catch (e) {} });
+  fs.mkdirSync(path.join(home, ".claude", "plans"), { recursive: true }); // the real (lowercase) plans dir
+  const upper = path.join(home, ".claude", "PLANS", "plan-x.md");
+  assert.strictEqual(gate({ tool_name: "Write", permission_mode: "plan", tool_input: { file_path: upper } }, env), "ALLOW",
+    "uppercase PLANS must be exempt on a case-insensitive FS (it is the same directory as plans)");
+});
+
 test("normal file write is denied in plan mode, allowed otherwise", () => {
   const f = path.join(os.tmpdir(), "proj", "src", "app.ts");
   assert.strictEqual(gate({ tool_name: "Write", permission_mode: "plan", tool_input: { file_path: f } }), "DENY");
@@ -494,6 +506,17 @@ test("orchestration-check fails open (silent) when the transcript path is a dire
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "udflow-dirtx-"));
   try {
     assert.strictEqual(orch({ transcript_path: dir }), null, "a directory transcript path must fail open (silent)");
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("orchestration-check fails open (silent) on a non-existent transcript path", () => {
+  // With the existsSync guard dropped, a missing path must still fail open via statSync's ENOENT catch.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "udflow-nope-"));
+  const p = path.join(dir, "missing.jsonl"); // never created -> guaranteed absent
+  try {
+    assert.strictEqual(orch({ transcript_path: p }), null, "a non-existent transcript path must fail open (silent)");
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }

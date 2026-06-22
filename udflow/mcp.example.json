@@ -1,9 +1,9 @@
 {
-  "_comment": "Template only. Claude Code loads .mcp.json, NOT this file. To enable a server, copy its entry into .mcp.json's mcpServers, then UNCOMMENT the matching mcp__ line in the relevant agent's tools list. Add only what you actually use to keep context lean.",
+  "_comment": "Template only. Claude Code loads .mcp.json, NOT this file. To enable a server, copy its entry into .mcp.json's mcpServers, then UNCOMMENT the matching mcp__ line in the relevant agent's tools list. Add only what you actually use. Versions are pinned for reproducibility — pin whatever you add likewise. NOTE: semgrep-mcp / osv-mcp ship via their own ecosystems (not npm), so adjust the runner for those rather than relying on npx.",
   "mcpServers": {
     "semgrep":    { "command": "npx", "args": ["-y", "semgrep-mcp"] },
     "osv":        { "command": "npx", "args": ["-y", "osv-mcp"] },
-    "github":     { "command": "npx", "args": ["-y", "@modelcontextprotocol/server-github"] },
-    "playwright": { "command": "npx", "args": ["-y", "@playwright/mcp"] }
+    "github":     { "command": "npx", "args": ["-y", "@modelcontextprotocol/server-github@2025.4.8"] },
+    "playwright": { "command": "npx", "args": ["-y", "@playwright/mcp@0.0.76"] }
   }
 }

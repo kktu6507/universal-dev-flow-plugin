@@ -3,6 +3,27 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.10.2]
+
+Follow-up polish from the 0.10.1 review backlog — boundary tests, release-job resilience, an empirically-detected plan-gate case check, and two new CI guards. No change to defaults, reviewer selection, or hook contracts.
+
+### Fixed
+- **plan-gate filesystem case detection is now empirical** (`plan-gate.js`): the `~/.claude/plans` write-exemption decided case-insensitivity from `process.platform`, which misreads a case-sensitive APFS (macOS) or a case-insensitive Linux mount. It now probes the home volume (flip an existing ancestor's basename case and test whether it resolves), falling back to the platform default only when undeterminable.
+- **`MAX_STDIN` is now byte-based** (`load-failure-memory.js`, `plan-gate.js`): the stdin cap compared `String.length` (UTF-16 code units); it now counts `Buffer.byteLength(...)` so the bound is the intended byte budget.
+- **orchestration-check: dropped the redundant `existsSync`** — the subsequent `statSync` already fails open on a missing path (ENOENT → catch); a comment now records the sampled-size / unbounded-read TOCTOU as an accepted best-effort gap.
+
+### Added
+- **CI text-integrity gate** (`validate-structure.mjs`): tracked text (`.md` / `.json` / `.mjs` / `.js` / `.yml`) is scanned for U+FFFD replacement characters, so mojibake / broken encoding fails the build.
+- **CI bilingual README parity** (`validate-structure.mjs`): `README.zh-TW.md` must name every wired hook (like `README.md`) and the two READMEs must have the same top-level (`##`) section count — a structural-drift guard that does not compare translated prose.
+- **Release-job resilience** (`.github/workflows/validate.yml`): explicit `set -euo pipefail`; the publish guard captures the release's draft state once and **promotes a stray draft** (`gh release edit --draft=false`) instead of failing on create; a job-level `concurrency` (`cancel-in-progress: false`) serializes releases so a publish is not cancelled mid-flight.
+
+### Tests
+- The 32 MB transcript cap is now bracketed on all sides: over-cap (skips), just-under-cap (warns), exactly-at-cap (warns — pins `>` not `>=`), directory and non-existent paths (fail open). New plan-gate test: an uppercase `~/.claude/PLANS` IS exempt on a case-insensitive FS (the positive partner to the case-sensitive test).
+
+### Docs
+- `run/SKILL.md`: the `references/deep-mode.md` pointer is now self-resolving (`../universal-dev-flow/references/deep-mode.md`).
+- `mcp.example.json`: pinned the npm-published example servers (`@modelcontextprotocol/server-github`, `@playwright/mcp`) and noted that `semgrep-mcp` / `osv-mcp` ship via their own ecosystems (not npm).
+
 ## [0.10.1]
 
 Patch: makes the documented install flow actually enable the plugin, and hardens two best-effort robustness gaps a re-review surfaced. Single-file hook change plus CI/docs; defaults, reviewer selection, and all hook contracts unchanged.

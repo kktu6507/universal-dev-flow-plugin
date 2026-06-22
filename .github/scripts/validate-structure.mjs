@@ -163,6 +163,42 @@ function scanScratch(dir) {
 }
 scanScratch(".");
 
+// 7. text integrity: no U+FFFD replacement characters in tracked text (mojibake / broken encoding).
+const TEXT_EXT = /\.(md|json|mjs|js|ya?ml)$/i;
+function scanTextIntegrity(dir) {
+  const abs = path.join(root, dir);
+  if (!fs.existsSync(abs)) return;
+  const FFFD = String.fromCharCode(0xFFFD); // the U+FFFD replacement char, built without embedding it here
+  for (const e of fs.readdirSync(abs, { withFileTypes: true })) {
+    if (e.name === ".git" || e.name === "node_modules") continue;
+    const rel = path.join(dir, e.name);
+    if (e.isDirectory()) scanTextIntegrity(rel);
+    else if (TEXT_EXT.test(e.name) && fs.readFileSync(path.join(root, rel), "utf8").includes(FFFD)) {
+      fail(`text integrity: ${rel} contains a U+FFFD replacement character (mojibake / broken encoding)`);
+    }
+  }
+}
+scanTextIntegrity(".");
+
+// 8. bilingual README parity: README.zh-TW.md must name every wired hook (like README.md), and the two
+// READMEs must have the same number of top-level (## ) sections — a structural-drift guard that does
+// not compare translated prose.
+const enReadme = path.join(root, "README.md"), zhReadme = path.join(root, "README.zh-TW.md");
+if (fs.existsSync(enReadme) && fs.existsSync(zhReadme)) {
+  const en = fs.readFileSync(enReadme, "utf8"), zh = fs.readFileSync(zhReadme, "utf8");
+  const sectionCount = (s) => (s.match(/^##\s+/gm) || []).length;
+  if (sectionCount(en) !== sectionCount(zh)) {
+    fail(`README parity: README.md has ${sectionCount(en)} top-level (##) sections but README.zh-TW.md has ${sectionCount(zh)}`);
+  }
+  const hjPath = path.join(root, `${PLUGIN}/hooks/hooks.json`);
+  if (fs.existsSync(hjPath)) {
+    for (const m of new Set((fs.readFileSync(hjPath, "utf8").match(/hooks\/[a-z0-9-]+\.js/gi) || []))) {
+      const base = m.replace(/^hooks\//, "").replace(/\.js$/, "");
+      if (!zh.includes(base)) fail(`README parity: README.zh-TW.md does not mention the hook "${base}" (docs out of sync)`);
+    }
+  }
+}
+
 if (errors.length) {
   console.error("Plugin structure validation FAILED:");
   for (const e of errors) console.error("  - " + e);

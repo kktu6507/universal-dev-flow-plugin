@@ -9,7 +9,7 @@ const os = require("os");
 const path = require("path");
 const fs = require("fs");
 
-const MAX_STDIN = 5 * 1024 * 1024; // cap to avoid unbounded buffering of a large tool_input
+const MAX_STDIN = 5 * 1024 * 1024; // cap to avoid unbounded buffering of a large tool_input (bytes)
 
 function debug(msg) {
   if (!process.env.UDFLOW_HOOK_DEBUG) return;
@@ -32,6 +32,28 @@ function realpathDeepest(p) {
     cur = parent;
   }
   return p;
+}
+
+// Empirically decide whether the filesystem holding `p` is case-insensitive, instead of guessing from
+// the OS — a case-sensitive APFS (macOS) or a case-insensitive mount on Linux would fool the platform
+// guess. Probe: find the deepest existing ancestor of `p`, flip the case of its basename, and test
+// whether that variant resolves in the same directory. Returns true/false, or null when undeterminable
+// (no cased characters, or any error) so the caller can fall back to the platform default.
+function fsCaseInsensitiveNear(p) {
+  try {
+    let cur = path.resolve(String(p));
+    for (let i = 0; i < 64; i++) {
+      if (fs.existsSync(cur)) break;
+      const parent = path.dirname(cur);
+      if (parent === cur) return null; // reached the root without an existing ancestor
+      cur = parent;
+    }
+    if (!fs.existsSync(cur)) return null;
+    const base = path.basename(cur);
+    const flipped = base === base.toLowerCase() ? base.toUpperCase() : base.toLowerCase();
+    if (flipped === base) return null; // no cased characters to test -> undeterminable
+    return fs.existsSync(path.join(path.dirname(cur), flipped));
+  } catch (e) { return null; }
 }
 
 // Narrow tripwire: does this Bash command obviously write the working tree? Conservative,
@@ -105,12 +127,14 @@ function readPlanGateFlag(file) {
 }
 
 let raw = "";
+let rawBytes = 0;
 process.stdin.setEncoding("utf8");
 process.stdin.on("error", () => process.exit(0));
 const _watchdog = setTimeout(() => process.exit(0), 5000); _watchdog.unref();
 process.stdin.on("data", (c) => {
   raw += c;
-  if (raw.length > MAX_STDIN) { debug("stdin over cap; allowing"); try { process.stdin.pause(); } catch (e) {} process.exit(0); }
+  rawBytes += Buffer.byteLength(c, "utf8");
+  if (rawBytes > MAX_STDIN) { debug("stdin over cap; allowing"); try { process.stdin.pause(); } catch (e) {} process.exit(0); }
 });
 process.stdin.on("end", () => {
   try {
@@ -125,10 +149,12 @@ process.stdin.on("end", () => {
     let isPlanFile = false; // only relevant for structured edits to ~/.claude/plans
     if (targetPath) {
       try {
-        // Compare case-insensitively ONLY on the case-insensitive filesystems (Windows, macOS).
-        // On case-sensitive systems (Linux), folding case would wrongly exempt a real directory
-        // named e.g. ~/.claude/PLANS — widening the writable-exemption set. Match the FS instead.
-        const caseInsensitiveFS = process.platform === "win32" || process.platform === "darwin";
+        // Compare case-insensitively ONLY on a case-insensitive filesystem, detected EMPIRICALLY
+        // (probe the home volume) rather than guessed from the OS — a case-sensitive APFS or a
+        // case-insensitive Linux mount would fool a platform check and wrongly widen/narrow the
+        // ~/.claude/plans write-exemption. Fall back to the platform default when undeterminable.
+        const probed = fsCaseInsensitiveNear(os.homedir());
+        const caseInsensitiveFS = probed === null ? (process.platform === "win32" || process.platform === "darwin") : probed;
         const norm = (s) => { s = s.replace(/\\/g, "/"); return caseInsensitiveFS ? s.toLowerCase() : s; };
         let resolved = path.resolve(String(targetPath));
         try { resolved = realpathDeepest(resolved); } catch (e) {}

@@ -65,10 +65,15 @@ jobs:
   # source of truth — if no matching tag exists yet, cut the annotated tag + GitHub
   # release (notes from the CHANGELOG). This makes the version / manifests / CHANGELOG /
   # git tag / release impossible to drift; the maintainer never tags by hand. Idempotent
-  # (skips if the release already exists); push-to-master only.
+  # (skips if the release is already published — non-draft); push-to-master only.
   release:
     needs: validate
     if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    # Serialize releases (do NOT cancel an in-progress publish); a queued run converges via the
+    # published-release guard below rather than being killed mid-publish.
+    concurrency:
+      group: udflow-release
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     permissions:
       contents: write   # push the tag and create the release (overrides the read-only default)
@@ -84,9 +89,14 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
+          set -euo pipefail
           ver=$(node -p "require('./udflow/.claude-plugin/plugin.json').version")
           tag="v$ver"
-          if [ "$(gh release view "$tag" --json isDraft -q '.isDraft' 2>/dev/null)" = "false" ]; then
+          # Capture the release's draft state once: "false"=published, "true"=draft, ""=no release.
+          # ('|| true' keeps set -e happy when the release does not exist.)
+          state="$(gh release view "$tag" --json isDraft -q '.isDraft' 2>/dev/null || true)"
+          echo "Release state for $tag: isDraft=${state:-<none>}"
+          if [ "$state" = "false" ]; then
             echo "Release $tag already published — nothing to publish."
             exit 0
           fi
@@ -101,6 +111,15 @@ jobs:
           [ -s /tmp/relnotes.md ] || echo "See CHANGELOG.md for $tag." > /tmp/relnotes.md
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if [ "$state" = "true" ]; then
+            # A stray draft release exists for this tag — promote it instead of failing on create.
+            echo "Existing draft found — promoting to published."
+            gh release edit "$tag" --draft=false --notes-file /tmp/relnotes.md
+            echo "Published $tag (promoted from draft)."
+            exit 0
+          fi
+          # No release exists — create it. Idempotent annotated tag first; --verify-tag refuses to
+          # mint a lightweight tag if the annotated one is somehow missing.
           if ! git rev-parse -q --verify "refs/tags/$tag" >/dev/null; then
             git tag -a "$tag" -m "udflow $tag"
             git push origin "$tag"

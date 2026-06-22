@@ -74,8 +74,11 @@ process.stdin.on("end", () => {
   try {
     const input = JSON.parse(raw || "{}");
     const tpath = input.transcript_path || input.transcriptPath || "";
-    if (!tpath || !fs.existsSync(tpath)) return process.exit(0);
+    if (!tpath) return process.exit(0);
 
+    // statSync also fails open on a missing path (ENOENT -> catch). The size is sampled here and the
+    // read below is unbounded, so a file that grows past the cap in this window is an accepted
+    // best-effort gap (on Stop the session has ended; the transcript is not actively appended).
     let tsize = 0;
     try { tsize = fs.statSync(tpath).size; } catch (e) { return process.exit(0); }
     if (tsize > MAX_TRANSCRIPT) { debug("transcript over cap (" + tsize + " bytes); skipping"); return process.exit(0); }

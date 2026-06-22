@@ -11,7 +11,7 @@ const crypto = require("crypto");
 
 const MAX_ENTRIES = 20;            // newest N entries in the digest
 const MAX_CHARS = 3000;            // safety cap on the injected body
-const MAX_STDIN = 5 * 1024 * 1024; // cap stdin buffering
+const MAX_STDIN = 5 * 1024 * 1024; // cap stdin buffering (bytes)
 const MAX_READ = 256 * 1024;       // only the newest (top) chunk is ever used
 
 function debug(msg) {
@@ -21,12 +21,14 @@ function debug(msg) {
 }
 
 let raw = "";
+let rawBytes = 0;
 process.stdin.setEncoding("utf8");
 process.stdin.on("error", () => process.exit(0));
 const _watchdog = setTimeout(() => process.exit(0), 5000); _watchdog.unref();
 process.stdin.on("data", (c) => {
   raw += c;
-  if (raw.length > MAX_STDIN) { try { process.stdin.pause(); } catch (e) {} process.exit(0); }
+  rawBytes += Buffer.byteLength(c, "utf8");
+  if (rawBytes > MAX_STDIN) { try { process.stdin.pause(); } catch (e) {} process.exit(0); }
 });
 process.stdin.on("end", () => {
   try {
