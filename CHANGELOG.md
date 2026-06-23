@@ -3,6 +3,17 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.14.1]
+
+Docs-only — a bilingual README sync pass after 0.11.0–0.14.0.
+
+### Changed
+- **Cost table surfaces the `--lite` knob** (`README.md`, `README.zh-TW.md`): the Light row now reads "`--lite` — core only", mirroring how the Deep row already shows `--deep`, so all three cost tiers (lite / default / deep) map to their knob.
+
+### Notes
+- A bilingual README audit otherwise found the docs already in sync with 0.11.0–0.14.0 (verify sentinel + values, command-evidence authority, acceptance-criteria gate, Run Card / Run Report) and EN↔zh symmetric. In particular the cost-table token figures are correct and were **not** changed — zh `50萬 / 200萬 / 1000萬` = `0.5M / 2M / 10M`, matching EN `~0.5–2M / ~2–7M / >10M` (萬 = 10⁴).
+- No code or hook change. `node --test`: 104 tests / 100 pass / 0 fail / 4 skipped (unchanged); `node .github/scripts/validate-structure.mjs` passes.
+
 ## [0.14.0]
 
 Adds a richer, more legible end-of-run **Run Report** (**prose/persona only**; no hook) on top of the compact Run Card — so after a multi-agent run the user can see what each agent did, what the change achieved, and what it cost.

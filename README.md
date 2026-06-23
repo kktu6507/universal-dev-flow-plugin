@@ -261,7 +261,7 @@ Ballpark from our own runs — varies a lot by task size, risk, repo size, and n
 
 | Task (one run) | Reviewers | New tokens | Wall-clock |
 |------|-----------|------------|------------|
-| Light | core only | ~0.5–2M | a few min |
+| Light | `--lite` — core only | ~0.5–2M | a few min |
 | Typical | 3–5 + one repair pass | ~2–7M | ~5–15 min |
 | Deep | `--deep`, several repair loops | >10M | 20–40 min |
 
