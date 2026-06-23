@@ -3,6 +3,17 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.16.0]
+
+Merge udflow's end-of-run output into **one report**. A substantial run used to emit three overlapping artifacts — the Final Output Contract template, the compact **Run Card**, and the table-based **Run Report** — duplicating verdict / checks / findings / acceptance / cost. They are now a single report whose top-level structure is the contract's sections, with the Run Card and Run Report detail folded in and the machine sentinels kept as the footer.
+
+### Changed
+- **Single end-of-run report** (`references/verification-gate.md`): the Final Output Contract is now the one report. `Summary` carries the **Outcome** (requirement → change → effect) and **Per-agent activity** tables; `Verification` carries **Acceptance criteria**, **External capabilities**, the **UI/UX** after-change screenshot, and the **token & cost** table (observed vs estimated, no telemetry). The standalone `## Run Card` and `## Run Report` sections are **removed** — their content lives in those sections, and the two machine sentinels (`udflow:verify=` / `udflow:delivery=`) remain the last lines. The Evidence Record (real runs) is unchanged and sits just above the footer.
+- `SKILL.md` (step 9), `skills/run/SKILL.md`, `README.md` / `README.zh-TW.md`: describe the single report instead of "Run Card + Run Report" (EN/zh in sync).
+
+### Notes
+- No behavior change for the Stop hook: the merged report still carries the verdict literal (`## Final Verdict`), the `blocker`/`major`/`minor` labels (`## Findings`), and the sentinel footer (read by a last-match scan), so `orchestration-check.js` reads it identically. Spec/docs-only — no code or hook change. `node --test`: 104 tests, 0 fail (102 pass / 2 skipped; skip count is OS-symlink-privilege dependent). `node .github/scripts/validate-structure.mjs` passes — version agrees across `plugin.json` / `marketplace.json` / `package.json` / this CHANGELOG entry.
+
 ## [0.15.0]
 
 Make logging a real run **paste-friendly end to end**: slim the `Verified udflow run` issue form so a run files in as essentially three picks and one paste, and have udflow print a matching record at the end of a real run.
