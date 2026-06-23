@@ -5,13 +5,13 @@ Use a Review Packet before handing work to any reviewer. The packet is the revie
 ## Required Fields
 
 - Task summary: one concise statement of the requested change.
-- Acceptance criteria (user-approved): a numbered checklist of observable, verifiable outcomes that define done — approved by the user at the plan gate. The `gatekeeper` checks each item (met / unmet / deferred; see `agents/gatekeeper.md`), and an unmet, non-deferred criterion blocks `READY`. They are approved as part of the plan at ExitPlanMode — not a separate approval step. On high-risk work these are the plan-grounding **sharpened contract**.
+- Acceptance criteria (user-approved): a numbered checklist of observable, verifiable outcomes that define done — approved by the user at the plan gate. The `gatekeeper` checks each item (met / unmet / deferred; see `agents/gatekeeper.agent.md`), and an unmet, non-deferred criterion blocks `READY`. They are approved as part of the plan at ExitPlanMode — not a separate approval step. On high-risk work these are the plan-grounding **sharpened contract**.
 - In scope: workflows, files, modules, or user-visible behavior reviewed.
 - Out of scope: adjacent behavior intentionally not changed.
 - Assumptions: only assumptions that affected implementation or verification.
 - Implementation summary: what changed and why.
 - Changed files: paths and short purpose for each relevant changed area.
-- Verification evidence: a structured per-check table — one row per check with command, check type (build / test / typecheck / lint / …), required? (yes/no), ran? (yes/no), real exit status (0 / non-zero / —), and blocked-with-reason when not run — plus a one-line summary. The `gatekeeper` reads the real exit status as authority over reviewer prose (see `agents/gatekeeper.md`, "Command-evidence authority"); a single rollup is surfaced as `udflow:verify=pass|fail|unrun|na`.
+- Verification evidence: a structured per-check table — one row per check with command, check type (build / test / typecheck / lint / …), required? (yes/no), ran? (yes/no), real exit status (0 / non-zero / —), and blocked-with-reason when not run — plus a one-line summary. The `gatekeeper` reads the real exit status as authority over reviewer prose (see `agents/gatekeeper.agent.md`, "Command-evidence authority"); a single rollup is surfaced as `udflow:verify=pass|fail|unrun|na`.
 - Known risks: remaining uncertainty, migration/rollback concern, external dependency, or runtime limitation.
 - Reviewer scope: exact question each selected reviewer should answer.
 - Context exclusions: stale decisions, abandoned approaches, or old logs that reviewers should not treat as current.

@@ -113,9 +113,20 @@ if (fs.existsSync(path.join(root, skillRel))) {
       fail(`SKILL.md links a missing reference: references/${m}`);
   }
   const roster = (skill.match(/subagents \(([^)]+)\)/) || [])[1] || "";
+  // The manifest-coverage check below only bites when `plugin.agents` is an array. Guard the
+  // prerequisite explicitly: if SKILL.md declares a roster but the manifest has no agents[] array,
+  // Claude Code would fall back to the default scan (losing the explicit `.agent.md` wiring Copilot
+  // needs) and the coverage check would silently no-op — so fail loudly instead.
+  if (roster && !(plugin && Array.isArray(plugin.agents)))
+    fail(`SKILL.md declares a subagents roster but plugin.json has no agents[] array (explicit wiring missing)`);
   for (const m of roster.matchAll(/`([a-z0-9-]+)`/gi)) {
-    if (!fs.existsSync(path.join(root, `${PLUGIN}/agents/${m[1]}.md`)))
-      fail(`SKILL.md names agent "${m[1]}" but ${PLUGIN}/agents/${m[1]}.md is missing`);
+    const name = m[1];
+    if (!fs.existsSync(path.join(root, `${PLUGIN}/agents/${name}.agent.md`)))
+      fail(`SKILL.md names agent "${name}" but ${PLUGIN}/agents/${name}.agent.md is missing`);
+    // Manifest coverage: Claude Code now loads agents via the plugin.json `agents` array, so an
+    // agent that exists on disk but is not wired in the manifest would silently fail to load.
+    if (plugin && Array.isArray(plugin.agents) && !plugin.agents.some((p) => p.endsWith(`/${name}.agent.md`)))
+      fail(`SKILL.md names agent "${name}" but plugin.json agents[] does not wire agents/${name}.agent.md`);
   }
 }
 const hooksRel = `${PLUGIN}/hooks/hooks.json`;

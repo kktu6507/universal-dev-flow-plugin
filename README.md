@@ -282,9 +282,9 @@ MCP tools, external subagents, and external skills are all **optional**. If pres
 
 ## Compatibility
 
-udflow targets **Claude Code**. Its workflow leans on Claude Code specifics — native plan mode (the plan gate), subagent reviewers, the `gatekeeper`, and deep-mode Workflow — so that's where the full review/repair loop runs.
+udflow targets **Claude Code**. As of 0.20.0 its **subagents** (the reviewer/`gatekeeper` panel) also load under the **GitHub Copilot CLI**: the agent files now use the `*.agent.md` convention and are explicitly wired via the `plugin.json` `agents` array — the manifest field both harnesses read. Its **skills** already use the `skills/<name>/SKILL.md` layout Copilot also discovers, so they should load there too without changes. This cross-harness loading is derived from each tool's **documented** plugin format; it has **not yet been live-verified** on a Copilot CLI install (the README's earlier hook-portability claims *are* tested — see the portability suite).
 
-Its three hooks (`plan-gate`, `load-failure-memory`, `orchestration-check`) are written to be **cross-harness safe**: they resolve the plugin root from the environment at runtime and **fail open** (allow, never error) on any host that runs them differently. So if udflow is loaded by another Claude-plugin-compatible runtime — e.g. the **GitHub Copilot CLI** — the hooks no longer hard-block the session; they simply no-op when their Claude-specific signals (like plan mode) aren't present.
+What stays Claude Code-only is **plan-gate enforcement** and the **deep-mode Workflow**: Copilot has no `plan` permission mode, so the plan gate has nothing to enforce and simply **no-ops** there. The three hooks (`plan-gate`, `load-failure-memory`, `orchestration-check`) resolve the plugin root from the environment at runtime and **fail open** (allow, never error) on any host that runs them differently — so under Copilot they degrade gracefully and never break a session.
 
 To disable udflow under GitHub Copilot CLI only (without affecting Claude Code), add to `~/.copilot/settings.json`:
 

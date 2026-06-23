@@ -40,7 +40,7 @@ When a deep mode is detected/opted in (see `references/deep-mode.md`), the rules
 - current Review Packet
 - selected reviewer list and why each was selected
 - reviewer findings
-- verification evidence (the structured per-check table with real command exit statuses — authoritative over reviewer prose; see `agents/gatekeeper.md`, "Command-evidence authority")
+- verification evidence (the structured per-check table with real command exit statuses — authoritative over reviewer prose; see `agents/gatekeeper.agent.md`, "Command-evidence authority")
 - unresolved risks and missing tests
 - external-capability disclosures (which MCP/skills/subagents were unavailable and the resulting gaps)
 - conflict-resolution notes when reviewers disagree

@@ -3,6 +3,19 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.20.0]
+
+GitHub Copilot CLI compatibility for subagents: agent files renamed to `*.agent.md` and explicitly wired via the `plugin.json` `agents` array, so the review/gatekeeper panel loads under Copilot CLI as well as Claude Code. Claude Code behavior is unchanged (identity is frontmatter `name:`; hooks and skills untouched). Plan-gate enforcement and deep-mode Workflow remain Claude-only (Copilot has no plan mode).
+
+### Changed
+- **Agent files renamed `<name>.md` → `<name>.agent.md`** (`agents/`, all nine: `implementer`, `spec-reviewer`, `test-reviewer`, `code-reviewer`, `security-reviewer`, `architecture-reviewer`, `operability-reviewer`, `ui-ux-reviewer`, `gatekeeper`) and **wired via a new `plugin.json` `agents` array** — the convention/manifest the GitHub Copilot CLI needs to discover and load them. Renames only: each agent body and its frontmatter `name:` (which is the identity Claude Code uses) are byte-unchanged. No `hooks` or `skills` field was added to `plugin.json` (those are replace-default in Claude Code; an explicit `hooks` path would double-load the hooks) — only `agents`.
+- **Prose pointers** (`SKILL.md`, `references/review-packet.md`, `references/runtime-policy.md`) updated to the new `agents/gatekeeper.agent.md` path; **README Compatibility** (`README.md` + `README.zh-TW.md`) updated to note subagents now load under Copilot CLI (this change), skills already use the Copilot-discoverable `skills/<name>/SKILL.md` layout, and plan-gate enforcement + deep-mode Workflow stay Claude-only.
+
+### Notes
+- **Behavior preserved on Claude Code.** Hooks (`hooks/`) and skills are untouched; the agent roster Claude Code loads is identical (same nine frontmatter `name:` values). A new regression test (`test/agents-manifest.test.mjs`) asserts the manifest `agents[]` set equals the `*.agent.md` files on disk and that the frontmatter-name set is exactly the expected nine. The validator now (a) looks for `agents/<name>.agent.md` and (b) fails the build if a roster agent is not wired in `plugin.json` `agents[]`.
+- `node --test` green; `node .github/scripts/validate-structure.mjs` passes (versions agree across `plugin.json` / `marketplace.json` / `package.json` + this CHANGELOG entry; bilingual README parity).
+- **Honest limit:** cross-harness loading is derived from each tool's documented plugin format and the in-repo structural guards (validator + `agents-manifest.test.mjs`); it has not been live-verified on a Copilot CLI install. The earlier hook-portability fix (0.19.0) *is* tested across shells.
+
 ## [0.19.0]
 
 Make the plugin's hooks **cross-harness portable** so they never hard-block a non-Claude-Code host. Previously each hook ran `node "${CLAUDE_PLUGIN_ROOT}/hooks/<hook>.js"`, which relies on POSIX `${VAR}` shell expansion. The GitHub Copilot CLI runs hooks via **PowerShell** on Windows, where `${CLAUDE_PLUGIN_ROOT}` is an empty PowerShell variable (env vars are `$env:`), not the path — so `node` got an unresolved path, the hook "errored", and Copilot **fail-closed denied every Bash/edit**, bricking the session. The hooks now resolve the plugin root from the environment at runtime and fail **open**.

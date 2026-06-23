@@ -62,7 +62,7 @@ Non-trivial work must pass an explicit plan gate before implementation begins. T
 
 - Understand before coding.
 - Plan before coding, and get the plan approved at the plan gate.
-- For non-trivial work, turn the requirement into a short, user-approved **acceptance criteria** checklist at the plan gate, and have `gatekeeper` verify each criterion before `READY` (see `agents/gatekeeper.md`, `references/verification-gate.md`).
+- For non-trivial work, turn the requirement into a short, user-approved **acceptance criteria** checklist at the plan gate, and have `gatekeeper` verify each criterion before `READY` (see `agents/gatekeeper.agent.md`, `references/verification-gate.md`).
 - Make the smallest safe change.
 - Modify only requested scope unless a broader change is required for correctness, safety, buildability, or testability.
 - Verify with commands, browser evidence, text-integrity checks, or explicit blockers as applicable.
@@ -137,7 +137,7 @@ When touching human-readable text, check for mojibake, replacement characters, b
    - `code-reviewer` owns local implementation quality, simplicity, framework usage, and efficiency on changed paths.
    - Run `gatekeeper` only after selected reviewers finish.
    - `gatekeeper` decides `READY`, `FIX REQUIRED`, or `NOT READY` and whether failure memory is required.
-   - `gatekeeper` **checks each user-approved acceptance criterion** (met / unmet / deferred); an `unmet`, non-deferred criterion blocks `READY` (see `agents/gatekeeper.md`).
+   - `gatekeeper` **checks each user-approved acceptance criterion** (met / unmet / deferred); an `unmet`, non-deferred criterion blocks `READY` (see `agents/gatekeeper.agent.md`).
 
 8. Auto-fix loop
    - If verdict is `FIX REQUIRED` or `NOT READY`, fix concrete findings, rerun relevant verification, rerun only affected reviewers, rerun `gatekeeper`, and repeat until `READY` or clearly blocked.
