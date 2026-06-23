@@ -280,6 +280,22 @@ MCP tools, external subagents, and external skills are all **optional**. If pres
 
 ---
 
+## Compatibility
+
+udflow targets **Claude Code**. Its workflow leans on Claude Code specifics — native plan mode (the plan gate), subagent reviewers, the `gatekeeper`, and deep-mode Workflow — so that's where the full review/repair loop runs.
+
+Its three hooks (`plan-gate`, `load-failure-memory`, `orchestration-check`) are written to be **cross-harness safe**: they resolve the plugin root from the environment at runtime and **fail open** (allow, never error) on any host that runs them differently. So if udflow is loaded by another Claude-plugin-compatible runtime — e.g. the **GitHub Copilot CLI** — the hooks no longer hard-block the session; they simply no-op when their Claude-specific signals (like plan mode) aren't present.
+
+To disable udflow under GitHub Copilot CLI only (without affecting Claude Code), add to `~/.copilot/settings.json`:
+
+```json
+{ "enabledPlugins": { "udflow@kktmarketplace": false } }
+```
+
+or turn off all plugin hooks there with `{ "disableAllHooks": true }`.
+
+---
+
 ## Project status & maintenance
 
 udflow is **early / experimental** and **solo-maintained** (one author, in spare time). It's dogfooded on real work, but it has a short track record and a **bus factor of one** — weigh that before depending on it for release gating. Issues and PRs are welcome and read, but response time is best-effort, not guaranteed. The most valuable contribution is a **[verified run report](.github/ISSUE_TEMPLATE/verified-run.yml)** — see [`CONTRIBUTING.md`](CONTRIBUTING.md) and the evidence log in [`EVIDENCE.md`](EVIDENCE.md).

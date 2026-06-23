@@ -3,6 +3,18 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.19.0]
+
+Make the plugin's hooks **cross-harness portable** so they never hard-block a non-Claude-Code host. Previously each hook ran `node "${CLAUDE_PLUGIN_ROOT}/hooks/<hook>.js"`, which relies on POSIX `${VAR}` shell expansion. The GitHub Copilot CLI runs hooks via **PowerShell** on Windows, where `${CLAUDE_PLUGIN_ROOT}` is an empty PowerShell variable (env vars are `$env:`), not the path — so `node` got an unresolved path, the hook "errored", and Copilot **fail-closed denied every Bash/edit**, bricking the session. The hooks now resolve the plugin root from the environment at runtime and fail **open**.
+
+### Changed
+- **Portable, fail-open hook launch** (`hooks/hooks.json`): each hook command is now `node -e "try{require((process.env.CLAUDE_PLUGIN_ROOT||process.env.COPILOT_PLUGIN_ROOT||process.env.PLUGIN_ROOT||process.argv[1])+'/hooks/<hook>.js')}catch(e){process.exit(0)}" "${CLAUDE_PLUGIN_ROOT}"`. Node — not the shell — resolves the plugin root from `process.env` at runtime, so no shell `${}` expansion is needed (the GitHub Copilot CLI exports `CLAUDE_PLUGIN_ROOT` / `COPILOT_PLUGIN_ROOT` / `PLUGIN_ROOT` as env vars); the trailing `${CLAUDE_PLUGIN_ROOT}` is a belt-and-suspenders fallback (via `process.argv[1]`) for a host that supplies the root only via `${}`-template substitution (e.g. Claude Code); the `try/catch` makes an unresolvable root **allow** (exit 0) instead of error, so a hook can never brick a session. The three hook scripts (`plan-gate.js`, `load-failure-memory.js`, `orchestration-check.js`) are byte-unchanged.
+- **README Compatibility note** (`README.md` + `README.zh-TW.md`): Claude Code is the primary target; under other harnesses (e.g. GitHub Copilot CLI) the hooks now degrade gracefully (fail-open) rather than block, and the full workflow still needs Claude's plan mode / subagents. Includes how to disable udflow for Copilot only.
+
+### Notes
+- **Behavior preserved on Claude Code.** The hook scripts are unchanged, so the deny JSON and machine tokens (`blocker` / `major` / `minor`, `READY` / `FIX REQUIRED` / `NOT READY`, the `udflow:` sentinels) are identical. Verified by running the exact new command under both `bash -c` and `powershell -c`: a plan-mode Write is DENIED, a non-plan Bash is ALLOWED, and an unresolvable root fails open (exit 0). New regression test `test/hooks-portability.test.mjs` locks this in.
+- `node --test` green; `node .github/scripts/validate-structure.mjs` passes (versions agree across `plugin.json` / `marketplace.json` / `package.json` + this CHANGELOG entry; bilingual README parity).
+
 ## [0.18.0]
 
 Cut the tokens udflow spends on review without changing review behavior. Three surgical edits to the shared reviewer contract: compress the rules delivered into every reviewer handoff, report each finding as one compact line instead of a prose paragraph, and stop the seven reviewer agents from restating the base-output fields (defer to the single source of truth). The recall rules are preserved verbatim in meaning; the saving is the recurring, output-billed finding text plus a one-time per-agent dedup.

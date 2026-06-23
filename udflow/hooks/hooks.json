@@ -4,7 +4,7 @@
       {
         "matcher": "Write|Edit|MultiEdit|NotebookEdit|Bash",
         "hooks": [
-          { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/plan-gate.js\"" }
+          { "type": "command", "command": "node -e \"try{require((process.env.CLAUDE_PLUGIN_ROOT||process.env.COPILOT_PLUGIN_ROOT||process.env.PLUGIN_ROOT||process.argv[1])+'/hooks/plan-gate.js')}catch(e){process.exit(0)}\" \"${CLAUDE_PLUGIN_ROOT}\"" }
         ]
       }
     ],
@@ -12,14 +12,14 @@
       {
         "matcher": "startup|resume|clear|compact",
         "hooks": [
-          { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/load-failure-memory.js\"" }
+          { "type": "command", "command": "node -e \"try{require((process.env.CLAUDE_PLUGIN_ROOT||process.env.COPILOT_PLUGIN_ROOT||process.env.PLUGIN_ROOT||process.argv[1])+'/hooks/load-failure-memory.js')}catch(e){process.exit(0)}\" \"${CLAUDE_PLUGIN_ROOT}\"" }
         ]
       }
     ],
     "Stop": [
       {
         "hooks": [
-          { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/orchestration-check.js\"" }
+          { "type": "command", "command": "node -e \"try{require((process.env.CLAUDE_PLUGIN_ROOT||process.env.COPILOT_PLUGIN_ROOT||process.env.PLUGIN_ROOT||process.argv[1])+'/hooks/orchestration-check.js')}catch(e){process.exit(0)}\" \"${CLAUDE_PLUGIN_ROOT}\"" }
         ]
       }
     ]
