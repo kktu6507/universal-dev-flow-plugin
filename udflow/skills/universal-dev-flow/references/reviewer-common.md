@@ -36,7 +36,7 @@ These reduce real misses without inviting noise — every rule is gated on a con
 Every reviewer reports at least:
 
 - Scope reviewed
-- Findings by severity (`blocker` / `major` / `minor`), each with exact file / method / contract / component / path evidence and the smallest safe fix
+- Findings by severity (`blocker` / `major` / `minor`), each as one compact line — `severity` · `file:line` (or contract/component/path) · the concrete failure or violated contract · smallest safe fix — not a prose paragraph (expand to prose only where one line would lose evidence)
 - Recommended corrections
 
 Each reviewer file lists any additional domain-specific output fields on top of this base.

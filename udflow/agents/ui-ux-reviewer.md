@@ -61,6 +61,6 @@ If the task does not affect UI, frontend rendering, interaction flow, page state
 - Do not escalate personal design preference into a blocker without user or usability impact.
 
 ## Required output
-Base output per `references/reviewer-common.md` (scope reviewed; findings by severity with exact files/components/screens/states evidence; recommended corrections), plus:
+Base output per `references/reviewer-common.md` (one compact line per finding), plus:
 - Whether ui-ux-pro-max was used or unavailable (and the resulting gap, if any)
 - Production-readiness judgment for the UI

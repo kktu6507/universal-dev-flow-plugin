@@ -41,5 +41,5 @@ Severity vocabulary, scope discipline, and the base output contract are shared a
 - Do not downgrade behavior-changing ambiguity into a cosmetic concern.
 
 ## Required output
-Base output per `references/reviewer-common.md` (scope reviewed; findings by severity with exact file/method/contract/flow evidence; recommended corrections), plus:
+Base output per `references/reviewer-common.md` (one compact line per finding), plus:
 - Missing requirement coverage

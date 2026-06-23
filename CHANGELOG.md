@@ -3,6 +3,19 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.18.0]
+
+Cut the tokens udflow spends on review without changing review behavior. Three surgical edits to the shared reviewer contract: compress the rules delivered into every reviewer handoff, report each finding as one compact line instead of a prose paragraph, and stop the seven reviewer agents from restating the base-output fields (defer to the single source of truth). The recall rules are preserved verbatim in meaning; the saving is the recurring, output-billed finding text plus a one-time per-agent dedup.
+
+### Changed
+- **Reviewer findings → one compact line** (`references/review-packet.md`, `references/reviewer-common.md`): a finding is now reported as a single line — `severity` · `file:line`/contract/component/path · the concrete failure or violated contract · smallest safe fix — rather than a prose paragraph, with an escape hatch ("expand to prose only where one line would lose evidence"). Same fields as before — a density change, not a field change — kept in sync between the runtime-delivered block and the source of truth.
+- **Compressed four rules of the "Shared reviewer contract" block** (`references/review-packet.md`): judge-on-merits, severity-by-impact, look-for-omissions, and enumerate — trimmed connective prose while preserving every operative clause (the omission trigger "a value … that should be set" is retained).
+- **Deduplicated reviewer base-output** (`agents/*-reviewer.md`, all seven): each reviewer's `## Required output` now defers to `references/reviewer-common.md` ("one compact line per finding") instead of restating the base fields, so future base-output edits touch only the source of truth. Each reviewer's domain-specific `plus:` fields are unchanged.
+
+### Notes
+- **Behavior preserved (效果不變).** The machine-checked tokens (`blocker` / `major` / `minor`, `READY` / `FIX REQUIRED` / `NOT READY`, the `udflow:` sentinels) are byte-identical and equal in count before vs after; every recall rule's operative clause is retained. The reviewer-contract change was verified by dogfooding udflow's own panel — `spec-reviewer` / `test-reviewer` / `code-reviewer` / `architecture-reviewer` plus `gatekeeper` → `READY`; the panel caught (and the repair fixed) an over-compression — a deleted omission trigger and a finding field that would have suppressed omission findings — before the gate. The agent-file dedup touched only the base-output reference line (no machine token, no domain field; all references still resolve).
+- **Honest token trade-off.** The delivered instruction block grows ~+18 tokens once per reviewer handoff, while each finding's output drops ~50% — output-billed and recurring per finding and per repair-loop re-run — so the net is down for any review producing ≥1 finding (a zero-finding reviewer is a negligible net increase); the agent-file dedup additionally trims one restated line per reviewer. Spec/docs-only — no code or hook change. `node --test`: 104 tests, 0 fail (102 pass / 2 skipped; skip count is OS-symlink-privilege dependent). `node .github/scripts/validate-structure.mjs` passes — version agrees across `plugin.json` / `marketplace.json` / `package.json` / this CHANGELOG entry.
+
 ## [0.17.0]
 
 Make the merged final report **visual**: tables wherever a list fits, light terminal-renderable cues, and a mermaid chart for richer viewers.

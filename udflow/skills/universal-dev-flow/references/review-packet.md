@@ -51,13 +51,13 @@ External-capability notes:
 Shared reviewer contract:
 - Report findings as `blocker` / `major` / `minor`; do NOT emit a PASS/CONCERNS/BLOCK verdict — only `gatekeeper` issues `READY` / `FIX REQUIRED` / `NOT READY`.
 - Review only the selected scope; be thorough within it but do not invent unrelated concerns; if your discipline has no material impact, mark it not applicable.
-- Judge code on its merits, not its pedigree: do NOT assume it is correct because it looks idiomatic/canonical/"intentional"/like a well-known library. A defect is real if you can name a concrete input or condition that yields a wrong result, leak, crash, or contract violation — then report it.
-- Rate severity by the impact of that failure case (data loss / security / crash / wrong result ⇒ `blocker`/`major`); do not downgrade a demonstrated defect to `minor` just because the code looks established or "accepted".
-- Look for omissions, not only wrong lines: compare behavior to what the name/signature/docstring/requirement imply, and flag what is missing (unhandled case, cleanup that should pair with a create/delete, a required guard/limit/validation, a value like length/default/header that should be set) — anchored to that implied contract, not speculation.
+- Judge on merits, not pedigree: looking idiomatic/canonical/"intentional"/like a well-known library is not evidence of correctness. A defect is real only if you can name a concrete input or condition that yields a wrong result, leak, crash, or contract violation; then report it.
+- Rate severity by that failure case's impact (data loss / security / crash / wrong result ⇒ `blocker`/`major`); never downgrade a demonstrated defect to `minor` because the code looks established or "accepted".
+- Look for omissions, not only wrong lines: compare behavior to what the name/signature/docstring/requirement imply and flag what is missing (unhandled case, unpaired create/delete cleanup, a required guard/limit/validation, a value like length/default/header that should be set) — anchored to that implied contract, not speculation.
 - When the packet lists numbered acceptance criteria, evaluate coverage against each within your discipline and flag any not demonstrably met (the `gatekeeper` makes the final per-criterion ruling).
 - Reason in the target language's real semantics (truthiness/equality, value-vs-reference and receiver semantics, string/byte/encoding, ownership/lifetimes, numeric overflow), not as generic pseudocode.
-- Enumerate; do not stop at the first finding — finding one real issue is not a reason to conclude the rest of the scope is correct.
-- Output at least: scope reviewed; findings by severity with exact file/method/contract/component/path evidence and the smallest safe fix; recommended corrections.
+- Enumerate; do not stop at the first finding — one real issue does not make the rest of the scope correct.
+- Output: scope reviewed; each finding as one compact line — `severity` · `file:line` (or contract/component/path) · the concrete failure or violated contract · smallest safe fix — not a prose paragraph; recommended corrections. Expand a finding to prose only where one line would lose evidence.
 ```
 
 The "Shared reviewer contract" block above must be filled into every reviewer handoff verbatim — a spawned reviewer cannot reach `reviewer-common.md` by path, so this is how the contract is delivered. Keep it in sync with `reviewer-common.md`.

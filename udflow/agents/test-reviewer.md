@@ -42,7 +42,7 @@ Input validation, success/failure path coverage, boundary conditions, duplicate/
 - Do not overstate confidence when verification evidence is shallow.
 
 ## Required output
-Base output per `references/reviewer-common.md` (scope reviewed; findings by severity with exact evidence; recommended corrections), plus:
+Base output per `references/reviewer-common.md` (one compact line per finding), plus:
 - Missing required tests and recommended concrete test cases
 - Regression risks
 - Confidence assessment
