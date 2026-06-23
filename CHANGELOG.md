@@ -3,6 +3,23 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.14.0]
+
+Adds a richer, more legible end-of-run **Run Report** (**prose/persona only**; no hook) on top of the compact Run Card — so after a multi-agent run the user can see what each agent did, what the change achieved, and what it cost.
+
+### Added
+- **Run Report** (`references/verification-gate.md`, `SKILL.md` step 9): for substantial tasks the orchestrator follows the compact Run Card with a table-based report containing —
+  - **Outcome** — requirement / acceptance criterion → what changed → effect / improvement (before → after);
+  - **Per-agent activity** — each agent/phase: what it did, what it found (by severity), what it fixed;
+  - **Token & cost** — per-agent **observed** tokens + an **estimated** orchestrator figure + a grand total + an approximate **$** band. Honesty rules built in (udflow ships no telemetry): subagent token figures are observed (from the tooling, e.g. `subagent_tokens`), the main-thread figure is an estimate, "not reported" is used when a figure was not surfaced, figures are *new tokens* (the billable `/cost` total is ~20–30× higher via cache reads), and `~Cost` is a rough band with stated rate assumptions — never a fabricated bill;
+  - **UI/UX evidence** — the after-change screenshot for UI work (per the Browser Evidence discipline), or "no UI/UX impact"; only real captured screens, never fabricated.
+
+### Changed
+- `README.md` / `README.zh-TW.md`: the verification-gate section documents the Run Report and its no-telemetry observed-vs-estimated honesty posture.
+
+### Tests
+- **No new behavioral tests** — prose/persona change with no new hook code or machine-checkable surface (the report is orchestrator-produced, not hook-enforced). `node --test` is unchanged at 104 tests / 100 pass / 0 fail / 4 skipped (the 4 skipped are platform symlink/case tests), and `node .github/scripts/validate-structure.mjs` passes (version 0.14.0 agreement across the four manifests, CHANGELOG entry, README parity, hook wiring).
+
 ## [0.13.0]
 
 Adds suggestion #4 — a downward **`--lite` cost knob** plus up-front cost visibility, so cost is "visible **and** adjustable" (**prose/persona only**; no hook). It complements the existing risk-proportional auto-scaling and the `--deep`/`--no-deep` upward knob.
