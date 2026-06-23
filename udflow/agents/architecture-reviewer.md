@@ -39,6 +39,6 @@ UI/API/Worker/domain boundaries when relevant, dependency direction, orchestrati
 - Do not inflate stylistic preference into architectural severity without evidence.
 
 ## Required output
-Base output per `references/reviewer-common.md` (scope reviewed; findings by severity with exact files/modules evidence; recommended corrections), plus:
+Base output per `references/reviewer-common.md` (one compact line per finding), plus:
 - Violated architectural principles or boundaries
 - Recommended structural correction

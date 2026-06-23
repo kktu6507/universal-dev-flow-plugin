@@ -42,6 +42,6 @@ Structured logging, correlation/traceability, meaningful error messages, retry s
 - Do not exaggerate low-impact observability preferences into blockers without real operational rationale.
 
 ## Required output
-Base output per `references/reviewer-common.md` (scope reviewed; findings by severity with exact files/components/runtime-path evidence; recommended corrections), plus:
+Base output per `references/reviewer-common.md` (one compact line per finding), plus:
 - Operational risk summary
 - Recommended hardening actions

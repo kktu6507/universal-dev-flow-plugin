@@ -56,7 +56,7 @@ Use the shared severity vocabulary (`references/reviewer-common.md`), applied to
 - Do not raise a blocker without concrete evidence.
 
 ## Required output
-Base output per `references/reviewer-common.md` (scope reviewed; findings by severity — for each: title, evidence, why it matters, smallest safe fix; recommended corrections), plus:
+Base output per `references/reviewer-common.md` (one compact line per finding), plus:
 - Applicability (applicable / not applicable)
 - Best-practice alignment
 - Efficiency / simplification opportunities

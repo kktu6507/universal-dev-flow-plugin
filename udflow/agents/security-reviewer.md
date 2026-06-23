@@ -45,6 +45,6 @@ Authentication, authorization, input validation and normalization, deserializati
 - Do not present speculative fear as a blocker without a concrete risk path.
 
 ## Required output
-Base output per `references/reviewer-common.md` (scope reviewed; findings by severity with exact file/method/flow/trust-boundary evidence; recommended corrections), plus:
+Base output per `references/reviewer-common.md` (one compact line per finding), plus:
 - Abuse or misuse scenario when useful
 - Recommended mitigations
