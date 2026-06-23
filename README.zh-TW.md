@@ -233,7 +233,7 @@ udflow> [離開 plan mode] 現在才真的改 checkout.tsx ✓
 
 ### 驗證閘門
 
-在任何「就緒」宣稱之前，udflow 先跑最窄而有意義的檢查（build / test / lint / typecheck、UI 的瀏覽器佐證）。對行為改動，它會**要求一個聚焦測試去跑改動的高風險邊界輸入**——空 / 零 / 溢位 / 大、多位元組、null / 空 / 重複 / 多值、畸形、by-value vs receiver、並行——因為一個重現邊界的測試，才抓得到讀程式會被當成「看起來沒事」放過的慣用/編碼/溢位/遺漏型 bug。`gatekeeper` 會把「缺邊界測試」視為驗證缺口、不給 `READY`。它也會輸出結構化的逐項 rollup——`udflow:verify=pass|fail|unrun|na`——並以**真實命令 exit status 為權威、凌駕審查員觀感**（紅燈或未跑的 required check，不論審查多乾淨都擋 `READY`），並在實質任務收尾時給一張使用者可見的 **Run Card**（verdict + checks + reviewers + top findings + auto-fixed + remaining + 近似成本）。非瑣碎工作還會把需求轉成一份簡短的 **acceptance criteria** 清單、由你在 plan gate 核可，`gatekeeper` 再逐條檢查——任一未達成且未 deferred 的條目就擋 `READY`（最深的 release 訊號不是「沒 bug」，而是*做到了你要的、且被確認*）。收尾還會給一份 **Run Report**，用表格列出每個 agent 做了什麼／發現什麼／修了什麼、需求→改動→效果的對照、逐 agent 的 **token 與成本分項**加總計與粗略金額（無 telemetry：subagent 為實測、orchestrator 與金額為估算），UI 改動則附改變後截圖。
+在任何「就緒」宣稱之前，udflow 先跑最窄而有意義的檢查（build / test / lint / typecheck、UI 的瀏覽器佐證）。對行為改動，它會**要求一個聚焦測試去跑改動的高風險邊界輸入**——空 / 零 / 溢位 / 大、多位元組、null / 空 / 重複 / 多值、畸形、by-value vs receiver、並行——因為一個重現邊界的測試，才抓得到讀程式會被當成「看起來沒事」放過的慣用/編碼/溢位/遺漏型 bug。`gatekeeper` 會把「缺邊界測試」視為驗證缺口、不給 `READY`。它也會輸出結構化的逐項 rollup——`udflow:verify=pass|fail|unrun|na`——並以**真實命令 exit status 為權威、凌駕審查員觀感**（紅燈或未跑的 required check，不論審查多乾淨都擋 `READY`），並在實質任務收尾時給一份使用者可見的**最終報告**——verdict、checks、acceptance、reviewers、findings、剩餘項與近似成本——最後收在機器可讀的 `udflow:verify=`／`udflow:delivery=` footer。非瑣碎工作還會把需求轉成一份簡短的 **acceptance criteria** 清單、由你在 plan gate 核可，`gatekeeper` 再逐條檢查——任一未達成且未 deferred 的條目就擋 `READY`（最深的 release 訊號不是「沒 bug」，而是*做到了你要的、且被確認*）。同一份報告還用表格列出每個 agent 做了什麼／發現什麼／修了什麼、需求→改動→效果的對照、逐 agent 的 **token 與成本分項**加總計與粗略金額（無 telemetry：subagent 為實測、orchestrator 與金額為估算），UI 改動則附改變後截圖。
 
 ### 失敗記憶
 
@@ -269,7 +269,7 @@ udflow 的 deterministic Workflow 分兩層：
 
 成本主因：**≈ context/repo 大小 × 回合數 × subagent 數量。** `opus` 審查員、`--deep`、多輪修復都會再乘上去；審查員並行能縮短耗時，但不會減少 token 量。
 
-**可調。** 成本預設依風險比例；可用 `--lite`（強制最小 panel + 跳過昂貴的 deep tier，主要給低風險小改動——若有高風險訊號仍保留並揭露那個直接相關的 safety reviewer）、`--deep`（對抗式驗證 + 最大 effort）、`--no-deep`（退出 deterministic Workflow）調整。選定的 panel + 成本 tier 會在 plan gate 事先攤開、並於 Run Card 重述，讓你在核可前看清這次大概花多少、並能調整。
+**可調。** 成本預設依風險比例；可用 `--lite`（強制最小 panel + 跳過昂貴的 deep tier，主要給低風險小改動——若有高風險訊號仍保留並揭露那個直接相關的 safety reviewer）、`--deep`（對抗式驗證 + 最大 effort）、`--no-deep`（退出 deterministic Workflow）調整。選定的 panel + 成本 tier 會在 plan gate 事先攤開、並於最終報告重述，讓你在核可前看清這次大概花多少、並能調整。
 
 ### 選用的外部能力（Detect → Use → Else-Disclose）
 
