@@ -3,6 +3,17 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.20.2]
+
+Fix a follow-on to the 0.19.0 cross-harness hook fix: the plugin could still brick the GitHub Copilot CLI on Windows under **PowerShell StrictMode**. The 0.19.0/0.20.1 hook commands kept a trailing `${CLAUDE_PLUGIN_ROOT}` belt-and-suspenders argument; under PowerShell that is an *unset variable* reference, and with `Set-StrictMode` enabled (a user-profile setting some shells load) it throws a **terminating error before `node` starts** — so the in-script fail-open can't help, the hook "errors", and Copilot fail-closed denies every Bash/edit. The hook commands now contain **zero shell-template tokens** and resolve the plugin root purely from `process.env`.
+
+### Fixed
+- **StrictMode-safe hook launch — no shell-template token at all** (`hooks/hooks.json`): each command dropped the trailing `${CLAUDE_PLUGIN_ROOT}` argument (and the `process.argv[1]` fallback). It is now `node -e "try{var r=process.env.CLAUDE_PLUGIN_ROOT||process.env.COPILOT_PLUGIN_ROOT||process.env.PLUGIN_ROOT;if(r)require(r+'/hooks/<hook>.js')}catch(e){process.exit(0)}"`. With no `${}` to expand, the command is identical under bash, PowerShell, and cmd, and survives PowerShell StrictMode. Both harnesses provide the root as an environment variable (Claude Code sets `CLAUDE_PLUGIN_ROOT`; the Copilot CLI sets `CLAUDE_PLUGIN_ROOT` / `COPILOT_PLUGIN_ROOT` / `PLUGIN_ROOT`), so `process.env` resolves it on both. Fail-open is preserved and airtight: `require` runs only when a root env var is set (so the path is always absolute, never a bare specifier that could trigger a `node_modules` lookup), any error inside it → `catch` → exit 0, and an unset root simply skips the hook. The three hook scripts are byte-unchanged.
+
+### Notes
+- **No behavior change on Claude Code.** The scripts are untouched and the root still resolves from `process.env.CLAUDE_PLUGIN_ROOT` (a documented Claude Code hook env var); deny JSON and machine tokens are identical. Verified under `bash -c`, `pwsh -c`, and `pwsh -c "Set-StrictMode -Version Latest; …"`: a plan-mode Write is DENIED, a non-plan Bash is ALLOWED, an unresolvable root fails open. `test/hooks-portability.test.mjs` now forbids any `${}` token and adds a StrictMode regression case.
+- `node --test` green; `node .github/scripts/validate-structure.mjs` passes.
+
 ## [0.20.1]
 
 Harden the Stop-hook `orchestration-check` against two provenance/binding spoofs in which a real `Task` / `tool_result` block could silence a release-gating advisory. Both need an uncommon transcript shape, but they touch the product's core promise — a panel/verdict gate that actually fires — so they are fixed at the source and pinned by regression tests. Hook scripts are otherwise unchanged and every existing orchestration-check path behaves identically.
