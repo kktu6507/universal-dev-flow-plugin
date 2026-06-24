@@ -50,9 +50,11 @@ for (const { event, file } of WIRED) {
     assert.ok(c.includes("process.env.CLAUDE_PLUGIN_ROOT"), "must resolve the plugin root from process.env at runtime");
     assert.ok(c.includes("catch") && c.includes("process.exit(0)"), "must fail open (try/catch -> exit 0)");
     assert.ok(c.includes("hooks/" + file), `must require hooks/${file}`);
-    // the bricking form was `node "${CLAUDE_PLUGIN_ROOT}/hooks/<file>"` — the var used directly as the path,
-    // which PowerShell does not expand. The portable form must never reintroduce it.
-    assert.ok(!/\$\{[A-Z_]*ROOT\}\/hooks\//.test(c), "must not use any ${...ROOT} directly as the script path (the bricking form)");
+    // The command must contain ZERO shell-template tokens. The original bricking form used
+    // `${CLAUDE_PLUGIN_ROOT}` as the path (PowerShell doesn't expand it); the 0.20.1 form still kept
+    // a trailing `"${CLAUDE_PLUGIN_ROOT}"` arg, which throws under PowerShell StrictMode (unset-variable
+    // reference) before node starts. Any `${` reintroduces that whole class, so forbid it outright.
+    assert.ok(!c.includes("${"), "must contain no shell-template token (${...}) — node resolves the root from process.env");
   });
 }
 
@@ -103,3 +105,19 @@ else test("bash unavailable on this platform -> shell suite skipped", { skip: tr
 
 if (PWSH) shellSuite("powershell", PWSH);
 else test("powershell unavailable on this platform -> shell suite skipped", { skip: true }, () => {});
+
+// (3) PowerShell StrictMode regression (the 0.20.2 bug). A ${...} template token in the command is an
+// UNSET PowerShell variable; under Set-StrictMode it throws a TERMINATING error BEFORE node starts,
+// bricking the session despite the in-script fail-open. The pure-process.env command (no ${}) must
+// survive StrictMode. Windows-mostly; skip where pwsh/powershell is unavailable.
+if (PWSH) {
+  test(`[${PWSH} + StrictMode] plan-gate launches and denies a plan-write (no terminating error)`, () => {
+    const r = cp.spawnSync(PWSH, ["-NoProfile", "-Command", "Set-StrictMode -Version Latest; " + cmdFor("PreToolUse")], {
+      input: PLANWRITE, encoding: "utf8", env: { ...process.env, CLAUDE_PLUGIN_ROOT: PLUGIN },
+    });
+    assert.strictEqual(r.status, 0, "StrictMode must not throw before node (the command has no ${} unset-var reference)");
+    assert.ok((r.stdout || "").includes('"deny"'), "plan-write must be denied under StrictMode");
+  });
+} else {
+  test("powershell unavailable -> StrictMode regression skipped", { skip: true }, () => {});
+}
