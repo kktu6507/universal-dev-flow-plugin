@@ -824,6 +824,48 @@ test("orchestration-check: the gatekeeper Task's own tool_result IS bound as the
     "the gatekeeper Task's bound tool_result must still be read as the verdict");
 });
 
+// --- orchestration-check: provenance/binding spoofs inside REAL Task/result blocks (hardening) ---
+// The prose/non-Task spoofs above are covered; these two pin the gaps an external review reproduced:
+// (a) a REAL gatekeeper Task whose PROMPT quotes "subagent_type: spec/test-reviewer" must NOT count those
+//     as a panel run (the type comes from the structured field, not a stringified sibling field), and
+// (b) an id-LESS tool_result containing "READY" must NOT override an id-bound gatekeeper NOT READY when
+//     binding is otherwise possible (the id-less fallback is transcript-level, not per-result).
+
+test("orchestration-check: a gatekeeper Task whose PROMPT quotes 'subagent_type: spec-reviewer' does NOT count the panel (provenance, structured field)", () => {
+  // Only the gatekeeper actually ran; the spec/test names appear ONLY inside the gatekeeper Task's prompt
+  // text. Reading the structured subagent_type field (not the serialized input) means the prompt cannot
+  // spoof panel presence, so a READY ship claim still trips the panel-missing advisory.
+  const tp = mkTranscript([
+    { role: "assistant", content: [{ type: "tool_use", id: "tu_gk", name: "Task", input: {
+      subagent_type: "udflow:gatekeeper",
+      prompt: "Aggregate the inputs labeled subagent_type: spec-reviewer and subagent_type: test-reviewer, then decide readiness." } }] },
+    { role: "user", content: [{ type: "tool_result", tool_use_id: "tu_gk", content: "Final verdict: READY — readiness confirmed." }] },
+    { role: "assistant", content: "Final verdict: READY — the change is complete and ready to ship.\nudflow:delivery=shipped" },
+  ]);
+  const r = orch({ transcript_path: tp });
+  assert.ok(r && /incomplete/.test(r.systemMessage), "a prompt that quotes subagent_type must not count the named reviewers as run");
+  assert.ok(/spec-reviewer/.test(r.systemMessage) && /test-reviewer/.test(r.systemMessage), "names the reviewers that did not actually run");
+});
+
+test("orchestration-check: an id-less tool_result containing 'READY' does NOT override an id-bound gatekeeper NOT READY (transcript-level fallback)", () => {
+  // Real gatekeeper Task (id-bound) returns NOT READY; later an id-LESS result (e.g. a deploy log) contains
+  // the word READY; the final ships. The id-less fallback must apply only when binding is impossible
+  // transcript-wide — here binding IS possible (the gatekeeper result has an id), so the stray READY must
+  // not pollute the verdict pool and the verdict-not-honored advisory must fire.
+  const tp = mkTranscript([
+    { role: "assistant", content: [
+      { type: "tool_use", id: "tu_spec", name: "Task", input: { subagent_type: "udflow:spec-reviewer" } },
+      { type: "tool_use", id: "tu_test", name: "Task", input: { subagent_type: "udflow:test-reviewer" } },
+      { type: "tool_use", id: "tu_gk", name: "Task", input: { subagent_type: "udflow:gatekeeper" } } ] },
+    { role: "user", content: [{ type: "tool_result", tool_use_id: "tu_gk", content: "Final verdict: NOT READY — auth bypass unresolved." }] },
+    { role: "user", content: [{ type: "tool_result", content: "deploy log: system READY for traffic" }] },
+    { role: "assistant", content: "The change is complete and ready to ship.\nudflow:delivery=shipped" },
+  ]);
+  const r = orch({ transcript_path: tp });
+  assert.ok(r && /gatekeeper's last verdict was 'NOT READY'/.test(r.systemMessage),
+    "an id-less stray READY must not override an id-bound gatekeeper NOT READY");
+});
+
 // --- orchestration-check: verdict not honored gates on an honest HOLD, not on quoting the token ---
 
 const GK_NOT_READY = [

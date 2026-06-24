@@ -3,6 +3,18 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.20.1]
+
+Harden the Stop-hook `orchestration-check` against two provenance/binding spoofs in which a real `Task` / `tool_result` block could silence a release-gating advisory. Both need an uncommon transcript shape, but they touch the product's core promise — a panel/verdict gate that actually fires — so they are fixed at the source and pinned by regression tests. Hook scripts are otherwise unchanged and every existing orchestration-check path behaves identically.
+
+### Fixed
+- **Panel/gatekeeper provenance reads the structured field, not the serialized input** (`hooks/orchestration-check.js`): panel-presence and gatekeeper-id detection previously `JSON.stringify`'d the whole `Task.input` and regex-scanned it for `subagent_type`, so free text in a sibling field — e.g. a real `gatekeeper` Task whose **prompt** quoted the literal token `subagent_type: spec-reviewer` — could falsely mark the spec/test reviewers as having run and silence the panel-missing advisory. Detection now reads only the explicit `subagent_type` / `agentType` / `agent_type` field (a string input is JSON-parsed first; anything unreadable yields `""`, i.e. "did not run" — fail-safe toward warning, never toward a silent pass). Merely *mentioning* a reviewer name in prose was already handled and still warns.
+- **Verdict id-less fallback is transcript-level, not per-result** (`hooks/orchestration-check.js`): the gatekeeper verdict binds by `tool_use_id`, with an id-less fallback for older / id-free transcripts. That fallback was applied per-result, so a stray id-less `tool_result` containing the word `READY` (e.g. a deploy/build log) appended after an id-bound gatekeeper `NOT READY` became the last verdict and silenced the verdict-not-honored advisory. The id-less fallback now applies only when **no** pre-final `tool_result` carries an id at all (binding genuinely impossible), matching the code's documented intent.
+
+### Notes
+- **Behavior preserved.** All existing orchestration-check paths are unchanged (the id-less verdict tests, the prose / non-Task spoof tests, the localized-summary tests). Two regression tests added to `test/hooks.test.mjs` pin the two gaps — each fails on the prior hook and passes on this one. `node --test` green (127 tests); `node .github/scripts/validate-structure.mjs` passes (versions agree across `plugin.json` / `marketplace.json` / `package.json` + this CHANGELOG entry; bilingual README parity).
+- **Scope/severity:** an external panel review labeled the provenance gap a release blocker via a repro that does not actually reproduce (a gatekeeper prompt merely *mentioning* the reviewers — which correctly warns). The real trigger requires the literal `subagent_type:` token inside a single input value, which orchestrators do not naturally emit; it is fixed regardless as defense-in-depth on the core gate.
+
 ## [0.20.0]
 
 GitHub Copilot CLI compatibility for subagents: agent files renamed to `*.agent.md` and explicitly wired via the `plugin.json` `agents` array, so the review/gatekeeper panel loads under Copilot CLI as well as Claude Code. Claude Code behavior is unchanged (identity is frontmatter `name:`; hooks and skills untouched). Plan-gate enforcement and deep-mode Workflow remain Claude-only (Copilot has no plan mode).

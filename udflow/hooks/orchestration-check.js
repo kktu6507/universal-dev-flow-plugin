@@ -182,23 +182,37 @@ process.stdin.on("end", () => {
     };
     const allBlocks = parsed.flatMap(blocksOf);
 
-    // Did the panel actually run? Only real `Task` invocations count; a non-Task tool_use whose
-    // input happens to contain a "subagent_type: <name>" string does not.
-    const taskInputText = allBlocks.filter(isTaskUse)
-      .map((b) => JSON.stringify(b.input != null ? b.input : {})).join("\n");
+    // The agent identity of a `Task` block comes ONLY from its explicit input field
+    // (subagent_type / agentType / agent_type) — never from stringifying the whole input. The old
+    // approach scanned the serialized input, so free text in a SIBLING field — e.g. a real gatekeeper
+    // Task whose PROMPT quotes "subagent_type: spec-reviewer" — spoofed panel presence and silenced the
+    // advisories. Reading the structured field closes that: the prompt is not the agent type. A string
+    // input is JSON-parsed first; anything unreadable yields "" (fail-safe — the agent reads as "did not
+    // run", i.e. toward warning, never toward a silent false pass).
+    const subagentTypeOf = (b) => {
+      let inp = b && b.input;
+      if (typeof inp === "string") { try { inp = JSON.parse(inp); } catch (e) { return ""; } }
+      if (!inp || typeof inp !== "object") return "";
+      const v = (inp.subagent_type != null) ? inp.subagent_type
+              : (inp.agentType != null) ? inp.agentType
+              : (inp.agent_type != null) ? inp.agent_type : "";
+      return typeof v === "string" ? v.toLowerCase() : "";
+    };
+
+    // Did the panel actually run? Only real `Task` invocations count, and only via the structured
+    // subagent_type field (REQUIRED names are lowercase, matched as a substring of e.g. "udflow:spec-reviewer").
+    const taskTypes = allBlocks.filter(isTaskUse).map(subagentTypeOf);
     const ran = new Set();
     for (const name of REQUIRED) {
-      const re = new RegExp("(?:subagent_type|agentType|agent_type)\"?\\s*[:=]\\s*\"?[^\"]*" + name, "i");
-      if (re.test(taskInputText)) ran.add(name);
+      if (taskTypes.some((t) => t.includes(name))) ran.add(name);
     }
     const missing = REQUIRED.filter((n) => !ran.has(n));
 
-    // Ids of gatekeeper `Task` invocations, so the verdict binds to that Task's own result rather
-    // than any tool_result that happens to mention the vocabulary.
-    const gkRe = /(?:subagent_type|agentType|agent_type)"?\s*[:=]\s*"?[^"]*gatekeeper/i;
+    // Ids of gatekeeper `Task` invocations, so the verdict binds to that Task's own result rather than
+    // any tool_result that happens to mention the vocabulary — again from the structured field only.
     const gatekeeperIds = new Set();
     for (const b of allBlocks) {
-      if (isTaskUse(b) && b.id != null && gkRe.test(JSON.stringify(b.input != null ? b.input : {}))) gatekeeperIds.add(b.id);
+      if (isTaskUse(b) && b.id != null && subagentTypeOf(b).includes("gatekeeper")) gatekeeperIds.add(b.id);
     }
 
     // Locate the final assistant message (the orchestrator's closing summary).
@@ -211,16 +225,26 @@ process.stdin.on("end", () => {
     }
 
     // The gatekeeper's verdict comes ONLY from a gatekeeper Task's tool_result, before the final
-    // summary. Bind by tool_use_id; when the transcript carries no ids at all (binding impossible)
-    // fall back to any pre-final tool_result. Reading the LAST verdict means a FIX REQUIRED →
-    // repair → READY loop reads as READY, not a stale block.
+    // summary. Bind by tool_use_id. The id-less fallback is TRANSCRIPT-LEVEL, not per-result: it applies
+    // only when NO pre-final tool_result carries an id at all (an older / id-free format where binding is
+    // impossible). When binding IS possible (any result has an id), an id-less result must NOT enter the
+    // verdict pool — otherwise a stray id-less result containing "READY" (e.g. a Bash log line) would be
+    // appended after the gatekeeper's real NOT READY and, as the LAST verdict, silence the advisory.
+    // Reading the LAST verdict means a FIX REQUIRED → repair → READY loop reads as READY, not a stale block.
+    let anyResultId = false;
+    for (let i = 0; i < finalIdx && !anyResultId; i++) {
+      for (const b of blocksOf(parsed[i])) {
+        if (!isToolResult(b)) continue;
+        if ((b.tool_use_id != null ? b.tool_use_id : b.toolUseId) != null) { anyResultId = true; break; }
+      }
+    }
     const verdictParts = [];
     for (let i = 0; i < finalIdx; i++) {
       for (const b of blocksOf(parsed[i])) {
         if (!isToolResult(b)) continue;
         const id = b.tool_use_id != null ? b.tool_use_id : b.toolUseId;
         if (id != null) { if (gatekeeperIds.has(id)) verdictParts.push(resultTextOf(b)); }
-        else verdictParts.push(resultTextOf(b)); // no id to bind on -> best-effort (test / older format)
+        else if (!anyResultId) verdictParts.push(resultTextOf(b)); // id-less only when binding is impossible transcript-wide
       }
     }
     const verdict = lastVerdict(verdictParts.join("\n"));
