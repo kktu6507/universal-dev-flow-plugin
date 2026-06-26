@@ -55,6 +55,7 @@ Any `unmet` criterion that was not explicitly deferred is **release-blocking**: 
 
 ## UI-specific rules
 - If the task includes UI/frontend changes, `ui-ux-reviewer` findings are required input. Do not mark READY if unresolved major UI/UX issues remain.
+- In `--deep` + UI in scope, an unavailable-but-required live browser drive (`references/browser-evidence.md`) is a disclosed verification gap — treat it like any unavailable required external capability: withhold `READY` until it is addressed or explicitly justified. Standard-mode browser evidence stays best-effort.
 - If there is no UI impact, explicitly note that `ui-ux-reviewer` was not applicable.
 
 ## Failure memory rules

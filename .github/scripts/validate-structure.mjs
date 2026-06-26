@@ -155,6 +155,30 @@ if (fs.existsSync(path.join(root, finalReportRel))) {
   }
 }
 
+// 5e. the `--report full` cost table must keep its billable-component columns (Input / Output /
+// Cache-write / Cache-read) — AC2's contract. Mirrors 5d's fail-CLOSED pattern: bound to the
+// `--report full` section so a compact-section table cannot mask a real deletion, and fail closed
+// if the section structure moved. No machine consumer reads this table, but a silent revert to the
+// old single-`Tokens` column is exactly the drift class 5d (compact fence) and the README-parity
+// guard already protect against.
+if (fs.existsSync(path.join(root, finalReportRel))) {
+  const frFull = fs.readFileSync(path.join(root, finalReportRel), "utf8");
+  const afterFull = frFull.split(/^##\s+`--report full`/m)[1];
+  if (afterFull === undefined) {
+    fail(`final-report.md: cannot locate the \`--report full\` section — the report structure changed; re-point the 5e cost-column guard`);
+  } else {
+    const header = afterFull.match(/\|\s*Agent \/ phase\s*\|([^\n]*)\|/);
+    if (!header) {
+      fail(`final-report.md: cannot locate the \`--report full\` Cost table header — re-point the 5e cost-column guard`);
+    } else {
+      for (const col of ["Input", "Output", "Cache-write", "Cache-read"]) {
+        if (!header[1].includes(col))
+          fail(`final-report.md \`--report full\` Cost table is missing the billable-component column "${col}" (the cost breakdown must itemize input/output/cache)`);
+      }
+    }
+  }
+}
+
 const hooksRel = `${PLUGIN}/hooks/hooks.json`;
 if (fs.existsSync(path.join(root, hooksRel))) {
   const hooksText = fs.readFileSync(path.join(root, hooksRel), "utf8");

@@ -30,6 +30,8 @@ Filter noise, never signal — a smaller view is acceptable only when it preserv
 
 ## Browser Evidence
 
+For the live-drive protocol (how to actually drive a real browser) and the `--deep` + UI requirement, see `references/browser-evidence.md`.
+
 For local browser-visible UI changes with a known or safely derivable target, use Claude in Chrome, an in-app browser, or an accepted existing fallback.
 
 Record:
@@ -141,6 +143,7 @@ Leave the working tree clean. A run must not leave behind intermediate or proces
 
 - Delete any temporary scaffolding created only to verify (one-off scripts, scratch files, temp directories) before finishing. Only intentional deliverables remain: the source changes, committed tests, and recorded failure memory.
 - Distinguish throwaway artifacts (remove) from permanent assets (keep): a committed regression test suite or a documented config is an asset, not scratch.
+- Screenshots / evidence **referenced by the final report** (e.g. under `output/udflow/evidence/`) are **kept evidence artifacts**, not throwaway scaffolding to delete; create `output/udflow/evidence/.gitignore` (rule: `*` then `!.gitignore`, so the ignore file itself commits and travels) so they are never committed (the relative report links resolve only on the local working tree). They **may contain secrets / PII** (`references/browser-evidence.md`, *Data sensitivity*) — do not paste a report embedding them into a public PR / issue.
 - Do not commit the workflow's own runtime output (e.g. `FAILURE_MEMORY.md`) into a tool/library/plugin repository that gets distributed. Failure memory belongs in the project that *uses* the tool, not in the tool's own source tree; in a distributed package it is residue that ships to every user.
 
 ## Final Output Contract

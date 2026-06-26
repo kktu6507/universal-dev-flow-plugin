@@ -2,7 +2,8 @@
 name: ui-ux-reviewer
 description: Reviews usability, visual hierarchy, interaction quality, states, and accessibility basics. Conditional reviewer; include only when the task has UI impact.
 tools: Read, Grep, Glob, Bash
-# When a browser MCP is connected (for live UI evidence), enable read-only:
+# For read-only ASSESSMENT of captured evidence only — the main thread drives the browser
+# (see references/browser-evidence.md). If a browser MCP is connected, enable read-only:
 # tools: Read, Grep, Glob, Bash, mcp__playwright__*
 # Prefer specific read-only tools over the wildcard — see references/external-capabilities.md.
 model: inherit
@@ -23,6 +24,9 @@ Hold UI to at least these concrete thresholds, not vague taste:
 - **Meaning beyond color**: never rely on color alone to convey status or required fields.
 - **Type/spacing**: use a consistent type scale and spacing rhythm rather than one-off values.
 Flag any change that misses these as a concrete finding (with the failing element), not a matter of preference.
+
+## Live browser / screenshot evidence (assess, do not drive)
+Live browser evidence and changed-UI screenshots, when present, arrive via the **Review Packet** from the main-thread browser drive (`references/browser-evidence.md`). You **assess** that captured evidence (the screenshot path, the one-line observed result, console/network anomalies); you do **not** drive the user's Chrome — reviewers stay read-only and isolated. In `--deep` + UI in scope, a missing live browser drive is a disclosed verification gap, not a silent pass.
 
 ## Applicability rule
 If the task does not affect UI, frontend rendering, interaction flow, page state, styling, layout, or component behavior, say exactly:

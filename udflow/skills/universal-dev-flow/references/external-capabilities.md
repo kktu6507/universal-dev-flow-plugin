@@ -43,12 +43,18 @@ Suggested mapping (all read-only):
 - `operability-reviewer`: observability MCP (Sentry/Datadog/Grafana) — production data is sensitive; read-only, minimal scope.
 - `spec-reviewer`: issue/PM tracker MCP (Jira/Linear/GitHub Issues).
 
+## Live browser evidence (Claude in Chrome)
+
+For driving a real browser during UI verification, see `references/browser-evidence.md`. Detect a live browser capability in preference order: `mcp__Claude_in_Chrome__*` (preferred — the user's real Chrome), then `mcp__Claude_Preview__*` (a built dev-server preview), then `mcp__playwright__*` (headless, when a host has it wired). The **orchestrator / main thread drives it during Verification**; reviewers stay read-only and isolated and only *assess* the distilled evidence handed to them in the Review Packet (path + one-line observed result + console/network anomalies). It is never a hard dependency — when no live browser capability is connected, disclose the gap and continue (in `--deep` + UI this is the disclosed verification gap the `gatekeeper` weighs), never error.
+
 ## ui-ux-pro-max (preferred external skill for UI work)
 
 `ui-ux-pro-max` is a model-invoked design-intelligence skill (UI styles, color palettes, font pairings, UX guidelines, accessibility checks). When ANY task involves UI/frontend rendering, layout, styling, components, or user-facing states:
 
 - **If `ui-ux-pro-max` is available**: invoke it FIRST for design decisions during planning and before UI implementation, and incorporate its guidance in `ui-ux-reviewer`. This is what keeps generated UI from looking poor.
 - **If it is unavailable**: fall back to internal `ui-ux-reviewer` guidance and standard responsive/accessibility defaults, and disclose that ui-ux-pro-max was not used.
+
+**Required for design-generation / design-system scope.** When the task's scope is design generation or a design system (new screens or net-new component families, visual redesign, design tokens/system, theming, brand — a token-reusing one-off component stays a small tweak), consulting an available `ui-ux-pro-max` is **required** at planning (when present; if absent, disclose the fallback to the internal `ui-ux-reviewer` — never a hard dependency): record its style / palette / font / UX decisions into the plan. Hold to **visual consistency** — reuse the existing visual system (tokens / palette / type scale), or justify a better alternative in the plan. Any **asset generation** (file-writing logo / mockup / banner) is **deferred to post-approval implementation** so the plan-gate read-only invariant holds. Smaller UI tweaks keep the existing soft consult (use if present, disclose if not).
 
 Note: `ui-ux-pro-max` may run a Python helper (`scripts/search.py`) locally. If Python is unavailable, the detect step fails gracefully and the fallback applies. Disclosure: that helper executes local code and, depending on its implementation, may perform network/data egress — treat it like any optional external capability and only use it when that is acceptable for the repository's data sensitivity.
 
