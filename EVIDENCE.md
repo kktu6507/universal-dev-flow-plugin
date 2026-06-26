@@ -76,8 +76,8 @@ whether the **workflow + verdict** holds up in practice, which is the claim the 
 
 | Metric | Now | Track-1 target | Track-2 target |
 |---|---|---|---|
-| **Real-world verified runs (Type B)** | **4 logged** | — | ≥ 10 |
-| — of which **publicly verifiable** (vs self-attested / private) | **1** | — | — |
+| **Real-world verified runs (Type B)** | **5 logged** | — | ≥ 10 |
+| — of which **publicly verifiable** (vs self-attested / private) | **2** | — | — |
 | Distinct real projects (Type B) | **2 logged** (one private repo + udflow's own public repo) | — | ≥ 3 |
 | Independent (non-maintainer) runs | **0** | — | ≥ 1 |
 | External repos (Type A benchmark) | **~13** | ≥ 3 ✓ | — |
@@ -94,8 +94,8 @@ lower), and **~29% bug-blind at n=77**. The robust, condition-independent streng
 false-positive rate**. Track 2 (**real-world runs**) is **not yet met** — that is now the honest reason
 "experimental" stays. The defensible relabel is a *characterized* "beta" ("near-zero FP; recall scales with the
 quality of the intent you give it; real-world track record still accumulating"), to be earned by the Type-B
-runs this log is built to collect — the **first four of which are now logged below (4 of ≥10)**, across **two
-projects** (one private, plus udflow's own public repo) and now including the **first publicly-verifiable** entry, so
+runs this log is built to collect — the **first five of which are now logged below (5 of ≥10)**, across **two
+projects** (one private, plus udflow's own public repo) and now including **two publicly-verifiable** entries, so
 the **≥3-projects breadth and the ≥1 non-maintainer run remain open**.
 
 ---
@@ -185,6 +185,22 @@ shape:
 - **Missed:** none known at the verdict — to confirm in follow-up use.
 - **Outcome after follow-up:** **merged** (PR #28, merge commit `b0188ef`) and auto-released as **`v0.22.0`**; whether the verdict holds long-term is **to be confirmed** over time.
 - **Cost:** ~199K new tokens (observed: implementer ~56K + deep panel ~142K; the orchestrator main-thread figure is an estimate) · **Evidence:** public — PR https://github.com/simba6507/universal-dev-flow-plugin/pull/28 · commit `04276ff` · release `v0.22.0`.
+
+### Live run 5 — 2026-06-26 · `universal-dev-flow-plugin` (udflow's own repo — Markdown / Node JS) · verified live task (merged) · **publicly verifiable**
+
+- **Task:** implement four user-requested enhancements into udflow's **own** contract files — (1) `--deep` + UI drives **live browser evidence** via the Claude in Chrome extension; (2) `--report full` cost table split into **Input / Output / Cache-write / Cache-read**; (3) **ui-ux-pro-max** required at planning for design-system scope (+ visual-consistency clause + asset-generation deferred to post-approval); (4) `--report full` embeds the **final changed-UI screenshots** — plus the 0.23.0 version bump + CHANGELOG. **Spec/docs-only** (no hook / machine-token change). Invoked via `/udflow:run --deep --report full` (maintainer's run).
+- **Intent given:** **contract-level** — six numbered acceptance criteria + three design forks resolved up-front via AskUserQuestion (browser-evidence enforcement scope, screenshot directory, reference-file structure); the constraint "don't deviate from udflow's spirit / token economy, don't touch hooks" was explicit.
+- **Reviewers:** spec / test / architecture / security / ui-ux / operability panel + **adversarial verification** + gatekeeper at maximum effort; **code-reviewer** added in the repair round for the new validator JS. · **Verdict: FIX REQUIRED → READY** (one repair loop).
+- **Verification:** `node .github/scripts/validate-structure.mjs` → pass (incl. a **new 5e guard** asserting the cost-table component columns, version parity, bilingual README parity, U+FFFD integrity); `node --test` → 127 pass / 0 fail / 4 pre-existing Windows-symlink-EPERM skips (131 tests, exit 0); hooks **byte-unchanged**; GitHub CI (validate × macOS / Ubuntu / Windows) → all green. **Plus a separate Copilot live-verify** (see note).
+- **Caught (saves — all fixed before merge):**
+  - **2 × MAJOR (security):** the new browser drive read the **authenticated session** (cookies/tokens/PII via page-text / network / console) with **no data-sensitivity disclosure** — unlike every other egress capability in the codebase (Codex / ui-ux-pro-max / observability); and changed-state **screenshots embedded in `--report full`** (which the Evidence Record pastes into PRs/issues) would **leak even when the file is gitignored**. Both raised by `security-reviewer`, re-rated by mechanism, both fixed (a Data-sensitivity section + create-`.gitignore` + "don't paste sensitive screenshots into public PRs" + a no-destructive-interaction invariant).
+  - **Minors (fixed):** a `.gitignore`-`*`-self-ignore bug (a `*`-only ignore won't travel to a clone → fixed to `*` + `!.gitignore`), the deep-mode "required when UI" scope-binding ambiguity (spec filed it MAJOR; the gatekeeper **correctly re-rated to minor** on evidence), ui-ux-pro-max "required" reading as a hard dependency, an under-specified "changed state", a misdirected doc anchor — plus a **new validator 5e guard + paired regression test**.
+- **False alarms: 0** — no blocker/major was raised falsely (the lone spec "major" was a real coherence ambiguity, correctly down-rated by the gatekeeper, not a false positive).
+- **Process note (disclosed, no verdict impact):** in repair round 1 the deep-mode **adversarial-verification** sub-stage returned 0 votes (the verifier agents' errors were swallowed by the workflow's null-coalescing); the gatekeeper correctly read this as "not run" (not "0 confirmed") and adjudicated each major independently; the verify stage was hardened in round 2.
+- **Missed:** none known at the verdict — to confirm in follow-up use. The req1/req4 **runtime** (actually driving a browser / capturing screenshots) could not be exercised — udflow's own repo has no web UI; only the contract text was delivered and verified (a disclosed runtime gap).
+- **Outcome after follow-up:** **merged** (PR #30, merge commit `5d6a613`) and auto-released as **`v0.23.0`**; a docs follow-up (PR #31, merge `e50a5c7`) recorded the Copilot live-verify with **no version bump**. Whether the verdict holds long-term is **to be confirmed** over time.
+- **Cost:** ~1.51M new tokens (observed: implementer ~109K + deep panel R1 ~783K + repair panel R2 ~369K; orchestrator main-thread ~250K estimate) · ~24 subagents across 2 workflow runs · **Evidence:** public — PR https://github.com/simba6507/universal-dev-flow-plugin/pull/30 · commit `f8bef45` · release `v0.23.0` · compat follow-up PR https://github.com/simba6507/universal-dev-flow-plugin/pull/31.
+- **Copilot compatibility (live-verified this session):** udflow 0.23.0 on **GitHub Copilot CLI 1.0.65** (model claude-sonnet-4.6) — `copilot plugin list` shows `udflow@kktmarketplace (v0.23.0)`, `copilot skill list` lists both skills, a live `copilot -p` session enumerated **all nine subagents** (`implementer` + 7 reviewers + `gatekeeper`), and the **SessionStart + Stop hooks fired** (hook-debug log). One finding: Copilot **runs** the hooks but does **not surface their injected output** to the model → the auto failure-memory digest is a **no-op under Copilot** (fail-open; degrades to manual retrieval during planning). Documented in README Compatibility (PR #31).
 
 _More runs needed for Track 2 — especially at least one **not** by the maintainer, and breadth beyond the current
 two projects (one private, one this public plugin repo). Add yours via the issue template above._
