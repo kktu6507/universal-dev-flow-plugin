@@ -51,8 +51,8 @@ it rather than blur it:
   from dominating.
 
 New `### Live run N …` entries are tagged with their tier. The first three logged below are maintainer
-**self-attested** (private) — which is exactly why the ≥3-projects breadth and the ≥1 non-maintainer
-requirement remain open.
+**self-attested** (private); **Live run 4 is the first publicly verifiable** (a public-repo PR) — but all four
+are maintainer runs, which is exactly why the ≥3-projects breadth and the ≥1 non-maintainer requirement remain open.
 
 ## Graduation criteria (two tracks)
 
@@ -76,9 +76,9 @@ whether the **workflow + verdict** holds up in practice, which is the claim the 
 
 | Metric | Now | Track-1 target | Track-2 target |
 |---|---|---|---|
-| **Real-world verified runs (Type B)** | **3 logged** | — | ≥ 10 |
-| — of which **publicly verifiable** (vs self-attested / private) | **0** | — | — |
-| Distinct real projects (Type B) | **1 logged** (all one private repo) | — | ≥ 3 |
+| **Real-world verified runs (Type B)** | **4 logged** | — | ≥ 10 |
+| — of which **publicly verifiable** (vs self-attested / private) | **1** | — | — |
+| Distinct real projects (Type B) | **2 logged** (one private repo + udflow's own public repo) | — | ≥ 3 |
 | Independent (non-maintainer) runs | **0** | — | ≥ 1 |
 | External repos (Type A benchmark) | **~13** | ≥ 3 ✓ | — |
 | Languages (Type A) | **6** (C#, JS, Python, Java, Go, Rust) | ≥ 2 ✓ | — |
@@ -94,8 +94,9 @@ lower), and **~29% bug-blind at n=77**. The robust, condition-independent streng
 false-positive rate**. Track 2 (**real-world runs**) is **not yet met** — that is now the honest reason
 "experimental" stays. The defensible relabel is a *characterized* "beta" ("near-zero FP; recall scales with the
 quality of the intent you give it; real-world track record still accumulating"), to be earned by the Type-B
-runs this log is built to collect — the **first three of which are now logged below (3 of ≥10)**, though all on
-one private project, so the **≥3-projects breadth and the ≥1 non-maintainer run remain open**.
+runs this log is built to collect — the **first four of which are now logged below (4 of ≥10)**, across **two
+projects** (one private, plus udflow's own public repo) and now including the **first publicly-verifiable** entry, so
+the **≥3-projects breadth and the ≥1 non-maintainer run remain open**.
 
 ---
 
@@ -173,8 +174,20 @@ shape:
 - **Outcome after follow-up: held up** — committed, **merged to `main`, and still in (not reverted)** — maintainer-confirmed (PR #8; commit `2beafbbb` → merge `153e559d`). This run is what prompted updating the evidence log.
 - **Cost:** gatekeeper subagent ~29K tokens / ~2.6 min; part of the same ~3.5 h session. · **Evidence:** private repo — commits `2beafbbb` / merge `153e559d` (internal index).
 
-_More runs needed for Track 2 — especially at least one **not** by the maintainer, and breadth beyond this one
-private project. Add yours via the issue template above._
+### Live run 4 — 2026-06-26 · `universal-dev-flow-plugin` (udflow's own repo — Markdown / Node JS) · verified live task (merged) · **publicly verifiable**
+
+- **Task:** implement points 1–4 of a `headroom`-vs-udflow design comparison into udflow's **own** contract reference files — a filtered-diff retrieval pointer, per-content-type "filter noise" recipes, a cache-friendly context-ordering principle, and a tagged cost-estimate-basis rule — plus the 0.22.0 version bump + CHANGELOG. **Spec/docs-only** (no code / hook / machine-token change). Invoked via `/udflow:run --deep` (maintainer's run).
+- **Intent given:** **contract-level** — six numbered acceptance criteria with exact before/after strings per edit; a Plan subagent adversarially pre-tested the design and caught three defects *before* implementation (an existing byte-drift between two synced clauses, a CI-guarded fence line that must not be edited, and the correct reference-file home for each principle).
+- **Reviewers:** spec / test / architecture panel + **adversarial verification** of blocker/major findings + gatekeeper at maximum effort; code / security / operability / ui-ux correctly scoped out (no code, security surface, runtime/ops, or UI). · **Verdict: READY** (first iteration — 0 blocker/major survived adversarial refutation).
+- **Verification:** `node --test` → 128 pass / 0 fail / 2 environment-conditional skips (exit 0); `node .github/scripts/validate-structure.mjs` → pass (compact-fence guard, version parity, CHANGELOG entry, bilingual README parity, U+FFFD text-integrity); `claude plugin validate .` and `claude plugin validate ./udflow` → both ✔; GitHub CI (validate × macOS / Ubuntu / Windows) → all green.
+- **Caught (saves):** 1 × **minor** — the new cost-basis prose asserted the grand total "inherits `estimate`", which a literal reader could read as mismatching the unchanged full-report Total-row `Source` literal `observed + estimate`; the wording was reconciled so the rule matches its own template. (Design-phase saves by the Plan pre-review: the byte-drift, fence-line, and placement issues above — fixed before any edit landed.)
+- **False alarms: 0** — no blocker/major was raised falsely; the panel's only gating output was the single real minor.
+- **Missed:** none known at the verdict — to confirm in follow-up use.
+- **Outcome after follow-up:** **merged** (PR #28, merge commit `b0188ef`) and auto-released as **`v0.22.0`**; whether the verdict holds long-term is **to be confirmed** over time.
+- **Cost:** ~199K new tokens (observed: implementer ~56K + deep panel ~142K; the orchestrator main-thread figure is an estimate) · **Evidence:** public — PR https://github.com/simba6507/universal-dev-flow-plugin/pull/28 · commit `04276ff` · release `v0.22.0`.
+
+_More runs needed for Track 2 — especially at least one **not** by the maintainer, and breadth beyond the current
+two projects (one private, one this public plugin repo). Add yours via the issue template above._
 
 ---
 
