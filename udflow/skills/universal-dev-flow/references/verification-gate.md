@@ -19,7 +19,14 @@ Prefer running build/test commands in the **foreground** — the runner reaps th
 
 For every skipped check, state the command or check, why it could not run, and remaining uncertainty.
 
-Run checks at minimal verbosity and filter command output to decision-relevant content: surface failures, not passing-test spam; use `git diff --stat` to orient and *then* a targeted `git diff <path>` for the actual hunks; use `rg -l`/`-c` to locate and *then* pull the matching context. Filter noise, never signal — a smaller view is acceptable only when it preserves 100% of the decision-relevant detail (failure tracebacks, the actual changed hunks, the matching code). Never trade recall for fewer tokens.
+Run checks at minimal verbosity and filter command output to decision-relevant content, by content type — each recipe is *how to filter without dropping signal*, not licence to trim:
+
+- **Diffs** — `git diff --stat` to orient, *then* a targeted `git diff <path>` for the actual hunks; keep hunk headers and changed lines, skip unrelated files.
+- **Test / build output** — surface failures: the failing assertion, the first failing stack frame, and the error message; on green, the summary line is enough — do not echo passing-test spam.
+- **Logs** — keep the error/warning lines and the surrounding context; collapse repeated or info-level noise, but never drop the failing stanza.
+- **Searches** — `rg -l`/`-c` to locate, *then* `rg -n -C<k>` to pull the matching context; do not dump whole files.
+
+Filter noise, never signal — a smaller view is acceptable only when it preserves 100% of the decision-relevant detail (failure tracebacks, the actual changed hunks, the matching code). Never trade recall for fewer tokens.
 
 ## Browser Evidence
 

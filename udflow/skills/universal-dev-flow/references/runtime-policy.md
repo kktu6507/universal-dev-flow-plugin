@@ -25,6 +25,16 @@ Therefore:
 - Avoid repeated waits unless the next critical path step is blocked by reviewer output.
 - If a spawned reviewer is stale after a material fix, send a new Review Packet or rerun the reviewer instead of relying on outdated findings.
 
+## Context Ordering (cache-friendly)
+
+The provider's prompt cache discounts a stable prefix heavily — cache reads bill at roughly a tenth of fresh input — so order context to keep prefixes stable across the run. This is a **cost-free** discipline: it changes ordering and timing, never content or signal (like *filter noise, not signal*, it never trades away correctness).
+
+- Keep the stable shared preamble byte-stable. The verbatim "Shared reviewer contract" block is identical across every reviewer handoff *by design*; that byte-stability is what lets a provider reuse it, so do not reword it per-handoff.
+- Load delivery-only references late. `references/final-report.md` is loaded at delivery, never up front, so the report template does not pollute the earlier prefix; keep new, run-specific context appended at the end rather than reordering or rewriting what is already in the window.
+- Append, don't reorder. Reordering or rewriting earlier context invalidates the cached prefix for no gain; add new context after it instead.
+
+Honest scope: the Handoff Template's field order (`references/review-packet.md`) is kept as-is for readability — this principle governs load order and prefix stability across the run, not a packet-field reorder (which would be a behavior change, out of scope here).
+
 ## Shared-State Writes (single writer)
 
 The failure-memory file is shared mutable state, and reviewers run in parallel. To avoid lost-update / interleaved-write corruption, only **one** actor writes it: the main thread / `gatekeeper` after the verdict. Reviewers and the implementer only *propose* candidate entries (using the existing template); they never write the file themselves. The "reread global before writing" merge step is performed by that single writer.

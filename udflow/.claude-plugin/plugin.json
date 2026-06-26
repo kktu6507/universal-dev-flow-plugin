@@ -2,7 +2,7 @@
   "name": "udflow",
   "displayName": "Universal Dev Flow",
   "description": "Universal Dev Flow — risk-proportional multi-agent engineering workflow: plan-gated implementation, selected read-only reviewers, gatekeeper readiness judgment, failure memory, and optional external capabilities (MCP / skills / subagents).",
-  "version": "0.21.0",
+  "version": "0.22.0",
   "keywords": ["workflow", "code-review", "plan-gate", "multi-agent", "gatekeeper", "verification", "release-readiness"],
   "author": { "name": "kktu" },
   "homepage": "https://github.com/simba6507/universal-dev-flow-plugin",

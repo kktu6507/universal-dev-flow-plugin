@@ -11,7 +11,7 @@ Use a Review Packet before handing work to any reviewer. The packet is the revie
 - Assumptions: only assumptions that affected implementation or verification.
 - Implementation summary: what changed and why.
 - Changed files: paths and short purpose for each relevant changed area.
-- Changed diff (filtered): a filtered, capped unified diff produced once by the orchestrator, given to every reviewer as a shared starting point so each reviewer need not re-run the base diff.
+- Changed diff (filtered): a filtered, capped unified diff produced once by the orchestrator, given to every reviewer as a shared starting point so each reviewer need not re-run the base diff. State a **retrieval pointer** alongside it — what was trimmed (the cap, the path scope, excluded paths, any truncated hunks) and the exact command to regenerate the *same-scoped* untrimmed diff — so a reviewer who needs more follows a pointer instead of reconstructing what was dropped or running a bare `git diff` that yields a differently-scoped view.
 - Verification evidence: a structured per-check table — one row per check with command, check type (build / test / typecheck / lint / …), required? (yes/no), ran? (yes/no), real exit status (0 / non-zero / —), and blocked-with-reason when not run — plus a one-line summary. The `gatekeeper` reads the real exit status as authority over reviewer prose (see `agents/gatekeeper.agent.md`, "Command-evidence authority"); a single rollup is surfaced as `udflow:verify=pass|fail|unrun|na`.
 - Known risks: remaining uncertainty, migration/rollback concern, external dependency, or runtime limitation.
 - Reviewer scope: exact question each selected reviewer should answer.
@@ -39,7 +39,9 @@ Implementation summary:
 
 Changed files:
 
-Changed diff (filtered):
+Changed diff (filtered): <diff>
+— Trimmed: <what was capped / path scope / excluded paths / truncated hunks>
+— Regenerate (same scope): `<exact command, e.g. git diff <base>..<head> -- <paths>>`
 
 Verification evidence (per-check table: command / type / required? / ran? / exit status / blocked-reason, + one-line summary):
 
@@ -60,8 +62,8 @@ Shared reviewer contract:
 - When the packet lists numbered acceptance criteria, evaluate coverage against each within your discipline and flag any not demonstrably met (the `gatekeeper` makes the final per-criterion ruling).
 - Reason in the target language's real semantics (truthiness/equality, value-vs-reference and receiver semantics, string/byte/encoding, ownership/lifetimes, numeric overflow), not as generic pseudocode.
 - Enumerate; do not stop at the first finding — one real issue does not make the rest of the scope correct.
-- A filtered diff is provided as a starting point; you keep full Read/Grep freedom — read the surrounding code whenever the diff is insufficient to judge (omissions and cross-file issues usually require it). The diff saves a redundant base read; it does not cap your investigation.
-- When inspecting with Bash, filter noise, not signal — run at minimal verbosity and pull only the decision-relevant output (the changed hunks, the matching context, failure tracebacks); never drop detail you need to judge correctness.
+- A filtered diff is provided as a starting point; you keep full Read/Grep freedom — read the surrounding code whenever the diff is insufficient to judge (omissions and cross-file issues usually require it). The packet states what was trimmed and the exact command to regenerate the same-scoped full diff, so reading more is following a pointer, not guessing. The diff saves a redundant base read; it does not cap your investigation.
+- When inspecting, filter noise, not signal — run at minimal verbosity and pull only the decision-relevant output for the content type (diffs → the changed hunks; tests/builds → the failing assertion + first failing frame; logs → error lines + context; searches → `rg -l`/`-c` to locate, then pull context); never drop detail you need to judge correctness.
 - Output: scope reviewed; each finding as one compact line — `severity` · `file:line` (or contract/component/path) · the concrete failure or violated contract · smallest safe fix — not a prose paragraph; reference code by `path:line` rather than restating it, and do not echo the diff or file contents already provided in the packet; recommended corrections. Expand a finding to prose only where one line would lose evidence.
 ```
 
