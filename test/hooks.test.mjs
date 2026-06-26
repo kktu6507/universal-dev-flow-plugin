@@ -1042,6 +1042,21 @@ test("validate-structure: a mangled compact final-report fence fails CLOSED (5d 
   } finally { fs.rmSync(tree, { recursive: true, force: true }); }
 });
 
+test("validate-structure: reverting the --report full cost table to a single Tokens column FAILS (5e guard)", () => {
+  const tree = copyRepoTree();
+  try {
+    // Revert the billable-component header (Input/Output/Cache-write/Cache-read) back to the old
+    // single-`Tokens` column in the --report full cost table; the 5e guard must bite (AC2 contract).
+    const fr = path.join(tree, "udflow", "skills", "universal-dev-flow", "references", "final-report.md");
+    fs.writeFileSync(fr, fs.readFileSync(fr, "utf8").replace(
+      "| Agent / phase | Input | Output | Cache-write | Cache-read | New | Share | Source | ~Cost |",
+      "| Agent / phase | Tokens | Share | Source | ~Cost |"), "utf8");
+    const { code, out } = runValidator(tree);
+    assert.notStrictEqual(code, 0, "dropping the billable-component columns must fail the build");
+    assert.match(out, /billable-component column/, "the failure must name the 5e cost-column guard");
+  } finally { fs.rmSync(tree, { recursive: true, force: true }); }
+});
+
 test("validate-structure: a shipped forbidden artifact FAILS (distribution hygiene)", () => {
   const tree = copyRepoTree();
   try {
