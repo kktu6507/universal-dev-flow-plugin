@@ -1551,6 +1551,33 @@ test("destructive-guard: separated rm flags (rm -r -f) are a documented miss →
   assert.strictEqual(dguard({ tool_name: "Bash", permission_mode: "default", tool_input: { command: "rm -r -f build" } }), "ALLOW", "rm -r -f is a documented miss (separated flags)");
 });
 
+test("destructive-guard: PowerShell-native destructive forms (Windows/Copilot) ASK", () => {
+  // On Windows the model rewrites POSIX into cmdlets, so `rm -rf` runs as `Remove-Item -Recurse -Force`.
+  for (const command of [
+    "Remove-Item -Recurse -Force 'C:\\Temp\\x' -ErrorAction SilentlyContinue", // the exact Copilot-on-Windows rewrite of rm -rf
+    "Remove-Item -Recurse C:\\build",          // recursive delete, no -Force (still recursive)
+    "remove-item -r -fo .\\dist",              // lowercase + abbreviated flags
+    "ri -Recurse -Force node_modules",         // ri alias
+    "Format-Volume -DriveLetter D",
+    "Clear-Disk -Number 1 -RemoveData",
+    "Get-ChildItem; Remove-Item -Recurse C:\\tmp", // after a statement separator
+  ]) {
+    assert.strictEqual(dguard({ tool_name: "Bash", permission_mode: "default", tool_input: { command } }), "ASK", `should ask: ${command}`);
+  }
+});
+
+test("destructive-guard: non-recursive / non-destructive PowerShell stays ALLOW (no FP)", () => {
+  for (const command of [
+    "Remove-Item 'C:\\Temp\\one.txt'",         // single file, no -Recurse
+    "Remove-Item -Force 'C:\\Temp\\one.txt'",  // -Force but not recursive
+    "Get-ChildItem -Recurse -Filter *.log",    // recurse but not a delete cmdlet
+    "ri config.json",                          // alias, single file
+    "Format-Table -AutoSize",                  // Format-* but not Format-Volume
+  ]) {
+    assert.strictEqual(dguard({ tool_name: "Bash", permission_mode: "default", tool_input: { command } }), "ALLOW", `should allow: ${command}`);
+  }
+});
+
 test("destructive-guard: git push --force-fast (a non-flag) does NOT false-ask, but --force / --force-with-lease still do", () => {
   // The --force(?![\w-]) tighten removes the false-ask on a hypothetical --force-<suffix> while keeping
   // the two real force flags via their own alternation branches.

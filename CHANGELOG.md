@@ -3,6 +3,17 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.24.1]
+
+Extend the `destructive-guard` deny-list (0.24.0, item 11) to **PowerShell-native destructive cmdlets**. **Live Copilot CLI verification** (1.0.65, Windows) showed the model rewrites `rm -rf` into `Remove-Item -Recurse -Force`, which the POSIX-only deny-list missed — while git operations were already caught cross-platform and the guard's `ask` was confirmed honored under Copilot.
+
+### Changed
+- **`destructive-guard.js` now also matches the common PowerShell forms** the model emits on Windows / Copilot: `Remove-Item -Recurse` (the cmdlet form of `rm -rf` — incl. the `ri` alias and PowerShell's abbreviated `-r…` flag), `Format-Volume`, and `Clear-Disk` — same narrow, **ask-only** posture. The `rm` alias is intentionally excluded (the POSIX `rm -rf` pattern owns it, where `rm -r` alone stays a documented allow), and a non-recursive `Remove-Item` / `Remove-Item -Force` on a single file stays allowed to avoid false-asks. Documented misses now also list piped deletes (`… | Remove-Item`) and cmd.exe `rd /s` / `del /s`. The `permissionDecisionReason` and both READMEs list the new forms.
+
+### Notes
+- **Copilot CLI compatibility verified live (1.0.65, 2026-06-26):** plugin + skills load at this version; all hooks fire (Copilot names its shell tool `Bash`, so the PreToolUse matcher matches); plan-gate no-ops (no `plan` mode); the failure-memory digest and `UDFLOW_ENFORCE_STOP` block are no-ops (Copilot doesn't surface injected/Stop output); and the `destructive-guard` `ask` is **honored** — it gated `git reset --hard` and Copilot surfaced the guard's reason + opt-out.
+- ask-only / best-effort posture unchanged; no other hook touched; machine-checked tokens unchanged; EN ↔ zh-TW README parity preserved. `node --test`, `node .github/scripts/validate-structure.mjs`, and `claude plugin validate .` / `./udflow` green.
+
 ## [0.24.0]
 
 Implement borrow-backlog items 1–11 from the 2026-06 competitive survey of top Claude Code plugins, in their **optimal/lean** form (most ideas were already covered by udflow; the genuine deltas are small). One new hook, two hook deltas, the rest doc/prompt. Dogfooded via udflow `--deep --report full` (spec / test / code / security / architecture / operability panel + gatekeeper at max effort) → **READY**.
