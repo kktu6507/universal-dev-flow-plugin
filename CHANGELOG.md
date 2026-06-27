@@ -3,6 +3,10 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.26.2]
+
+Cosmetic doc fix. The *Design contract* bullet added to `README.zh-TW.md` in 0.26.1 used two half-width `;` where the document's convention is the full-width `；` — corrected for EN ↔ zh-TW punctuation consistency. No content change.
+
 ## [0.26.1]
 
 Bring **README** up to date with the repo's current state. Docs only — no code, no hook, no machine-token change.
