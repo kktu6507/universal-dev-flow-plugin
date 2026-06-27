@@ -122,12 +122,12 @@ Four Node hooks — **all fail-open** (any error, or no Node on PATH → they do
 | Hook (event) | What it can do | Default · opt-out |
 |---|---|---|
 | `plan-gate.js` (PreToolUse) | **deny** edits + *obvious* Bash writes **while in plan mode**; exempts `~/.claude/plans/` | on · `"udflow":{"planGate":false}` |
-| `destructive-guard.js` (PreToolUse) | **ask** (never deny) before unrecoverable Bash in **any** mode: `rm -rf`, `git reset --hard`, `git push --force`, `find -delete`, `dd of=`, `mkfs`, `shred` | on · `"udflow":{"destructiveGuard":false}` |
+| `destructive-guard.js` (PreToolUse) | **ask** (never deny) before unrecoverable Bash in **any** mode: `rm -rf`, `git reset --hard`, `git push --force`, `find -delete`, `dd of=`, `mkfs`, `shred` — plus the PowerShell forms `Remove-Item -Recurse` / `Format-Volume` / `Clear-Disk` (Windows / Copilot) | on · `"udflow":{"destructiveGuard":false}` |
 | `load-failure-memory.js` (SessionStart) | **read** your `FAILURE_MEMORY.md` and inject a nonce-fenced, role-neutralized digest into your own session | on · no file → no-op |
 | `orchestration-check.js` (Stop) | **advise** at session end: warns on a `READY` claim without the panel, an unhonored block verdict, or a red/unrun required check while delivering | advisory · hard-blocks only with `UDFLOW_ENFORCE_STOP` |
 
 - **What they never do:** change system/security settings, alter file permissions, delete anything (`destructive-guard` only *prompts before* your own delete/wipe commands — it never deletes), or transmit your code or transcript anywhere.
-- **Best-effort, not a sandbox.** `destructive-guard` and the plan-gate Bash tripwire are narrow, high-confidence deny-lists; obfuscated forms (interpreter one-liners like `node -e`/`python -c`, `bash -c`, a word-internal apostrophe) can slip — they `ask`/`deny`, never the sole protection. For a hard plan-mode guarantee, set a default plan mode in settings.
+- **Best-effort, not a sandbox.** `destructive-guard` and the plan-gate Bash tripwire are narrow, high-confidence deny-lists; obfuscated forms (interpreter one-liners like `node -e`/`python -c`, `bash -c`, piped deletes `… | Remove-Item`, cmd.exe `rd /s`/`del /s`, a word-internal apostrophe) can slip — they `ask`/`deny`, never the sole protection. For a hard plan-mode guarantee, set a default plan mode in settings.
 
 ---
 
@@ -205,7 +205,7 @@ udflow targets **Claude Code**; its **subagents** and **skills** also load under
 | Deep-mode Workflow | no-op (no Workflow capability) |
 | Failure-memory auto-digest | no-op — Copilot runs hooks but **doesn't surface injected output**; falls back to manual retrieval during planning |
 | `UDFLOW_ENFORCE_STOP` block | no-op (Stop output not surfaced) |
-| `destructive-guard` prompt | **applies** — it's a PreToolUse decision, not injected output |
+| `destructive-guard` prompt | **applies** — a PreToolUse decision, not injected output (live-verified: it gated `git reset --hard` under 1.0.65). On Windows the deny-list also covers the PowerShell forms the model emits |
 
 Disable under Copilot only: `{ "enabledPlugins": { "udflow@kktmarketplace": false } }` (or `{ "disableAllHooks": true }`) in `~/.copilot/settings.json`.
 

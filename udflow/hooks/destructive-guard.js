@@ -22,10 +22,12 @@ function debug(msg) {
   try { process.stderr.write("[udflow destructive-guard] " + msg + "\n"); } catch (e) {}
 }
 
-// Narrow, high-confidence deny-list of UNRECOVERABLE Bash commands. Conservative like
-// plan-gate's bashLooksLikePlanWrite: matched against the quote-stripped command, anchored at
-// start/space/separator, and deliberately NOT trying to catch interpreter one-liners (node -e / python -c),
-// $VAR/~/glob targets, separated flags (rm -r -f), `bash -c "…"` nesting, or a word-internal apostrophe
+// Narrow, high-confidence deny-list of UNRECOVERABLE commands — POSIX shell AND the common PowerShell
+// cmdlet forms the model emits on Windows / Copilot CLI (Remove-Item -Recurse, Format-Volume, Clear-Disk).
+// Conservative like plan-gate's bashLooksLikePlanWrite: matched against the quote-stripped command, anchored
+// at start/space/separator, and deliberately NOT trying to catch interpreter one-liners (node -e / python -c),
+// $VAR/~/glob targets, separated flags (rm -r -f), `bash -c "…"` nesting, piped deletes (… | Remove-Item),
+// cmd.exe `rd /s` / `del /s`, or a word-internal apostrophe
 // that mis-pairs the quote-stripper and blanks a real command (the SAME accepted miss plan-gate documents).
 // These are documented misses — tightening would add false positives, and this is a best-effort net that
 // only ever ASKS (never denies, never the sole protection). The recoverable-but-common
@@ -48,6 +50,14 @@ function bashLooksDestructive(command) {
     /(?:^|[\s;&|])find\s[^;&|]*\s-delete\b/i,                                              // bulk delete by find
     /(?:^|[\s;&|])dd\s(?=[^;&|]*\bof=)(?![^;&|]*\bof=(?:\/dev\/null\b|NUL\b))/i,            // dd of=<real device/file> (exempt /dev/null, NUL; reused verbatim from plan-gate — a malformed double-of= with /dev/null anywhere is exempted, but last-of= wins so it'd write /dev/null anyway)
     /(?:^|[\s;&|])(?:mkfs(?:\.\w+)?|shred)\b/i,                                            // format / unrecoverable wipe
+    // PowerShell-native forms (Windows / Copilot CLI): the model rewrites POSIX into cmdlets, so a
+    // `rm -rf` request runs as `Remove-Item -Recurse -Force` and the POSIX patterns above never match.
+    // Match the cmdlet/alias + a -Recurse-ish flag (PS allows prefix abbreviation, and -r* is unambiguous
+    // for Remove-Item) — `-Recurse` is the recursive-delete signal; -Force only suppresses prompts.
+    // `rm` is deliberately NOT in this alias set: the POSIX `rm -rf` pattern owns `rm` (where `rm -r`
+    // alone is a documented allow), so adding it here would flip that.
+    /(?:^|[\s;&|(])(?:remove-item|ri)\b(?=[^;&|]*\s-r[a-z]*\b)/i,                           // Remove-Item -Recurse [-Force] (PS `rm -rf`)
+    /(?:^|[\s;&|(])(?:format-volume|clear-disk)\b/i,                                       // format a volume / wipe a disk (no POSIX form on Windows)
   ];
   return destructivePatterns.some((re) => re.test(unquoted));
 }
@@ -115,10 +125,11 @@ process.stdin.on("end", () => {
         permissionDecision: "ask",
         permissionDecisionReason:
           "udflow safety-net: this Bash command matches a high-confidence destructive pattern " +
-          "(git reset --hard / git push --force / rm -rf / find -delete / dd of= / mkfs / shred). " +
-          "These are unrecoverable — confirm the target is intended before running. This is a best-effort " +
-          "net (only obvious forms are caught; interpreter one-liners and obfuscated forms slip), so do not " +
-          "rely on it alone. Disable for this project with \"udflow\": { \"destructiveGuard\": false } in " +
+          "(git reset --hard / git push --force / rm -rf / find -delete / dd of= / mkfs / shred; or the " +
+          "PowerShell forms Remove-Item -Recurse / Format-Volume / Clear-Disk). These are unrecoverable — " +
+          "confirm the target is intended before running. This is a best-effort net (only obvious forms are " +
+          "caught; interpreter one-liners, piped deletes, and cmd.exe forms slip), so do not rely on it " +
+          "alone. Disable for this project with \"udflow\": { \"destructiveGuard\": false } in " +
           ".claude/settings.json."
       }
     };
