@@ -114,6 +114,7 @@ When touching human-readable text, check for mojibake, replacement characters, b
    - Keep the diff scoped and traceable.
    - Follow repository conventions first, then the project language/framework's official best practices.
    - For UI/frontend work, prefer `ui-ux-pro-max` design tokens/guidance when available before writing UI; otherwise implement for usability and maintainability and disclose the fallback.
+   - When the approved plan establishes or changes a design contract, the `implementer` **writes / updates `design.md`** post-approval — the blessed bootstrap draft (extracted from the existing UI), or a design-system change recorded in the same PR (`references/design-spec.md`).
    - Surface newly discovered risk immediately.
 
 4. Verification

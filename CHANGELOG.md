@@ -3,6 +3,20 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.26.0]
+
+**Phase 2 of the `design.md` feature: generate the contract *from an existing UI*.** Phase 1 (0.25.3) shipped the consume path — judge against a `design.md` when one exists. This makes establishing one concrete: extract a descriptive `design.md` from the project's real design sources so a repo with an existing UI but no contract can bootstrap one. Doc/contract only — **no new agent, no new hook, no runtime code, no machine-token change**. Token economy stays the existing model (vision gated to `--deep` / `--report full`; the orchestrator drafts once, the `implementer` writes once) — **no new saving scheme**.
+
+### Added
+- **`references/design-spec.md` — an *Extraction guide* + a *Skeleton*.** The guide is the concrete how-to for drafting descriptively from an existing UI: a **source → section mapping** (Tailwind config / CSS `:root` vars / design-token files → color/type/spacing/depth; component library → component stylings + states; router + page components and state/validation/confirm/focus handlers → the **Interaction / Operation** section; rendered screens via vision-gated browser evidence only when a section can't be derived from source), plus the discipline (tokens-before-prose; **descriptive, not prescriptive** — flag sub-floor values in Do's & Don'ts rather than encoding them; vision stays gated; Interaction/Operation is the half the visual-only community format skips). The skeleton is the 10-section shape (with the optional YAML token block) for consistent output.
+
+### Changed
+- **Drafting ownership made concrete (a step, not a new agent).** `references/design-spec.md` and `SKILL.md` now state it explicitly: `planner-creator` **detects and recommends**; the **orchestrator drafts** the contract during planning (read-only, borrowing `ui-ux-pro-max` for structure/rationale when available — else it reads the token sources directly and falls back to the `ui-ux-reviewer` baseline, disclosed; never a hard dependency); the **`implementer` writes / updates** `design.md` post-approval (the blessed bootstrap draft, or a design-system change in the same PR). `references/external-capabilities.md` notes `ui-ux-pro-max` as the bootstrap drafting aid with that fallback.
+- READMEs: the `planner-creator` row now notes it recommends bootstrapping `design.md` from an existing UI (EN ↔ zh-TW parity).
+
+### Notes
+- **No behavior change without intent.** Extraction runs only when the user opts into establishing a contract (the separate bootstrap pass), the draft is **blessed at `ExitPlanMode`** before any write (a descriptive extraction can codify existing design debt — the human signs it), and a repo that already has a `design.md`, or one that wants none, is unaffected. The three hooks, the `udflow:verify=` / `udflow:delivery=` sentinels, and the verdict/severity literals are byte-identical. `node --test`, `node .github/scripts/validate-structure.mjs`, and `claude plugin validate .` / `./udflow` green.
+
 ## [0.25.3]
 
 Add a **`design.md` design contract** + a dedicated **`planner-creator`** planning agent (Phase 1: consume path + planning). Externalizes *this project's* design language into a persisted, plain-text contract so UI review judges consistency against a stable artifact instead of re-inferring "the design language" every run — the UI counterpart to the contract-level intent `plan-grounding` already produces for behavior. Doc/contract only — **one new agent definition + one new reference + wiring; no new hook, no runtime code, no machine-token change**. Reuses udflow's existing token-saving model (filter-once + pointer, distill-before-handoff, single focused subagent, `output/udflow/` artifact hygiene) — **no new saving scheme**.

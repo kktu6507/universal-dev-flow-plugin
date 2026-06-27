@@ -100,7 +100,7 @@ Key disciplines:
 
 | Agent | Role | When it's added | Model |
 |---|---|---|---|
-| `planner-creator` | grounds the plan in real code, drafts the approach, pre-selects the panel, detects `design.md` (read-only; feeds plan approval, never replaces it) | planning | inherit |
+| `planner-creator` | grounds the plan in real code, drafts the approach, pre-selects the panel, detects/recommends `design.md` (bootstrap from an existing UI) (read-only; feeds plan approval, never replaces it) | planning | inherit |
 | `implementer` | smallest safe change; never self-certifies | after plan approval | inherit |
 | `spec-reviewer` | requirement / business-rule / contract fidelity | core (non-trivial) | inherit |
 | `test-reviewer` | missing tests, weak verification, edges, regressions | core (non-trivial) | inherit |

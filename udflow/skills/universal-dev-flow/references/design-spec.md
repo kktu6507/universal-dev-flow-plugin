@@ -54,7 +54,7 @@ Resolution: when a relevant pattern already exists in `design.md`, **`design.md`
 `design.md` is a file **write**, so it follows the same plan-gate discipline as `ui-ux-pro-max` asset generation (`references/external-capabilities.md`): decide read-only in planning, write post-approval.
 
 1. **Detect** *(plan, read-only)* — presence + scope (above).
-2. **Draft** *(plan, read-only)* — when bootstrapping, derive the contract **descriptively from the existing UI**: read the real token sources (Tailwind config, CSS `:root` variables, theme files, the component library) and, when useful, the current rendered states (browser evidence). The goal is to **preserve the existing design** (reuse the visual system), not to impose an external standard. A drafted `design.md` is **descriptive** — it can codify existing design debt, which is exactly why it must be blessed.
+2. **Draft** *(plan, read-only)* — when bootstrapping, the **orchestrator** derives the contract **descriptively from the existing UI** (borrowing `ui-ux-pro-max` when available; `planner-creator` only flagged the need) — read the real token sources and map them to the 10 sections per the *Extraction guide* below. The goal is to **preserve the existing design** (reuse the visual system), not to impose an external standard. A drafted `design.md` is **descriptive** — it can codify existing design debt, which is exactly why it must be blessed.
 3. **Bless** *(ExitPlanMode)* — present the draft for the user's approval at the plan gate. A persistent design contract must be a deliberate, human-signed decision, never a silent side-effect of an unrelated task.
 4. **Write** *(post-approval implementation)* — write `design.md` to the repo; the `implementer` does it post-approval so plan mode stays read-only.
 5. **Update** *(supersede / expire)* — when a change alters the design system, update `design.md` in the **same PR** as the code, with the same supersede/expire discipline failure memory uses (`references/verification-gate.md`) so a stale contract does not outlive the design it described. A stale `design.md` is worse than none (the reviewer judges against the wrong contract).
@@ -62,6 +62,51 @@ Resolution: when a relevant pattern already exists in `design.md`, **`design.md`
 ## Bootstrap (establishing a contract for an existing UI)
 
 When the repo has an existing UI but no `design.md`, `planner-creator` **detects the gap and recommends** establishing one — it does **not** silently author it (a planner does not own a cross-task durable artifact). Prefer a **separate, explicit bootstrap pass** over auto-bundling into an unrelated task, so the "establish the contract" decision (which needs deliberate sign-off) is kept distinct from the "follow the contract" work. The user chooses: do it within the current task, or as its own pass. Either way, detection is read-only in planning, the draft is blessed at `ExitPlanMode`, and the write is post-approval.
+
+## Extraction guide (drafting descriptively from an existing UI)
+
+The draft is produced **as a step, not by a new agent**: `planner-creator` detected the gap and recommended it, but the **orchestrator drafts it during planning** (read-only), borrowing `ui-ux-pro-max` design intelligence when available for structure and rationale; the `implementer` **writes** it post-approval. When `ui-ux-pro-max` is absent the extraction still works — the token sources below are read directly (mechanical) and the prose falls back to the `ui-ux-reviewer` baseline — disclose that pro-max was not used. Never a hard dependency.
+
+**Read the real sources first (most reliable), map them to sections:**
+
+| Source in the repo | Feeds sections |
+|---|---|
+| Tailwind config (`tailwind.config.*` theme) | Color (2), Typography (3), Layout/spacing (5), Depth (6), Responsive breakpoints (8) |
+| CSS custom properties (`:root` / theme files) / design-token files | Color (2), Typography (3), Layout (5), Rounded/Depth (6) — and the optional YAML token block |
+| Component library / design-system components (shadcn, MUI theme, Chakra, …) | Component Stylings + states (4), Do's & Don'ts (7) |
+| Router config + page/screen components | **Interaction / Operation (10)** — navigation model, routes, guards |
+| Component state handling (loading/empty/error/success/disabled), form validation, confirm/destructive dialogs, focus/keyboard handlers | **Interaction / Operation (10)** — state conventions, destructive-action confirmation, keyboard/focus |
+| Rendered screens (browser evidence — vision-gated, `references/browser-evidence.md`) | Theme & Atmosphere (1), Responsive (8) — only when the prose can't be derived from source |
+
+**Discipline:**
+- **Tokens before prose.** Derive exact values from the real token sources; infer the *why* from how they are used. Do not invent values the code does not have.
+- **Descriptive, not prescriptive.** Capture what the UI *is*, to preserve it — including inconsistencies. **Flag, don't silently "fix":** where the existing design violates the safety floor (sub-AA contrast, <44px targets), record it in *Do's and Don'ts* as a known gap to correct, rather than encoding it as the standard. The user blesses the result at `ExitPlanMode`.
+- **Vision stays gated.** Screenshot only when a section genuinely cannot be derived from source, and only on the `--deep` / `--report full` path — the token economy is the existing one, not a new budget.
+- **Interaction/Operation is the udflow half.** Spend the effort the community (visual-only) format skips: capture the navigation model, the empty/error/loading/success conventions, destructive-action confirmation, and keyboard/focus behavior from the real components — this is what governs "operation-mode" changes.
+
+## Skeleton
+
+A drafted `design.md` follows this shape (mark a section "n/a" only when the project genuinely has nothing for it):
+
+```markdown
+---
+# optional machine-readable tokens — include only when a token source exists to mirror
+color: { primary: "#…", surface: "#…", … }
+spacing: { … }
+---
+# <Project> Design
+
+## Visual Theme & Atmosphere
+## Color Palette & Roles
+## Typography
+## Component Stylings
+## Layout Principles
+## Depth & Elevation
+## Do's and Don'ts
+## Responsive Behavior
+## Agent Prompt Guide
+## Interaction / Operation Patterns
+```
 
 ## Source positioning (what is and isn't a dependency)
 
@@ -72,7 +117,7 @@ When the repo has an existing UI but no `design.md`, `planner-creator` **detects
 
 - **Never a hard dependency.** No `design.md` → disclose and continue against the baseline; never error. Detection and drafting are read-only; the write is post-approval.
 - **Human-blessed.** A drafted contract is approved at `ExitPlanMode` before it is written — a descriptive extraction is not authoritative until the user signs it.
-- **`planner-creator` reads, a design role writes.** The planner detects and recommends; it does not author `design.md`.
+- **`planner-creator` reads; the orchestrator drafts; the `implementer` writes.** The planner detects and recommends; the orchestrator drafts the contract during planning (read-only, borrowing `ui-ux-pro-max` when available); the `implementer` writes it post-approval. It is a **step, not a new agent** — no standing agent owns `design.md`.
 - **Reviewers consume by pointer.** Hand `ui-ux-reviewer` the `design.md` path, not its re-pasted content (`references/review-packet.md`).
 - **Safety floor is inviolable.** `design.md` is authoritative on consistency/style, never on the accessibility/usability minimums.
 - **Language.** `design.md` follows the repository's language; identifiers, token names, paths, and the machine-checked tokens stay verbatim (`SKILL.md`, Language And Text Integrity).
