@@ -2,10 +2,10 @@
 // The agent files were renamed `<name>.md` -> `<name>.agent.md` and explicitly wired via the
 // plugin.json `agents` array (so the panel loads under Copilot CLI as well as Claude Code). The
 // HARD constraint is that Claude Code's roster is functionally identical: identity is the
-// frontmatter `name:`, and exactly the same nine agents must load. These tests lock that in:
+// frontmatter `name:`, and exactly the expected roster must load. These tests lock that in:
 //   (i)   the manifest `agents[]` set == the *.agent.md files on disk (no extras, none missing),
 //   (ii)  every *.agent.md has valid YAML frontmatter with a `name:`,
-//   (iii) the set of frontmatter names is EXACTLY the expected nine (order-independent) — a guard
+//   (iii) the set of frontmatter names is EXACTLY the expected roster (order-independent) — a guard
 //         that the roster Claude Code sees did not change under the rename.
 import { test } from "node:test";
 import assert from "node:assert";
@@ -20,6 +20,7 @@ const AGENTS_DIR = path.join(PLUGIN, "agents");
 const plugin = JSON.parse(fs.readFileSync(path.join(PLUGIN, ".claude-plugin", "plugin.json"), "utf8"));
 
 const EXPECTED_NAMES = [
+  "planner-creator",
   "implementer",
   "spec-reviewer",
   "test-reviewer",
@@ -62,7 +63,7 @@ test("(ii) every *.agent.md has valid frontmatter with a name:", () => {
   }
 });
 
-test("(iii) the frontmatter name set is EXACTLY the expected nine (roster unchanged)", () => {
+test("(iii) the frontmatter name set is EXACTLY the expected roster (roster unchanged)", () => {
   const names = diskAgentFiles.map((f) => frontmatterName(fs.readFileSync(path.join(AGENTS_DIR, f), "utf8")));
   assert.deepStrictEqual(
     [...new Set(names)].sort(),
@@ -106,13 +107,13 @@ test("(vi-b) plugin.json declares no skills field (default skills/<name>/SKILL.m
 // which reviewers exist — must list exactly the expected nine. Closes the one drift direction the
 // validator does not (a name dropped from the prose still loads, but the orchestrator's own panel
 // description would be wrong).
-test("(vii) the SKILL.md prose subagents roster matches the expected nine", () => {
+test("(vii) the SKILL.md prose subagents roster matches the expected roster", () => {
   const skill = fs.readFileSync(path.join(PLUGIN, "skills", "universal-dev-flow", "SKILL.md"), "utf8");
   const roster = (skill.match(/subagents \(([^)]+)\)/) || [])[1] || "";
   const names = [...roster.matchAll(/`([a-z0-9-]+)`/gi)].map((m) => m[1]);
   assert.deepStrictEqual(
     [...new Set(names)].sort(),
     [...EXPECTED_NAMES].sort(),
-    "the SKILL.md subagents roster must name exactly the expected nine agents"
+    "the SKILL.md subagents roster must name exactly the expected agents"
   );
 });

@@ -18,16 +18,17 @@ Default to **skipping** it for low/medium-risk work (a checkbox, a copy edit, a 
 
 Follow `Detect → Use → Else-Disclose` (see `references/external-capabilities.md`).
 
-- **Use** a single, focused read-only exploration subagent (e.g. `Explore`) — not a fan-out, because the user is waiting to approve.
+- **Use** a single, focused read-only grounding subagent — **prefer the dedicated `planner-creator`** (`agents/planner-creator.agent.md`; it runs this Stage A and also returns a draft plan, an advisory panel pre-selection, and a `design.md` detection), else a generic `Explore` pass — not a fan-out, because the user is waiting to approve.
 - **Inputs**: the restated requirement plus the affected area/files.
 - **Outputs (Grounding Findings, each anchored to `file:line` evidence)**:
   - the real call sites and entry points of the code being changed;
   - the edge/boundary handling that **already exists** (so the plan does not redo what is covered);
   - the real contracts, types, and data shapes touched;
   - adjacent code that constrains the change (invariants, locks, transaction boundaries);
-  - the unknowns the scout could **not** confirm (state them honestly; do not guess).
+  - the unknowns the scout could **not** confirm (state them honestly; do not guess);
+  - for UI / design-system / interaction scope, whether a `design.md` design contract exists and applies (`references/design-spec.md`) — and, when one is needed but absent, a recommendation to establish one (the scout detects and recommends; it does not author it).
 - **Anti-hallucination**: a claim about the code is usable only with concrete `file:line` evidence; mark anything unverified as unverified and do not fold it into the contract (the same evidence discipline as `references/reviewer-common.md`).
-- **Else** (no exploration subagent capability): the main thread does a best-effort local grounding (read the key files, locate call sites) and **discloses** that grounding ran without an independent subagent, with the resulting lower coverage and remaining uncertainty. Never hard-depend on the subagent; never error on its absence.
+- **Else** (no grounding subagent capability — neither `planner-creator` nor `Explore`): the main thread does a best-effort local grounding (read the key files, locate call sites) and **discloses** that grounding ran without an independent subagent, with the resulting lower coverage and remaining uncertainty. Never hard-depend on the subagent; never error on its absence.
 
 ## Stage B — Intent Sharpening + Edge Enumeration (main thread)
 
@@ -54,7 +55,7 @@ Produce:
 
 - **Read-only.** This step runs in plan mode and writes nothing to the working tree; the `plan-gate.js` hook still applies.
 - **Assists, never replaces, human approval.** Its outputs are material for the user's decision at `ExitPlanMode`; ambiguities become `AskUserQuestion`; it never auto-decides product behavior.
-- **Depth, not breadth.** It does not change reviewer selection (still the smallest sufficient set) and adds **no new reviewer or agent** — Stage A reuses the existing `Explore` capability and Stage B runs on the main thread.
+- **Depth, not breadth.** It does not change reviewer selection (still the smallest sufficient set) and adds **no new reviewer** — Stage A runs as a single focused grounding subagent (`planner-creator`, else `Explore`), not a fan-out, and Stage B runs on the main thread. `planner-creator` is a *planning* agent (it only *recommends* the panel), never a reviewer added to it.
 - **Never a hard dependency.** With no exploration subagent, the main thread falls back to local grounding and discloses; absence never raises an error.
 - **Language.** Outputs surfaced to the user follow the user's language (see `SKILL.md`, Language And Text Integrity); identifiers, file names, commands, and the machine-checked tokens (`READY` / `FIX REQUIRED` / `NOT READY`, `blocker` / `major` / `minor`) stay verbatim.
 
