@@ -6,6 +6,10 @@ Reusable failure lessons. Newest first. Keep entries concise and prevention-orie
 > Copy this structure to `ai/FAILURE_MEMORY.md` (project) or `~/.claude/FAILURE_MEMORY.md` (global)
 > the first time an entry is needed. See `skills/universal-dev-flow/references/verification-gate.md`
 > for the read/write rules.
+>
+> To **retire** a lesson, append `(expired)` (the prerequisite behind a one-time failure is resolved) or
+> `(superseded by <date / short title>)` (a newer rule replaced it) to the **end of its `###` title** — the
+> SessionStart digest then skips it, so a stale lesson stops surfacing even before consolidation deletes it.
 
 ## Entry Template
 

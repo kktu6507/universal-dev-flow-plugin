@@ -13,6 +13,8 @@ Run the narrowest meaningful checks for the task:
 
 **Exercise the change's risky inputs — do not rely on reading the code.** Most defects that survive review are only visible when the boundary case actually *runs*, not when the code is read: empty / zero / overflow / very-large values, multibyte or non-ASCII text, null or empty collections, duplicate or multiple values (e.g. repeated headers), malformed input, by-value vs by-reference / receiver use, and concurrent access. For behavior-changing code, add or run a focused test that feeds the specific edge inputs the change implies and assert the expected result — a test that reproduces the boundary is the oracle a static read lacks, and it is what catches subtle idiom/encoding/overflow/omission bugs that a reviewer rationalizes as "looks fine".
 
+For a **behavior-changing acceptance criterion**, prefer a demonstrating test you confirmed **fails without the change and passes with it** (run it against the pre-change state, or assert the bug-reproducing input) — a test shown to fail first is the strongest proof the behavior was actually *absent* before, which is exactly what an omission defect needs. Where a clean fail-first→pass is impractical (much UI, copy, or config has no such red-green), say so rather than manufacturing one; this is a preference, not a hard gate.
+
 On high-risk work, this edge-input set is enumerated up front by the plan-grounding step (`references/plan-grounding.md`) as the change's **implied edge checklist** and carried here, so the boundary tests are planned rather than improvised at verification time.
 
 Prefer running build/test commands in the **foreground** — the runner reaps them cleanly. If you background one, make sure it leaves **no lingering child process** (a build server, file watcher, or dev server): a survivor that inherits the command's output pipe keeps the background task stuck "running" long after the command has actually finished. .NET is the common case — `dotnet build`/`dotnet test` spawn MSBuild node-reuse workers and the Roslyn `VBCSCompiler` server that persist for minutes; if you must background a .NET build/test, add `/p:UseSharedCompilation=false /nr:false` (or set `MSBUILDDISABLENODEREUSE=1`) so nothing is left holding the pipe.
@@ -27,6 +29,15 @@ Run checks at minimal verbosity and filter command output to decision-relevant c
 - **Searches** — `rg -l`/`-c` to locate, *then* `rg -n -C<k>` to pull the matching context; do not dump whole files.
 
 Filter noise, never signal — a smaller view is acceptable only when it preserves 100% of the decision-relevant detail (failure tracebacks, the actual changed hunks, the matching code). Never trade recall for fewer tokens.
+
+## Repair-iteration scoping
+
+On a **repair iteration** (the auto-fix loop, `SKILL.md` step 8), re-run only the checks the fix actually affects — the failing check(s) and the changed-path suites — not the full green suite every loop; re-running checks that already passed and were untouched wastes tokens and wall-clock without adding signal. Two non-negotiables keep this honest:
+
+1. **Re-run the full required set once more for the final pre-`READY` confirmation**, so `udflow:verify=pass` still rests on a real full-suite green. The command exit status is authority (`agents/gatekeeper.agent.md`, *Command-evidence authority*); a fix can introduce a regression in a path that earlier passed, so the last gate before delivery must exercise the whole required set, not trust prior green.
+2. In the per-check table, mark a **carried-forward-green** check distinctly from a **re-ran-green** one — never silently present a prior pass as if it ran this iteration.
+
+This is *filter noise, not signal* applied across iterations: it changes which checks re-run mid-loop, never the final full-suite guarantee.
 
 ## Browser Evidence
 
@@ -109,9 +120,11 @@ Control file size by **entry count, not by truncation**. Hook truncation is only
 
 - Merge duplicate or near-duplicate lessons into one entry and fold repeats into its `Recurrence` line.
 - Drop entries that are obsolete (the code/tool/path no longer exists) or fully superseded by a broader rule.
+- **Supersede a changed-mind lesson.** When a newer lesson contradicts or replaces an older rule (you changed your mind, or a broader rule subsumes it), do not leave both to compete — fold the old one into the new entry, or annotate the old entry's title with `(superseded by <date / short title>)` so it is visibly retired. Prefer one current rule over two conflicting ones.
+- **Auto-expire a resolved one-time failure.** When the prerequisite behind a one-off environment/tooling failure is later satisfied (the missing runtime is installed, the directory is now a git repo, the worktree exists), the lesson no longer applies — drop it, or annotate its title with `(expired)` so a stale environment glitch stops biasing future runs.
 - Keep newest first and keep each surviving entry's prevention rule and tags intact.
 
-Consolidate as part of the write step when you notice overlap; do not let the file grow unbounded and rely on the digest cap to hide it.
+Consolidate as part of the write step when you notice overlap; do not let the file grow unbounded and rely on the digest cap to hide it. The SessionStart digest **skips any entry whose title ends with an `(expired)` or `(superseded …)` marker** (`hooks/load-failure-memory.js`), so a retired lesson stops being injected even before the next write deletes it — put the marker at the **end of the `###` title line** (a mid-title mention like "do not log (expired) creds" is deliberately not treated as retired) so the digest can see it.
 
 ## Failure Memory Entry Template
 
@@ -144,6 +157,7 @@ Leave the working tree clean. A run must not leave behind intermediate or proces
 - Delete any temporary scaffolding created only to verify (one-off scripts, scratch files, temp directories) before finishing. Only intentional deliverables remain: the source changes, committed tests, and recorded failure memory.
 - Distinguish throwaway artifacts (remove) from permanent assets (keep): a committed regression test suite or a documented config is an asset, not scratch.
 - Screenshots / evidence **referenced by the final report** (e.g. under `output/udflow/evidence/`) are **kept evidence artifacts**, not throwaway scaffolding to delete; create `output/udflow/evidence/.gitignore` (rule: `*` then `!.gitignore`, so the ignore file itself commits and travels) so they are never committed (the relative report links resolve only on the local working tree). They **may contain secrets / PII** (`references/browser-evidence.md`, *Data sensitivity*) — do not paste a report embedding them into a public PR / issue.
+- A **large filtered review diff** the orchestrator hands to reviewers as a file (see `references/review-packet.md`, *Changed diff (filtered)*) lives under `output/udflow/review/` — same posture as evidence: a **kept run artifact**, gitignored via its own `output/udflow/review/.gitignore` (`*` then `!.gitignore`), never committed into a distributed tool/plugin repo. It can contain source under review, so treat its distribution like the report's.
 - Do not commit the workflow's own runtime output (e.g. `FAILURE_MEMORY.md`) into a tool/library/plugin repository that gets distributed. Failure memory belongs in the project that *uses* the tool, not in the tool's own source tree; in a distributed package it is residue that ships to every user.
 
 ## Final Output Contract

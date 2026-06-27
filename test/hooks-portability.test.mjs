@@ -21,10 +21,19 @@ const HOOKS = JSON.parse(fs.readFileSync(path.join(PLUGIN, "hooks", "hooks.json"
 
 const WIRED = [
   { event: "PreToolUse", file: "plan-gate.js" },
+  { event: "PreToolUse", file: "destructive-guard.js" },
   { event: "SessionStart", file: "load-failure-memory.js" },
   { event: "Stop", file: "orchestration-check.js" },
 ];
-const cmdFor = (event) => HOOKS[event][0].hooks[0].command;
+// PreToolUse now wires two hooks (plan-gate + destructive-guard) in separate entries; resolve by file
+// when given, else fall back to the first entry (the plan-gate, which the shell behavior suite drives).
+const cmdFor = (event, file) => {
+  const entries = HOOKS[event];
+  const e = file
+    ? entries.find((en) => (en.hooks || []).some((h) => h && typeof h.command === "string" && h.command.includes("hooks/" + file)))
+    : entries[0];
+  return e.hooks[0].command;
+};
 
 const NONPLAN = JSON.stringify({ tool_name: "Bash", tool_input: { command: "echo hi" } });
 const PLANWRITE = JSON.stringify({ tool_name: "Write", permission_mode: "plan", tool_input: { file_path: "/tmp/x.txt" } });
@@ -45,7 +54,7 @@ function runVia(shell, command, input, extraEnv, cwd) {
 // (1) Static shape — the regression guard for the exact bug.
 for (const { event, file } of WIRED) {
   test(`${event} command is a portable, fail-open node -e bootstrap (${file})`, () => {
-    const c = cmdFor(event);
+    const c = cmdFor(event, file);
     assert.match(c, /^node -e /, "must launch via `node -e` so node — not the shell — resolves the path");
     assert.ok(c.includes("process.env.CLAUDE_PLUGIN_ROOT"), "must resolve the plugin root from process.env at runtime");
     assert.ok(c.includes("catch") && c.includes("process.exit(0)"), "must fail open (try/catch -> exit 0)");
@@ -105,6 +114,31 @@ else test("bash unavailable on this platform -> shell suite skipped", { skip: tr
 
 if (PWSH) shellSuite("powershell", PWSH);
 else test("powershell unavailable on this platform -> shell suite skipped", { skip: true }, () => {});
+
+// (2b) destructive-guard cross-shell behavior (item 11). Its bootstrap SHAPE is covered by the WIRED
+// static-shape loop above (resolved by file); this pins the cross-shell launch + ask + fail-open behavior,
+// the same coverage every other wired hook gets in shellSuite.
+function dguardSuite(label, shell) {
+  const env = { CLAUDE_PLUGIN_ROOT: PLUGIN };
+  const cmd = cmdFor("PreToolUse", "destructive-guard.js");
+  const MATCH = JSON.stringify({ tool_name: "Bash", tool_input: { command: "git reset --hard HEAD~3" } });
+
+  test(`[${label}] destructive-guard ASKS on a real destructive match`, () => {
+    const r = runVia(shell, cmd, MATCH, env);
+    assert.strictEqual(r.status, 0, "must launch and exit 0");
+    assert.ok(r.stdout.includes('"ask"'), "a destructive command must be surfaced for confirmation");
+  });
+
+  test(`[${label}] destructive-guard fail-open: unresolvable plugin root -> exit 0, no ask`, () => {
+    const e = { ...process.env };
+    delete e.CLAUDE_PLUGIN_ROOT; delete e.COPILOT_PLUGIN_ROOT; delete e.PLUGIN_ROOT;
+    const r = cp.spawnSync(shell, ["-c", cmd], { input: MATCH, encoding: "utf8", cwd: os.tmpdir(), env: e });
+    assert.strictEqual(r.status, 0, "an unresolvable root must fail open, not error");
+    assert.ok(!(r.stdout || "").includes('"ask"'), "fail-open must not emit an ask");
+  });
+}
+if (BASH) dguardSuite("bash", BASH);
+if (PWSH) dguardSuite("powershell", PWSH);
 
 // (3) PowerShell StrictMode regression (the 0.20.2 bug). A ${...} template token in the command is an
 // UNSET PowerShell variable; under Set-StrictMode it throws a TERMINATING error BEFORE node starts,

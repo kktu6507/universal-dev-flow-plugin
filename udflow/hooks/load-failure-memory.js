@@ -136,13 +136,22 @@ function buildDigest(content) {
   if (starts.length === 0) return null; // not structured -> caller uses buildFallback
 
   const isPlaceholder = (t) => /^<.*>$/.test(t);
+  // A retired lesson is marked at the END of its TITLE line — `(expired)` (the prerequisite behind a
+  // one-time failure is resolved) or `(superseded by …)` (a newer rule replaced it). A retired entry is
+  // neither counted nor injected, so a stale lesson stops biasing the always-on digest even before the
+  // next consolidation deletes it (see references/verification-gate.md, consolidation). The match is tight
+  // — a TRAILING paren marker only (`\)\s*$`) — so it FAILS TOWARD SHOWING: a title that merely mentions
+  // "(expired)" mid-sentence (e.g. "do not log (expired) creds") is NOT suppressed; worst case a retired
+  // entry is still shown — exactly the prior behavior, never worse.
+  const isRetired = (t) => /\((?:expired|superseded\b[^)]*)\)\s*$/i.test(t);
 
-  // Count real (non-placeholder) entries across the WHOLE file, so the omitted
+  // Count real (non-placeholder, non-retired) entries across the WHOLE file, so the omitted
   // note reflects entries actually dropped (by MAX_ENTRIES or the char cap),
-  // not skipped template placeholders.
+  // not skipped template placeholders or retired lessons.
   let realTotal = 0;
   for (let s = 0; s < starts.length; s++) {
-    if (!isPlaceholder(lines[starts[s]].replace(/^###\s+/, "").trim())) realTotal++;
+    const t = lines[starts[s]].replace(/^###\s+/, "").trim();
+    if (!isPlaceholder(t) && !isRetired(t)) realTotal++;
   }
   if (realTotal === 0) return ""; // structured but only placeholder(s) -> inject nothing
 
@@ -152,6 +161,7 @@ function buildDigest(content) {
     const endLine = (s + 1 < starts.length) ? starts[s + 1] : lines.length;
     const title = lines[startLine].replace(/^###\s+/, "").trim();
     if (isPlaceholder(title)) continue; // skip the "### <YYYY-MM-DD> — <title>" template heading
+    if (isRetired(title)) continue;     // skip entries marked (expired)/(superseded …) — retired, don't inject
     // Tags only — the prevention-rule prose is intentionally NOT pulled into the digest (read on
     // demand during planning), so repo-controlled imperative text never enters the auto-injected
     // context. The full rule still lives in the file for the model to retrieve when relevant.

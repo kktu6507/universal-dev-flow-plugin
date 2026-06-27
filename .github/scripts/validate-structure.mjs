@@ -221,6 +221,7 @@ if (fs.existsSync(path.join(root, hooksRel))) {
     });
     const WIRING = [
       { event: "PreToolUse", hook: "plan-gate.js", tokens: ["Write", "Edit", "MultiEdit", "NotebookEdit", "Bash"] },
+      { event: "PreToolUse", hook: "destructive-guard.js", tokens: ["Bash"] }, // all-modes destructive-command safety net
       { event: "SessionStart", hook: "load-failure-memory.js", tokens: ["startup", "resume", "clear", "compact"] },
       { event: "Stop", hook: "orchestration-check.js", tokens: [] }, // Stop has no matcher
     ];

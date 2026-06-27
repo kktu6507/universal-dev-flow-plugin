@@ -1349,3 +1349,235 @@ test("load-failure-memory F1: a ~/.claude/FAILURE_MEMORY.md symlinked outside ~/
   const ctx = digestOf({ cwd: mkProject(null) }, env);
   assert.ok(!ctx.includes("GLOBAL-ESCAPE-MARKER"), "a global memory symlink escaping ~/.claude must not be injected");
 });
+
+// --- destructive-guard: all-modes "ask" on unrecoverable Bash commands (item 11) ---
+
+const DGUARD = path.join(HOOKS, "destructive-guard.js");
+function dguard(input, env) {
+  let e = env;
+  if (!e) { e = { ...process.env }; delete e.CLAUDE_PROJECT_DIR; } // hermetic: ignore ambient project opt-out
+  const out = runHook(DGUARD, input, e);
+  if (!out.trim()) return "ALLOW";
+  const j = JSON.parse(out);
+  return (j.hookSpecificOutput && j.hookSpecificOutput.permissionDecision) === "ask" ? "ASK" : "ALLOW";
+}
+
+test("destructive-guard: ASKS on unrecoverable commands in ANY mode (incl. default — the gap plan-gate misses)", () => {
+  for (const command of [
+    "git reset --hard HEAD~3",
+    "git reset HEAD~1 --hard",          // flag after the ref
+    "git push --force",
+    "git push -f origin main",
+    "git push origin main --force-with-lease",
+    "rm -rf build",
+    "rm -fr ./dist",                    // -fr order
+    "ls && rm -rf node_modules",        // after a chain separator
+    "find . -name '*.tmp' -delete",
+    "dd if=/dev/zero of=/dev/sda bs=1M",// of=<real device>
+    "mkfs.ext4 /dev/sdb1",
+    "shred -u secret.key",
+  ]) {
+    assert.strictEqual(dguard({ tool_name: "Bash", permission_mode: "default", tool_input: { command } }), "ASK", `should ask: ${command}`);
+  }
+  // Fires in ALL modes — the same command in plan mode also asks (this is the post-approval gap plan-gate misses).
+  assert.strictEqual(dguard({ tool_name: "Bash", permission_mode: "plan", tool_input: { command: "git reset --hard" } }), "ASK");
+});
+
+test("destructive-guard: ALLOWS benign / recoverable / quoted commands (narrow deny-list, no FP)", () => {
+  for (const command of [
+    "git status",
+    "git push origin main",            // no force
+    "git reset --soft HEAD~1",         // soft reset is recoverable
+    "git restore --staged .",          // deferred from v1 — must NOT ask
+    "git clean -n",                    // dry-run / deferred from v1
+    "rm file.txt",                     // no -rf
+    "rm -r dir",                       // -r without -f
+    "find . -name '*.tmp'",            // no -delete
+    "dd if=disk.img of=/dev/null bs=1M",  // of=/dev/null exempt
+    "echo \"rm -rf /\"",               // quoted literal, not a real command
+    "git log --oneline -20",
+  ]) {
+    assert.strictEqual(dguard({ tool_name: "Bash", permission_mode: "default", tool_input: { command } }), "ALLOW", `should allow: ${command}`);
+  }
+});
+
+test("destructive-guard: only Bash is in scope (a Write whose content contains rm -rf is never its concern)", () => {
+  assert.strictEqual(dguard({ tool_name: "Write", permission_mode: "default", tool_input: { file_path: "/x/y.ts", content: "rm -rf /" } }), "ALLOW");
+});
+
+test("destructive-guard: project opt-out udflow.destructiveGuard=false allows", () => {
+  const dir = mkProjectWithSettings({ udflow: { destructiveGuard: false } });
+  const env = { ...process.env, CLAUDE_PROJECT_DIR: dir };
+  assert.strictEqual(dguard({ tool_name: "Bash", permission_mode: "default", tool_input: { command: "git reset --hard" } }, env), "ALLOW");
+});
+
+test("destructive-guard: settings.local.json opt-out overrides settings.json", () => {
+  const dir = mkProjectWithSettings({ udflow: { destructiveGuard: true } });
+  fs.writeFileSync(path.join(dir, ".claude", "settings.local.json"), JSON.stringify({ udflow: { destructiveGuard: false } }), "utf8");
+  const env = { ...process.env, CLAUDE_PROJECT_DIR: dir };
+  assert.strictEqual(dguard({ tool_name: "Bash", permission_mode: "default", tool_input: { command: "rm -rf x" } }, env), "ALLOW", "local override must take precedence");
+});
+
+test("destructive-guard: malformed project settings fail safe to ASK (a broken file never drops the net on a match)", () => {
+  const dir = mkProjectWithSettings("{ not: valid json ");
+  const env = { ...process.env, CLAUDE_PROJECT_DIR: dir };
+  assert.strictEqual(dguard({ tool_name: "Bash", permission_mode: "default", tool_input: { command: "git reset --hard" } }, env), "ASK", "broken settings must fail-closed-to-ask on a matched command");
+});
+
+test("destructive-guard: malformed stdin fails open (no ask, no crash)", () => {
+  const out = cp.execFileSync("node", [DGUARD], { input: "not json {{{" }).toString();
+  assert.strictEqual(out.trim(), "", "unparseable input -> fail open (allow), never crash");
+});
+
+test("destructive-guard: oversized stdin fails open (allow)", () => {
+  const big = "x".repeat(6 * 1024 * 1024);
+  const input = JSON.stringify({ tool_name: "Bash", tool_input: { command: "rm -rf x #" + big } });
+  const r = cp.spawnSync("node", [DGUARD], { input, maxBuffer: 64 * 1024 * 1024 });
+  assert.strictEqual((r.stdout || "").toString().includes('"ask"'), false, "over-cap stdin must fail open, not ask");
+});
+
+// --- orchestration-check: opt-in hard enforcement UDFLOW_ENFORCE_STOP (item 9) ---
+
+function orchEnv(input, env) {
+  const out = cp.execFileSync("node", [ORCH], { input: JSON.stringify(input), env: { ...process.env, ...env } }).toString();
+  return out.trim() ? JSON.parse(out) : null;
+}
+// A blocking gatekeeper verdict + a final that ships with the explicit delivery sentinel.
+const GK_SHIP = [...GK_NOT_READY,
+  { role: "assistant", content: "The change is complete and ready to ship.\nudflow:delivery=shipped" }];
+
+test("enforce ON: blocking verdict + udflow:delivery=shipped => decision:block with a disengage reason", () => {
+  const r = orchEnv({ transcript_path: mkTranscript(GK_SHIP) }, { UDFLOW_ENFORCE_STOP: "1" });
+  assert.ok(r && r.decision === "block", "must hard-block when enforce is on and the shipped sentinel + blocking verdict are present");
+  assert.ok(/udflow:delivery=held|UDFLOW_ENFORCE_STOP|READY/.test(r.reason || ""), "the block reason must say how to disengage");
+});
+
+test("enforce OFF (default): the SAME transcript stays advisory, never blocks (default is byte-identical)", () => {
+  const r = orch({ transcript_path: mkTranscript(GK_SHIP) }); // no env -> default
+  assert.ok(r && /gatekeeper's last verdict was 'NOT READY'/.test(r.systemMessage), "default still warns (advisory)");
+  assert.ok(!r.decision, "the default path must NOT block — enforcement is strictly opt-in");
+});
+
+test("enforce ON + prose-only ship (NO delivery=shipped sentinel) => advisory, never blocks", () => {
+  const tp = mkTranscript([...GK_NOT_READY,
+    { role: "assistant", content: "The gatekeeper said NOT READY, but it's ready to ship anyway." }]);
+  const r = orchEnv({ transcript_path: tp }, { UDFLOW_ENFORCE_STOP: "1" });
+  assert.ok(r && /gatekeeper's last verdict/.test(r.systemMessage), "prose ship still warns");
+  assert.ok(!r.decision, "prose-only ship must NEVER block — only the explicit sentinel can");
+});
+
+test("enforce ON + udflow:delivery=held => silent, never blocks (the one-token escape)", () => {
+  const tp = mkTranscript([...GK_NOT_READY,
+    { role: "assistant", content: "Holding for now. udflow:delivery=held" }]);
+  const r = orchEnv({ transcript_path: tp }, { UDFLOW_ENFORCE_STOP: "1" });
+  assert.strictEqual(r, null, "an honest held sentinel must silence even under enforcement");
+});
+
+test("enforce ON + stop_hook_active (re-entry) => advisory, never blocks again (loop-trap guard)", () => {
+  const r = orchEnv({ transcript_path: mkTranscript(GK_SHIP), stop_hook_active: true }, { UDFLOW_ENFORCE_STOP: "1" });
+  assert.ok(r && /gatekeeper's last verdict/.test(r.systemMessage), "still warns");
+  assert.ok(!r.decision, "must not block once already re-entered from a prior block");
+});
+
+test("enforce ON + READY/no-panel (no blocking verdict) => only the panel advisory, never blocks", () => {
+  const tp = mkTranscript([
+    { role: "assistant", content: "Final verdict: READY — readiness confirmed.\nudflow:delivery=shipped" },
+  ]);
+  const r = orchEnv({ transcript_path: tp }, { UDFLOW_ENFORCE_STOP: "1" });
+  assert.ok(r && /none of the core review panel/.test(r.systemMessage), "the panel advisory still fires");
+  assert.ok(!r.decision, "only the verdict-not-honored signal can ever block, never the panel check");
+});
+
+// --- load-failure-memory: retired-entry digest skip (item 7) ---
+
+test("load-failure-memory: digest skips entries whose title is marked (expired)/(superseded …)", () => {
+  const mem = `# FM
+
+### 2026-06-25 — active newer
+- **Tags**: a.
+
+### 2026-06-20 — resolved env failure (expired)
+- **Tags**: b.
+
+### 2026-06-18 — old rule (superseded by 2026-06-25)
+- **Tags**: c.
+
+### 2026-06-10 — older active
+- **Tags**: d.
+`;
+  const ctx = digestOf({ cwd: mkProject(mem) });
+  assert.ok(ctx.includes("active newer"), "an active entry is injected");
+  assert.ok(ctx.includes("older active"), "an active older entry takes the freed slot");
+  assert.ok(!ctx.includes("resolved env failure"), "an (expired) entry is not injected");
+  assert.ok(!ctx.includes("old rule"), "a (superseded …) entry is not injected");
+  assert.ok(!/older entries omitted/.test(ctx), "retired entries are not counted as omitted");
+});
+
+test("load-failure-memory: a title that merely discusses expiry (no paren marker) is still injected (fails toward showing)", () => {
+  const ctx = digestOf({ cwd: mkProject("# FM\n\n### 2026-06-25 — handle expired tokens correctly\n- **Tags**: auth.\n") });
+  assert.ok(ctx.includes("handle expired tokens"), "the word 'expired' without a paren marker must NOT suppress the entry");
+});
+
+test("load-failure-memory: a MID-title (expired)/(superseded) mention is NOT retired — only a trailing marker is", () => {
+  // The marker is anchored to the end of the title (\)\s*$), so a legitimate lesson whose title contains
+  // a parenthetical mid-sentence must still be injected (the security-review false-drop case).
+  const ctx = digestOf({ cwd: mkProject("# FM\n\n### 2026-06-25 — do not log (expired) creds in plaintext\n- **Tags**: sec.\n") });
+  assert.ok(ctx.includes("do not log (expired) creds"), "a mid-title parenthetical must NOT retire the entry — only a trailing marker does");
+});
+
+test("load-failure-memory: the NEWEST entry being retired doesn't break the digest (next active becomes effective newest)", () => {
+  const mem = "# FM\n\n### 2026-06-26 — newest but retired (expired)\n- **Tags**: a.\n\n### 2026-06-25 — active A\n- **Tags**: b.\n\n### 2026-06-20 — active B\n- **Tags**: c.\n";
+  const ctx = digestOf({ cwd: mkProject(mem) });
+  assert.ok(!ctx.includes("newest but retired"), "a retired newest entry is skipped");
+  assert.ok(ctx.includes("active A") && ctx.includes("active B"), "both active entries surface; the digest is not empty");
+  assert.ok(!/older entries omitted/.test(ctx), "retired newest is not counted as omitted");
+});
+
+test("load-failure-memory: retired entries do not inflate the omitted count", () => {
+  // 21 active + 2 retired. MAX_ENTRIES=20 keeps 20 active; omitted = 21 active - 20 = 1 (the 2 retired are
+  // neither counted nor injected). A regression that counted retired entries would report "3 older … omitted".
+  let mem = "# FM\n\n### 2026-06-30 — retired one (expired)\n- **Tags**: r.\n\n";
+  for (let i = 1; i <= 21; i++) mem += `### d${i} — active ${i}\n- **Tags**: t.\n\n`;
+  mem += "### 2026-06-01 — retired two (superseded by d1)\n- **Tags**: r.\n";
+  const ctx = digestOf({ cwd: mkProject(mem) });
+  assert.strictEqual((ctx.match(/— active \d+/g) || []).length, 20, "keeps MAX_ENTRIES=20 active entries");
+  assert.ok(/\(1 older entries omitted/.test(ctx), "omitted count = 21 active - 20; retired entries are not counted");
+  assert.ok(!ctx.includes("retired one") && !ctx.includes("retired two"), "neither retired entry is injected");
+});
+
+test("destructive-guard: separated rm flags (rm -r -f) are a documented miss → ALLOW (intentional, conservative)", () => {
+  // Only combined -rf/-fr is caught; separated flags are deliberately not, to avoid the false-positive
+  // tightening the pragmatism axiom rejects. Locking this makes a future tightening a conscious change.
+  assert.strictEqual(dguard({ tool_name: "Bash", permission_mode: "default", tool_input: { command: "rm -r -f build" } }), "ALLOW", "rm -r -f is a documented miss (separated flags)");
+});
+
+test("destructive-guard: git push --force-fast (a non-flag) does NOT false-ask, but --force / --force-with-lease still do", () => {
+  // The --force(?![\w-]) tighten removes the false-ask on a hypothetical --force-<suffix> while keeping
+  // the two real force flags via their own alternation branches.
+  assert.strictEqual(dguard({ tool_name: "Bash", permission_mode: "default", tool_input: { command: "git push --force-fast origin main" } }), "ALLOW", "a non-existent --force-<suffix> flag must not false-ask");
+  assert.strictEqual(dguard({ tool_name: "Bash", permission_mode: "default", tool_input: { command: "git push --force" } }), "ASK", "real --force still asks");
+  assert.strictEqual(dguard({ tool_name: "Bash", permission_mode: "default", tool_input: { command: "git push --force-with-lease" } }), "ASK", "real --force-with-lease still asks");
+});
+
+test("enforce ON: FIX REQUIRED + delivery=shipped also blocks (the verdict set, not just NOT READY)", () => {
+  const tp = mkTranscript([
+    { role: "assistant", content: [{ type: "tool_use", id: "g2", name: "Task", input: { subagent_type: "udflow:gatekeeper" } }] },
+    { role: "user", content: [{ type: "tool_result", tool_use_id: "g2", content: "Final verdict: FIX REQUIRED — add an edge test." }] },
+    { role: "assistant", content: "Shipping anyway.\nudflow:delivery=shipped" },
+  ]);
+  const r = orchEnv({ transcript_path: tp }, { UDFLOW_ENFORCE_STOP: "1" });
+  assert.ok(r && r.decision === "block", "FIX REQUIRED + shipped must also hard-block under enforcement");
+  assert.ok(/FIX REQUIRED/.test(r.reason || ""), "the block reason names the actual verdict");
+});
+
+test("enforce flag truthiness: UDFLOW_ENFORCE_STOP=0 stays advisory (regex must not accept any non-empty value)", () => {
+  const r = orchEnv({ transcript_path: mkTranscript(GK_SHIP) }, { UDFLOW_ENFORCE_STOP: "0" });
+  assert.ok(r && /gatekeeper's last verdict/.test(r.systemMessage), "0 stays advisory");
+  assert.ok(!r.decision, "UDFLOW_ENFORCE_STOP=0 must NOT enable blocking (regex is 1|true|yes|on only)");
+});
+
+test("enforce ON + stopHookActive (camelCase alias) => advisory, never blocks (loop-trap guard covers both keys)", () => {
+  const r = orchEnv({ transcript_path: mkTranscript(GK_SHIP), stopHookActive: true }, { UDFLOW_ENFORCE_STOP: "1" });
+  assert.ok(r && /gatekeeper's last verdict/.test(r.systemMessage), "still warns");
+  assert.ok(!r.decision, "the camelCase stopHookActive re-entry flag must also suppress the block");
+});

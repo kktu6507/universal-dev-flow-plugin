@@ -10,8 +10,12 @@
 //      check failed or never ran, yet the session is delivering. The command exit status is
 //      authority over reviewer prose — a red/unrun required check must gate delivery. Fires ONLY
 //      on the explicit sentinel (no prose inference), mirroring advisory 1's delivery-sentinel path.
-// A Stop hook can only advise (systemMessage), never block. Always exit 0, never crash. If the
-// transcript can't be parsed (format differs), it does nothing — absence equals prior behavior.
+// A Stop hook is ADVISORY by default (systemMessage, never blocks) — the pragmatism default, so a
+// false positive can never trap the user. An explicit opt-in (UDFLOW_ENFORCE_STOP) upgrades ONLY the
+// highest-confidence, fully sentinel-based signal (a real id-bound gatekeeper blocking verdict AND an
+// explicit udflow:delivery=shipped) to a Stop block; every other path stays advisory. Always exit 0,
+// never crash. If the transcript can't be parsed (format differs), it does nothing — absence equals
+// prior behavior.
 // Provenance is structured AND tool-bound: panel presence is read only from real `Task` invocations,
 // and the gatekeeper verdict only from a gatekeeper Task's own tool_result — never from free prose, a
 // non-Task tool_use that merely contains "subagent_type:", or an unrelated tool_result that merely
@@ -22,6 +26,13 @@ const path = require("path");
 
 const REQUIRED = ["spec-reviewer", "test-reviewer", "gatekeeper"];
 const MAX_TRANSCRIPT = 32 * 1024 * 1024; // cap the synchronous transcript read; fail-open (skip) above it
+
+// Opt-in HARD enforcement (default OFF). When UDFLOW_ENFORCE_STOP is truthy, the single highest-
+// confidence, fully sentinel-based signal — a real id-bound gatekeeper blocking verdict AND an explicit
+// udflow:delivery=shipped — is upgraded from advisory to a Stop BLOCK. Everything else stays advisory.
+// Never blocks on prose, ambiguity, the verify sentinel, the panel check, or an absent transcript. The
+// model always controls a one-token escape (emit udflow:delivery=held). Trap-risk + disengage: README.
+const ENFORCE = /^(1|true|yes|on)$/i.test(String(process.env.UDFLOW_ENFORCE_STOP || ""));
 
 function debug(msg) {
   if (!process.env.UDFLOW_HOOK_DEBUG) return;
@@ -273,6 +284,19 @@ process.stdin.on("end", () => {
         "ending as if the work were complete/ready. A " + verdict + " verdict must gate delivery — " +
         "either continue the repair loop until the gatekeeper returns READY, or report the block " +
         "(what remains unresolved and why) instead of claiming done. Do not override the verdict silently.";
+      // HARD enforce ONLY when: opted in, NOT re-entered from a prior block (loop-trap guard), and the
+      // delivery decision is the EXPLICIT sentinel udflow:delivery=shipped (never the prose fallback).
+      // This is strictly narrower than sessionDelivers: a prose-only "ship" can warn but NEVER blocks,
+      // and an honest udflow:delivery=held (finalDelivery !== "shipped") is the model's one-token escape.
+      const stopActive = input.stop_hook_active === true || input.stopHookActive === true;
+      if (ENFORCE && !stopActive && finalDelivery === "shipped") {
+        return process.stdout.write(JSON.stringify({
+          decision: "block",
+          reason: msg + " (udflow hard-enforce: UDFLOW_ENFORCE_STOP is set. To proceed, get the " +
+            "gatekeeper to READY, or emit udflow:delivery=held to hold honestly, or unset " +
+            "UDFLOW_ENFORCE_STOP.)"
+        }), () => process.exit(0));
+      }
       return process.stdout.write(JSON.stringify({ systemMessage: msg }), () => process.exit(0));
     }
 
