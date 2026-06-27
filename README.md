@@ -96,10 +96,11 @@ Key disciplines:
 
 ---
 
-## The 9 subagents
+## The 10 subagents
 
 | Agent | Role | When it's added | Model |
 |---|---|---|---|
+| `planner-creator` | grounds the plan in real code, drafts the approach, pre-selects the panel, detects `design.md` (read-only; feeds plan approval, never replaces it) | planning | inherit |
 | `implementer` | smallest safe change; never self-certifies | after plan approval | inherit |
 | `spec-reviewer` | requirement / business-rule / contract fidelity | core (non-trivial) | inherit |
 | `test-reviewer` | missing tests, weak verification, edges, regressions | core (non-trivial) | inherit |
@@ -107,7 +108,7 @@ Key disciplines:
 | `security-reviewer` | auth/authz, input handling, secrets, trust boundaries | security-relevant risk | **opus** |
 | `architecture-reviewer` | layering, boundaries, dependency direction, placement | structural concerns | inherit |
 | `operability-reviewer` | observability, retries/timeouts, deploy, rollback | runtime/prod impact | inherit |
-| `ui-ux-reviewer` | usability, interaction, layout, states, accessibility | UI impact | inherit |
+| `ui-ux-reviewer` | usability, interaction, layout, states, accessibility; consistency vs `design.md` when present | UI impact | inherit |
 | `gatekeeper` | aggregates, re-rates by impact, decides readiness | after reviewers finish | **opus** |
 
 - **Reviewers are read-only by role** — `Read` / `Grep` / `Glob` / `Bash` (inspection only), **no** editor tools.
@@ -196,7 +197,7 @@ Two very different numbers — ballparks from our own runs (orders of magnitude,
 
 ## Compatibility
 
-udflow targets **Claude Code**; its **subagents** and **skills** also load under **GitHub Copilot CLI** (live-verified 1.0.65, 2026-06-26 — `plugin list`, `skill list`, all 9 subagents enumerated, both hooks observed firing). Cross-harness loading is derived from each tool's documented plugin format.
+udflow targets **Claude Code**; its **subagents** and **skills** also load under **GitHub Copilot CLI** (live-verified 1.0.65, 2026-06-26 — `plugin list`, `skill list`, all subagents enumerated, both hooks observed firing). Cross-harness loading is derived from each tool's documented plugin format.
 
 **Claude-Code-only** (degrade gracefully elsewhere — never an error):
 

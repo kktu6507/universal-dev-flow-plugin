@@ -17,6 +17,7 @@ Use a Review Packet before handing work to any reviewer. The packet is the revie
 - Reviewer scope: exact question each selected reviewer should answer.
 - Context exclusions: stale decisions, abandoned approaches, or old logs that reviewers should not treat as current.
 - External-capability notes: which optional MCP/skills/subagents were used or were unavailable, and any resulting verification gaps.
+- Design contract (`design.md`): for UI scope, the **path** to the project's `design.md` when one exists (a pointer, not re-pasted content — `references/design-spec.md`), so `ui-ux-reviewer` judges consistency against it; "none" when absent.
 
 On high-risk work where the plan-grounding step ran (`references/plan-grounding.md`), populate the Acceptance criteria and Reviewer scope from its **sharpened contract**, and seed Verification evidence / expected tests from its **implied edge checklist**. This contract-level intent is the dominant recall lever (see `references/reviewer-selection.md`, *Recall vs precision*), so carry it into the packet rather than re-deriving a vaguer version.
 
@@ -52,6 +53,8 @@ Reviewer scope:
 Context exclusions:
 
 External-capability notes:
+
+Design contract (design.md path, or "none"):
 
 Shared reviewer contract:
 - Report findings as `blocker` / `major` / `minor`; do NOT emit a PASS/CONCERNS/BLOCK verdict — only `gatekeeper` issues `READY` / `FIX REQUIRED` / `NOT READY`.
