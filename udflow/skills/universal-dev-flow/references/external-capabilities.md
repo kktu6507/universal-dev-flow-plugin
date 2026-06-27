@@ -34,6 +34,8 @@ Never hard-depend on a plan-mode entry tool and never claim "always enforces rea
 
 MCP is high context cost, so it ships disabled. The plugin's `.mcp.json` has no active servers; each reviewer's `tools:` has its `mcp__*` allowlist line commented out. To enable: add the server to `.mcp.json` (see `mcp.example.json`), then uncomment the matching `mcp__*` line in the reviewer's frontmatter. Keep reviewers read-only — only grant read-type MCP tools.
 
+**Don't hand-author the server entry — copy it.** Each `mcpServers` entry's `{command, args}` comes from the MCP server's own README/repo (the official list is `github.com/modelcontextprotocol/servers`), not from guessing: pick the published `command` (`npx` for npm servers, `uvx`/`pipx` for Python ones), pin the version from its npm/PyPI page, and put any token in an `env` block — never commit a real secret. `mcp.example.json` annotates every field (`_anatomy` / `_whereToGetValues` / `_secrets`). The JSON key is the server name and sets the `mcp__<name>__*` prefix, so it must match the line you uncomment.
+
 **Prefer specific tool names over a `mcp__<server>__*` wildcard.** The wildcard grants *every* tool that server exposes — including any mutating ones (e.g. a GitHub MCP's create-PR / comment / merge tools), which silently breaks the read-only contract. For a server that has write tools, list only the read tools the reviewer needs (e.g. `mcp__github__get_pull_request`, `mcp__github__get_pull_request_diff`) instead of `mcp__github__*`.
 
 Suggested mapping (all read-only):

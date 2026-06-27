@@ -3,6 +3,17 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.25.2]
+
+Document **how to fill in a `.mcp.json` server entry**. The per-reviewer MCP seam shipped with a bare `{command, args}` template and no explanation of what each field means or where the values come from — so enabling any server (or adding a new one) was guesswork. Doc only — **no code, no hook, no machine-token change**.
+
+### Changed
+- **`mcp.example.json` is now self-documenting.** Adds `_anatomy` (what `command`/`args` mean — `npx` for npm servers, `uvx`/`pipx` for Python ones, the `-y` flag, the pinned `@scope/pkg@x.y.z`), `_whereToGetValues` (copy the snippet from the server's own README / `github.com/modelcontextprotocol/servers`, pin the version from npm/PyPI — don't invent it), and `_secrets` (tokens go in an `env` block, never in `args`; `.mcp.json` is committed so never hardcode a real secret). The existing Python-not-npm caveat is folded into `_whereToGetValues`.
+- **`references/external-capabilities.md` (MCP per reviewer) gains a "don't hand-author — copy it" paragraph** pointing at the official server list and the annotated template, and restating that the JSON key sets the `mcp__<name>__*` prefix (so it must match the uncommented allowlist line) and that secrets belong in `env`.
+
+### Notes
+- Pure documentation: the per-reviewer MCP mechanism, defaults (ships disabled), and reviewer read-only/isolation contract are unchanged. The three hooks, the `udflow:verify=` / `udflow:delivery=` sentinels, and the verdict/severity literals are byte-identical. `node --test`, `node .github/scripts/validate-structure.mjs`, and `claude plugin validate .` / `./udflow` green.
+
 ## [0.25.1]
 
 Harden the **`--deep` + UI live-browser-evidence** rule so a *reachable* browser capability can no longer be silently skipped. Real-world dogfooding surfaced a gatekeeper that, with the Claude-in-Chrome capability connected and `--deep` engaged, downgraded the **required** live drive to a disclosed gap by **inferring** a user self-verification consent the user never gave (and citing reviewers' CSS/markup inference as a substitute). The contract already required the drive when the capability is *available*; this release makes "available-but-skipped" an explicit **unrun required check**, not a valid gap. Doc/contract only — **no new hook, no runtime code, no machine-token change**.
