@@ -56,6 +56,7 @@ Driving a **real, authenticated** browser is a sensitive capability — treat it
 ## Invariants
 
 - Never a hard dependency: no browser capability → disclose and continue; never error.
+- **Available means mandatory in `--deep` + UI.** When a live browser capability is detected and reachable (a connected tab is present), the live drive is a required step you must actually run — it may be downgraded to a disclosed gap **only** when the capability is genuinely *unavailable* (Detect failed, or detected-but-could-not-execute with the recorded reason, per `references/external-capabilities.md`). You may **not** skip a runnable live drive by assuming the user will self-verify, or by letting reviewers infer visual correctness from CSS/markup — neither establishes the rendered result, and "the user will verify" is a `deferred` status that requires the user's explicit, verbatim-recorded consent (see `agents/gatekeeper.agent.md`), never an inferred one.
 - This drives a real authenticated browser and stores screenshots — treat the session reads and the captured images as **sensitive** (see *Data sensitivity* above); never paste sensitive evidence into a public report.
 - Reviewers stay read-only and isolated; only the main thread drives the browser.
 - Vision cost stays in `--deep` / `--report full`; the compact path is text-only.

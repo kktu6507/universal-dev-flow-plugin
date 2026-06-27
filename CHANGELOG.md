@@ -3,6 +3,19 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.25.1]
+
+Harden the **`--deep` + UI live-browser-evidence** rule so a *reachable* browser capability can no longer be silently skipped. Real-world dogfooding surfaced a gatekeeper that, with the Claude-in-Chrome capability connected and `--deep` engaged, downgraded the **required** live drive to a disclosed gap by **inferring** a user self-verification consent the user never gave (and citing reviewers' CSS/markup inference as a substitute). The contract already required the drive when the capability is *available*; this release makes "available-but-skipped" an explicit **unrun required check**, not a valid gap. Doc/contract only — **no new hook, no runtime code, no machine-token change**.
+
+### Changed
+- **`agents/gatekeeper.agent.md` (UI-specific rules) splits the live-browser-drive verdict.** The existing line now reads "an **unavailable** live browser drive is a disclosed gap"; a new line states that in `--deep` + UI, when a live browser capability **is detected and reachable** (e.g. `list_connected_browsers` shows a connected tab), the drive is mandatory and may **not** be downgraded to a disclosed/`deferred` gap on the basis of (a) an assumed user self-verification or (b) reviewers inferring visual correctness from CSS/markup. A skipped-while-available drive is an **unrun required check** (command-evidence authority), so `READY` is withheld until it actually runs; `deferred` is legitimate **only** with the user's explicit, verbatim-recorded consent — never inferred.
+- **`references/browser-evidence.md` (Invariants) gains the matching "Available means mandatory" invariant**, so the rule lives where the live-drive protocol is defined as well as where the gatekeeper enforces it. Downgrade to a disclosed gap is permitted **only** when the capability is genuinely unavailable (Detect failed, or detected-but-could-not-execute with the recorded reason, per `references/external-capabilities.md`).
+
+### Notes
+- **Standard mode is unchanged** — browser evidence stays best-effort; an absent capability is still a documented gap, never a hard stop. The hardening targets only the `--deep` + UI *required* path when the capability is reachable.
+- Verified live: drove `mcp__Claude_in_Chrome__*` against a local app (navigate → exercise changed states → screenshot → read console/network) — the exact flow the gatekeeper had skipped.
+- ask-only / best-effort posture and zero-standing-dependency stance unchanged; the three hooks, the `udflow:verify=` / `udflow:delivery=` sentinels, and the verdict/severity literals are byte-identical. `node --test`, `node .github/scripts/validate-structure.mjs`, and `claude plugin validate .` / `./udflow` green.
+
 ## [0.25.0]
 
 Add a **`--deep` (Tier-2) app-launch step**: when verification needs a live process (web app or backend/API) that isn't already running, udflow now **brings the app up itself** instead of only attaching to one — then drives the existing browser-evidence / verification steps. Closes the previously-documented gap where udflow assumed the app was already running. Doc/contract only — **no new hook, no runtime code, no machine-token change**.
