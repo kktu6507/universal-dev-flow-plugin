@@ -92,6 +92,7 @@ Key disciplines:
 - **Acceptance criteria** — the deepest signal isn't "no bugs", it's *did what you asked, and confirmed it*; an unmet, non-deferred criterion blocks `READY`.
 - **Verification sentinels** — substantial runs end with one final report + machine-readable `udflow:verify=pass|fail|unrun|na` and `udflow:delivery=held|shipped` (read by the Stop hook).
 - **Failure memory** — past lessons in `ai/FAILURE_MEMORY.md` (project) / `~/.claude/FAILURE_MEMORY.md` (global); a **title+tags digest** is injected at session start (retire an entry by ending its `###` title with `(expired)` / `(superseded …)`). Prevention-rule prose is read on demand, not injected.
+- **Design contract** — for UI work, the project's design language lives in a committed `design.md` that `ui-ux-reviewer` judges consistency against (citing the violated token/section) instead of re-inferring it each run; `planner-creator` detects it and can bootstrap one from an existing UI. A hard accessibility safety floor overrides it; `ui-ux-pro-max` feeds net-new patterns into it.
 - **Deep mode** — **Tier 1** (auto on high-risk, Workflow-capable sessions): run the *same* panel + gatekeeper as a deterministic graph so it actually runs in order (≈ normal cost; opt out `--no-deep`). **Tier 2** (`--deep`): adversarial verification of blocker/major + max effort + required live-browser evidence for UI. When a needed live process (web app or backend/API) isn't running, Tier 2 also **brings the app up** — delegating to the built-in `/run` skill, then tearing down only what it started (auto + disclosed; never in standard mode). Depth, not more reviewers.
 
 ---
@@ -169,6 +170,7 @@ Everything is **off / risk-proportional by default** — you only opt in.
 | Per-reviewer MCP (`udflow/.mcp.json`; template `mcp.example.json`) | read-only MCP tools for a reviewer | off (empty `.mcp.json`) |
 | Codex | cross-model second opinion / rescue pass (data egress to the external model) | off (opt-in) |
 | `ui-ux-pro-max` skill | design intelligence for UI; **required consult** for design-system / design-generation scope (else disclosed fallback) | used if installed |
+| `design.md` (project design contract) | the project's design language as a committed contract; `ui-ux-reviewer` judges UI consistency against it; `planner-creator` detects/recommends it and can bootstrap one from an existing UI | used if present (else baseline) |
 | Claude in Chrome (`mcp__Claude_in_Chrome__*`; alt `mcp__Claude_Preview__*` / `mcp__playwright__*`) | live browser evidence; required in `--deep` + UI. **Drives your real authenticated browser** — may expose secrets/PII; prefer a non-prod target | used if connected |
 | `/run` skill (sibling) | in `--deep`, starts the app (web or backend/API) for verification when it isn't already running; udflow delegates here instead of hardcoding launch commands, and tears down only what it started | used if available |
 | `output/udflow/` (consuming project) | kept run artifacts: `evidence/` screenshots, `review/diff.patch`, `progress.md` ledger — recommend you `.gitignore` it | created on demand |
@@ -197,7 +199,7 @@ Two very different numbers — ballparks from our own runs (orders of magnitude,
 
 ## Compatibility
 
-udflow targets **Claude Code**; its **subagents** and **skills** also load under **GitHub Copilot CLI** (live-verified 1.0.65, 2026-06-26 — `plugin list`, `skill list`, all subagents enumerated, both hooks observed firing). Cross-harness loading is derived from each tool's documented plugin format.
+udflow targets **Claude Code**; its **subagents** and **skills** also load under **GitHub Copilot CLI** (live-verified 1.0.65, 2026-06-26 — `plugin list`, `skill list`, all subagents enumerated, all four hooks observed firing). Cross-harness loading is derived from each tool's documented plugin format.
 
 **Claude-Code-only** (degrade gracefully elsewhere — never an error):
 

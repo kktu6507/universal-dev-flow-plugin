@@ -3,6 +3,19 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.26.1]
+
+Bring **README** up to date with the repo's current state. Docs only — no code, no hook, no machine-token change.
+
+### Fixed
+- **Stale hook count.** The Compatibility section said "both hooks observed firing" while the Hooks section says "Four Node hooks" (and all four fire under Copilot CLI 1.0.65, per the live verification) — corrected to "all four hooks" (EN + zh-TW).
+
+### Changed
+- **`design.md` is now documented** (it had landed in 0.25.3 / 0.26.0 but appeared only in two table cells): added a `design.md` row to the *Optional external capabilities* table and a *Design contract* bullet under *How it works* (the committed design-language contract `ui-ux-reviewer` judges UI consistency against, that `planner-creator` can bootstrap from an existing UI, with the safety-floor / `ui-ux-pro-max` relationship) — EN ↔ zh-TW parity.
+
+### Notes
+- README-only. `node --test`, `node .github/scripts/validate-structure.mjs` (incl. README parity), and `claude plugin validate .` / `./udflow` green.
+
 ## [0.26.0]
 
 **Phase 2 of the `design.md` feature: generate the contract *from an existing UI*.** Phase 1 (0.25.3) shipped the consume path — judge against a `design.md` when one exists. This makes establishing one concrete: extract a descriptive `design.md` from the project's real design sources so a repo with an existing UI but no contract can bootstrap one. Doc/contract only — **no new agent, no new hook, no runtime code, no machine-token change**. Token economy stays the existing model (vision gated to `--deep` / `--report full`; the orchestrator drafts once, the `implementer` writes once) — **no new saving scheme**.
