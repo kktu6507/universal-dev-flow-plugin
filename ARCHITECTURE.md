@@ -107,6 +107,14 @@ are the higher-risk, less-defended edges** — the rest of this section names th
   open in a user's session the maintainer never learns of it (the `compact-fidelity` bug was
   invisible until a manual smoke). *Mitigated (opt-in): `/udflow:doctor` runs a local, on-demand
   self-check of the hooks + environment and prints a paste-able health report — not telemetry.*
+- **Verdict stability — high on clear signals, variable on ambiguity.** The deterministic anchors
+  (command exit status, acceptance-criteria-met) pin the verdict regardless of LLM sampling. The judgment
+  layer *is* non-deterministic, but a same-input stability run (`eval/`, K=5 runs × 7 clear-cut fixtures,
+  2026-06-28, on `claude-opus-4-8`) was **35/35 consistent, 0 flips** — clear-cut defects and clean
+  controls reproduce run-to-run. Those fixtures are *deliberately unambiguous*, though; genuinely
+  *ambiguous / subtle* cases DO vary (the real-world benchmark saw a reviewer flip on a subtle soundness
+  bug). So anchor release confidence on the deterministic checks; treat a single judgment-layer `READY` as
+  advisory, not proof — re-running converges on clear cases, less so on borderline ones.
 - **Recall scales with intent, not effort.** With no/weak intent the lone-reviewer floor is low
   (~30% bug-blind); recall rises only when the Review Packet carries contract-level intent. The
   near-zero false-positive rate is the robust strength; exhaustive recall is not the claim.

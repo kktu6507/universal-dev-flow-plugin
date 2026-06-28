@@ -33,6 +33,14 @@ real-world numbers + caveats live in `EVIDENCE.md`). After a reviewer/agent prom
 compare: a **clear, repeated** drop in hit recall, or **any** false positive on a `clean` control, is a
 regression to investigate before merging. Expect minor run-to-run variance (the core is non-deterministic).
 
+## Stability (same-input variance)
+
+A same-input run — each fixture reviewed **K=5** times (blind), 2026-06-28, `claude-opus-4-8` — was
+**35/35 consistent, 0 flips** (every fixture returned its expected result on all 5 runs). Caveat: these
+fixtures are *deliberately clear-cut*, so this measures the **best-case** stability — genuinely
+ambiguous/subtle cases vary more (see `ARCHITECTURE.md`, *Verdict stability*). The verdict's deterministic
+anchors (test exit status, acceptance criteria) are what to lean on; the judgment layer is advisory.
+
 ## How to re-run
 
 Drive [`fixture-eval.workflow.js`](fixture-eval.workflow.js) via the Workflow tool (it reads each

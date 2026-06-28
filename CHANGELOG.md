@@ -3,6 +3,17 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.27.9]
+
+Two architect-review follow-ups: a footgun guard for the run-artifacts directory (item D), and a verdict-stability measurement recorded honestly (item C).
+
+### Changed
+- **`output/udflow/` now self-protects (item D)** — `references/verification-gate.md` Artifact Hygiene: the first time a run writes under `output/udflow/`, it creates a **top-level `output/udflow/.gitignore`** (`*` then `!.gitignore`) that ignores the **whole** artifacts tree in one place — so a user can never accidentally commit run residue or a screenshot carrying secrets/PII (the per-subdir `.gitignore`s are subsumed). It also surfaces a one-line **hygiene warning** in the report if the dir holds artifacts but isn't ignored. README (EN + zh-TW) `output/udflow/` row updated from "recommend you `.gitignore` it" to the auto-protection.
+
+### Notes
+- **Verdict-stability measured (item C) — characterization, no behavior change.** A same-input stability run over the committed `eval/` fixtures (K=5 runs × 7 clear-cut cases, blind `udflow:code-reviewer` + independent judge, on `claude-opus-4-8`) was **35/35 consistent, 0 flips** — clear-cut defects and clean controls are reproducible run-to-run. Honest caveat recorded in `ARCHITECTURE.md` + `eval/baseline.md`: the fixtures are *deliberately unambiguous*, so this is high-stability on clear signals — variance still lives in genuinely *ambiguous* judgment (where the real-world benchmark saw flips); anchor release confidence on the deterministic checks (exit status, acceptance criteria), treat a single judgment-layer `READY` as advisory.
+- A shipped reference changed, so version bumped 0.27.8 → 0.27.9 across `plugin.json`, `package.json`, `marketplace.json` (metadata + plugin entry). No hook/agent/sentinel/machine-token change. `node --test` + `validate-structure` (incl. `5f`/`5g`) + `claude plugin validate` green; no hand-tag.
+
 ## [0.27.8]
 
 Add an opt-in **`/udflow:doctor`** self-check — the operability fix for a tool that ships **no telemetry**. When a hook fails open in a real session, nothing surfaces (the `compact-fidelity` bug was invisible for three releases); doctor is the local, on-demand, user-initiated substitute — **not** a background or network call.

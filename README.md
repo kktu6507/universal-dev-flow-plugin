@@ -176,7 +176,7 @@ Everything is **off / risk-proportional by default** — you only opt in.
 | `design.md` (project design contract) | the project's design language as a committed contract; `ui-ux-reviewer` judges UI consistency against it; `planner-creator` detects/recommends it and can bootstrap one from an existing UI | used if present (else baseline) |
 | Claude in Chrome (`mcp__Claude_in_Chrome__*`; alt `mcp__Claude_Preview__*` / `mcp__playwright__*`) | live browser evidence; required in `--deep` + UI. **Drives your real authenticated browser** — may expose secrets/PII; prefer a non-prod target | used if connected |
 | `/run` skill (sibling) | in `--deep`, starts the app (web or backend/API) for verification when it isn't already running; udflow delegates here instead of hardcoding launch commands, and tears down only what it started | used if available |
-| `output/udflow/` (consuming project) | kept run artifacts: `evidence/` screenshots, `review/diff.patch`, `progress.md` ledger — recommend you `.gitignore` it | created on demand |
+| `output/udflow/` (consuming project) | kept run artifacts: `evidence/` screenshots, `review/diff.patch`, `progress.md` ledger — **auto-creates a top-level `output/udflow/.gitignore`** so the whole tree self-protects (a screenshot can carry secrets/PII); warns if it's somehow not ignored | created on demand |
 | `ai/FAILURE_MEMORY.md` / `~/.claude/FAILURE_MEMORY.md` | past-failure lessons read at startup + planning | created on demand |
 
 ---
