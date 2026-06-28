@@ -200,6 +200,18 @@ Two very different numbers — order-of-magnitude ballparks for **typical real-a
 
 ---
 
+## When udflow earns its cost
+
+udflow is **precision + process + a gate**, not exhaustive bug-finding. Reach for the cheaper tool first when it fits:
+
+- **A linter / static analysis** is cheaper, deterministic, and catches mechanical / style / known-pattern issues — udflow does **not** replace it; pair them.
+- **A one-shot AI review** (e.g. an editor's review command) gives findings fast, but with no plan gate, no intent-grounded reviewer selection, no acceptance-criteria check, no repair loop, and no ship/no-ship verdict.
+- **udflow** is for *"this must be release-ready"*: low-noise, intent-grounded review behind a plan gate, a defensible `READY` / `FIX REQUIRED` / `NOT READY` verdict, and a bounded repair loop. It costs more tokens and time — overkill for a typo or a quick look.
+
+Honest framing: a linter + tests catch more *mechanical* bugs, more cheaply; udflow's edge is **near-zero false positives on judgment-level findings + the gate**, and recall that scales with the intent you give it. A quantitative head-to-head (vs a linter / a one-shot review) needs the validated benchmark harness ([`EVIDENCE.md`](EVIDENCE.md)) and is not yet run.
+
+---
+
 ## Compatibility
 
 udflow targets **Claude Code**; its **subagents** and **skills** also load under **GitHub Copilot CLI** (live-verified 1.0.65 — `plugin list`, `skill list`, all subagents enumerated, the hooks observed firing). The **0.27.x** hook set was live-verified to **install and load** under Copilot 1.0.65: `copilot plugin update` to v0.27.1 succeeded ("Updated 2 skills"), both skills enumerate, the compaction-fidelity hook (`compact-fidelity.js`, wired under `SessionStart`·`compact` since 0.27.3 — relocated from `PreCompact`, whose injected output Claude Code rejects) loads in the same class as the already-verified failure-memory `SessionStart` hook; its injected output is a no-op under Copilot (see the table). Cross-harness loading is derived from each tool's documented plugin format.
