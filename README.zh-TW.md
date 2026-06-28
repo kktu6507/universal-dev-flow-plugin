@@ -229,4 +229,4 @@ udflow 以 **Claude Code** 為目標;其 **subagents** 與 **skills** 也能在 
 
 ## 授權
 
-[MIT](LICENSE) · 版本歷史見 [CHANGELOG.md](CHANGELOG.md)。
+[MIT](LICENSE) · 版本歷史見 [CHANGELOG.md](CHANGELOG.md) · 架構與誠實限制見 [ARCHITECTURE.md](ARCHITECTURE.md)。
