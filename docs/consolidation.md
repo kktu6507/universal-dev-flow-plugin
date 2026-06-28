@@ -1,8 +1,13 @@
 # Consolidation freeze (v0.27.x)
 
-> Status: **ACTIVE**. udflow is in a deliberate *consolidation* phase. The goal is to
-> harden, align, and prove what already exists — **not** to add capability — until the
-> exit criteria below are met.
+> Status: **COMPLETE — freeze LIFTED (2026-06-28).** The consolidation phase achieved its
+> goal (harden + align + prove what exists). Un-freeze decision: the four exit criteria are
+> accepted as met — the re-test criterion is satisfied by the **provenance stamp + a
+> documented re-test attempt** (a publishable rate needs a validated extraction harness,
+> deferred as a bounded future project; see the criteria below). **But un-freeze ≠ "resume
+> adding features": the standing finding holds — the real bottleneck is adoption + evidence,
+> not capability.** The next lever is a **non-maintainer real run** + marketplace listing,
+> not new agents/hooks. Treat this doc as the record of what the phase did.
 
 ## Why
 
@@ -53,7 +58,7 @@ stop. When in doubt, it's blocked.
 
 ## Exit criteria
 
-**Un-freeze (may resume capability work) when ALL hold:**
+**Un-freeze (may resume capability work) when ALL hold:** — **all accepted as met 2026-06-28 (freeze lifted).**
 - [x] L1 regression guards are in CI and green (prose drift is caught automatically). — `validate-structure.mjs` **5f contract-invariant guard**: asserts the verbatim machine literals (verdict / severity / sentinel tokens) survive in the files that own them (gatekeeper, reviewer-common, reviewer-selection, SKILL.md).
 - [ ] README 60-second value + reconciled cost section shipped.
 - [x] Surface-area audit complete (consolidation pass done). — Phase 2 audit (6 auditors): 0 removals, 0 real dedups, doc-alignment applied (0.27.7); behavior-add suggestions parked below.
