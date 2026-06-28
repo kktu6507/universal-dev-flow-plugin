@@ -25,8 +25,8 @@ In a throwaway/clean Claude Code profile, from a scratch project directory:
 
 1. **Install + enable + reload**
    - `/plugin marketplace add simba6507/universal-dev-flow-plugin`
-   - `/plugin install udflow@kktmarketplace`
-   - `/plugin` → **Installed** → toggle **udflow** on (or `claude plugin enable udflow@kktmarketplace`)
+   - `/plugin install udflow@kktu`
+   - `/plugin` → **Installed** → toggle **udflow** on (or `claude plugin enable udflow@kktu`)
    - `/reload-plugins`
 2. **SessionStart hook** — put a tiny `ai/FAILURE_MEMORY.md` with one `### ` entry in the project,
    start a fresh session, and confirm the failure-memory **digest** (titles + tags, nonce-fenced,
