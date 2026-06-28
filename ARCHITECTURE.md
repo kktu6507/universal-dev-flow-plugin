@@ -102,8 +102,8 @@ are the higher-risk, less-defended edges** — the rest of this section names th
   the literals *exist*, not that the reviewers *behave*.)
 - **No telemetry → no self-operability.** By design udflow reports nothing, so when a hook fails
   open in a user's session the maintainer never learns of it (the `compact-fidelity` bug was
-  invisible until a manual smoke). *(Mitigation planned — an opt-in `/udflow:doctor` self-check
-  the user runs and can paste back; not telemetry.)*
+  invisible until a manual smoke). *Mitigated (opt-in): `/udflow:doctor` runs a local, on-demand
+  self-check of the hooks + environment and prints a paste-able health report — not telemetry.*
 - **Recall scales with intent, not effort.** With no/weak intent the lone-reviewer floor is low
   (~30% bug-blind); recall rises only when the Review Packet carries contract-level intent. The
   near-zero false-positive rate is the robust strength; exhaustive recall is not the claim.

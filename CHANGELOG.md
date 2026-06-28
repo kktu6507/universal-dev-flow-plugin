@@ -3,6 +3,19 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.27.8]
+
+Add an opt-in **`/udflow:doctor`** self-check — the operability fix for a tool that ships **no telemetry**. When a hook fails open in a real session, nothing surfaces (the `compact-fidelity` bug was invisible for three releases); doctor is the local, on-demand, user-initiated substitute — **not** a background or network call.
+
+### Added
+- **`udflow/skills/doctor/SKILL.md`** — a third skill (`/udflow:doctor`, `disable-model-invocation: true`). Runs read-only diagnostics: resolves the plugin root; checks `node` is on PATH (its absence silently no-ops all five hooks — the #1 cause of "nothing happens"); confirms the five hook files exist; pipes a synthetic event to each hook with `UDFLOW_HOOK_DEBUG=1` and checks it **fires + exits 0** (the fail-open invariant) and emits the expected shape (e.g. `compact-fidelity` produces valid `hookSpecificOutput.additionalContext`); then prints a paste-able health report (OK / no-op / FAIL per hook + a healthy/degraded/broken verdict). No telemetry — local and on-demand.
+
+### Changed
+- **README (EN + zh-TW)** Troubleshooting "nothing happens" row now leads with `/udflow:doctor`; **`ARCHITECTURE.md`** "no self-operability" limit updated from *planned* to *mitigated* by doctor.
+
+### Notes
+- A new skill ships, so version bumped 0.27.7 → 0.27.8 across `plugin.json`, `package.json`, `marketplace.json` (metadata + plugin entry). No hook/agent/sentinel/machine-token change; the contract surface is byte-identical. `node --test` + `validate-structure` (incl. the new `5g` CC-conformance guard) + `claude plugin validate` green; no hand-tag.
+
 ## [0.27.7]
 
 Consolidation-phase **documentation alignment** (per `docs/consolidation.md`), after a Phase-2 surface audit: bring SKILL.md's deep-mode / panel-selection wording into line with its own references. **Doc alignment only — no behavior, hook, agent, sentinel, or machine-token change.** The surface audit found **0 dead weight to remove** (every agent / hook / reference earns its keep).

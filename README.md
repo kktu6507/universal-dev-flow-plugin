@@ -68,7 +68,7 @@ Prerequisites: **Claude Code** + `node` on PATH (the hooks are Node scripts; wit
 | Symptom | Fix |
 |---|---|
 | Install "not found" | use `udflow@kktu` (marketplace name, not repo); confirm with `/plugin marketplace list` |
-| Gate never blocks / nothing happens | check `node --version`; set `UDFLOW_HOOK_DEBUG=1` for a hook trace |
+| Gate never blocks / nothing happens | run **`/udflow:doctor`** for a hook health report; check `node --version` (no Node → all hooks no-op); set `UDFLOW_HOOK_DEBUG=1` for a raw trace |
 | Plan gate firing in the wrong project | `"udflow": { "planGate": false }` in that project's `.claude/settings.json` |
 | `opus` unavailable | `security-reviewer` / `gatekeeper` fall back to the session model and say so (lower verdict confidence) |
 | Failure memory in an unrelated project | global `~/.claude/FAILURE_MEMORY.md` is injected everywhere by design; add a project `ai/FAILURE_MEMORY.md`, or remove the global file |
