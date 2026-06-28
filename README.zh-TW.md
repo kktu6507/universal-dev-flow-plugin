@@ -15,7 +15,7 @@
 
 > 一句話：Claude 會先擬計劃、**動程式碼前先取得你核准**，由對的專業 reviewer **對著你的意圖**檢查，findings 自動修復並重審，最後給出**出貨/不出貨裁決**——而不是只說一句「完成」。
 
-> 🎬 **實機示範：** [udflow-public-demo](https://github.com/simba6507/udflow-public-demo) —— 一次完整錄下的 `/udflow:run`。
+> 🎬 **實機示範：** [udflow-public-demo](https://github.com/kktu6507/udflow-public-demo) —— 一次完整錄下的 `/udflow:run`。
 
 ---
 

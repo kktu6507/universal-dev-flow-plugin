@@ -15,7 +15,7 @@ Task → Understand → Plan mode (no code yet) → [high-risk] ground in code +
 
 > In one line: Claude lays out a plan and gets **your approval before touching code**, the right specialist reviewers check the work **against your intent**, findings are auto-fixed and re-reviewed, and it ends with a **ship/no-ship verdict** — not just "done."
 
-> 🎬 **Live demo:** [udflow-public-demo](https://github.com/simba6507/udflow-public-demo) — a captured `/udflow:run` end to end.
+> 🎬 **Live demo:** [udflow-public-demo](https://github.com/kktu6507/udflow-public-demo) — a captured `/udflow:run` end to end.
 
 ---
 
