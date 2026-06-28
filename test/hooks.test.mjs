@@ -1641,20 +1641,26 @@ test("enforce ON + stopHookActive (camelCase alias) => advisory, never blocks (l
   assert.ok(!r.decision, "the camelCase stopHookActive re-entry flag must also suppress the block");
 });
 
-// --- precompact-fidelity PreCompact hook (item G) ---
+// --- compact-fidelity SessionStart(compact) hook (item G; relocated from PreCompact) ---
+// Claude Code's hook-output schema has NO PreCompact `hookSpecificOutput` variant, so emitting
+// additionalContext under PreCompact is REJECTED ("Invalid input") and errors on every /compact. The
+// supported path is SessionStart with source="compact" (same shape load-failure-memory.js uses). These
+// tests pin the relocated event + shape and lock the regression so the emit can't drift back to PreCompact.
 
-const PRECOMPACT = path.join(HOOKS, "precompact-fidelity.js");
-function precompact(input, env) {
+const COMPACTFIDELITY = path.join(HOOKS, "compact-fidelity.js");
+function compactFidelity(input, env) {
   let e = env;
   if (!e) { e = { ...process.env }; delete e.CLAUDE_PROJECT_DIR; } // hermetic: ignore ambient project opt-out
-  const out = runHook(PRECOMPACT, input, e);
+  const out = runHook(COMPACTFIDELITY, input, e);
   return out.trim() ? JSON.parse(out) : null;
 }
+const COMPACT_START = { hook_event_name: "SessionStart", source: "compact" }; // the post-compaction trigger
 
-test("precompact-fidelity: a normal PreCompact payload emits a nonce-fenced preservation block naming udflow's constructs", () => {
-  const r = precompact({ hook_event_name: "PreCompact", trigger: "auto", cwd: mkProject(null) });
-  assert.ok(r && r.hookSpecificOutput, "must emit hookSpecificOutput on a normal compaction");
-  assert.strictEqual(r.hookSpecificOutput.hookEventName, "PreCompact");
+test("compact-fidelity: a post-compaction SessionStart emits a nonce-fenced preservation block naming udflow's constructs", () => {
+  const r = compactFidelity({ ...COMPACT_START, cwd: mkProject(null) });
+  assert.ok(r && r.hookSpecificOutput, "must emit hookSpecificOutput after a compaction");
+  // Must use the SessionStart shape Claude Code accepts — a PreCompact hookSpecificOutput is rejected.
+  assert.strictEqual(r.hookSpecificOutput.hookEventName, "SessionStart");
   const ctx = r.hookSpecificOutput.additionalContext;
   assert.match(ctx, /<<UDFLOW_PRESERVE_[0-9a-f]{16}>>/, "opening nonce delimiter present");
   assert.match(ctx, /<<END_UDFLOW_PRESERVE_[0-9a-f]{16}>>/, "closing nonce delimiter present");
@@ -1667,65 +1673,85 @@ test("precompact-fidelity: a normal PreCompact payload emits a nonce-fenced pres
   assert.ok(/UNANSWERED/.test(ctx), "preserves unanswered requirements");
 });
 
-test("precompact-fidelity: opt-out udflow.preserveOnCompact=false suppresses the block", () => {
+test("compact-fidelity: a non-compact SessionStart (startup/resume/clear) emits nothing", () => {
+  // The relocation must fire ONLY after a compaction — never on a fresh startup/resume/clear SessionStart,
+  // or it would re-inject the post-compaction nudge on every session start.
+  for (const source of ["startup", "resume", "clear"]) {
+    assert.strictEqual(compactFidelity({ hook_event_name: "SessionStart", source, cwd: mkProject(null) }), null,
+      `source=${source} must not trigger the post-compaction nudge`);
+  }
+});
+
+test("compact-fidelity: opt-out udflow.preserveOnCompact=false suppresses the block", () => {
   const dir = mkProjectWithSettings({ udflow: { preserveOnCompact: false } });
   const env = { ...process.env, CLAUDE_PROJECT_DIR: dir };
-  assert.strictEqual(precompact({ hook_event_name: "PreCompact", trigger: "manual" }, env), null,
+  assert.strictEqual(compactFidelity(COMPACT_START, env), null,
     "preserveOnCompact:false must suppress the preservation block");
 });
 
-test("precompact-fidelity: settings.local.json opt-out overrides settings.json", () => {
+test("compact-fidelity: settings.local.json opt-out overrides settings.json", () => {
   const dir = mkProjectWithSettings({ udflow: { preserveOnCompact: true } });
   fs.writeFileSync(path.join(dir, ".claude", "settings.local.json"), JSON.stringify({ udflow: { preserveOnCompact: false } }), "utf8");
   const env = { ...process.env, CLAUDE_PROJECT_DIR: dir };
-  assert.strictEqual(precompact({ hook_event_name: "PreCompact", trigger: "auto" }, env), null, "local override must take precedence");
+  assert.strictEqual(compactFidelity(COMPACT_START, env), null, "local override must take precedence");
 });
 
-test("precompact-fidelity: opt-out is honored via the event cwd when CLAUDE_PROJECT_DIR is unset (the normal path)", () => {
+test("compact-fidelity: opt-out is honored via the event cwd when CLAUDE_PROJECT_DIR is unset (the normal path)", () => {
   // The normal Claude Code path has no CLAUDE_PROJECT_DIR in env, so the hook resolves the project from the
-  // event's own `cwd` (precompact-fidelity.js: `if (!CLAUDE_PROJECT_DIR && parsed.cwd) cwd = parsed.cwd`).
-  // The precompact() helper strips CLAUDE_PROJECT_DIR when no env is passed, so this pins that branch — a
-  // regression breaking the env-absent opt-out resolution would otherwise pass CI silently.
+  // event's own `cwd` (compact-fidelity.js: `if (!CLAUDE_PROJECT_DIR && parsed.cwd) cwd = parsed.cwd`).
+  // The compactFidelity() helper strips CLAUDE_PROJECT_DIR when no env is passed, so this pins that branch —
+  // a regression breaking the env-absent opt-out resolution would otherwise pass CI silently.
   const dir = mkProjectWithSettings({ udflow: { preserveOnCompact: false } });
-  assert.strictEqual(precompact({ hook_event_name: "PreCompact", trigger: "auto", cwd: dir }), null,
+  assert.strictEqual(compactFidelity({ ...COMPACT_START, cwd: dir }), null,
     "with CLAUDE_PROJECT_DIR unset, the opt-out must be honored via the event cwd");
 });
 
-test("precompact-fidelity: malformed project settings fail safe to EMIT (a broken file never silently drops the nudge)", () => {
+test("compact-fidelity: malformed project settings fail safe to EMIT (a broken file never silently drops the nudge)", () => {
   const dir = mkProjectWithSettings("{ not: valid json ");
   const env = { ...process.env, CLAUDE_PROJECT_DIR: dir };
-  const r = precompact({ hook_event_name: "PreCompact", trigger: "auto" }, env);
+  const r = compactFidelity(COMPACT_START, env);
   assert.ok(r && r.hookSpecificOutput, "broken settings must fail safe toward emitting, not suppress");
 });
 
-test("precompact-fidelity: malformed stdin fails open (no output, no crash)", () => {
-  const out = cp.execFileSync("node", [PRECOMPACT], { input: "not json {{{" }).toString();
+test("compact-fidelity: malformed stdin fails open (no output, no crash)", () => {
+  const out = cp.execFileSync("node", [COMPACTFIDELITY], { input: "not json {{{" }).toString();
   assert.strictEqual(out.trim(), "", "unparseable input -> fail open (emit nothing on bad input it can't anchor), never crash");
 });
 
-test("precompact-fidelity: oversized stdin fails open (no block emitted)", () => {
+test("compact-fidelity: oversized stdin fails open (no block emitted)", () => {
   const big = "x".repeat(6 * 1024 * 1024);
-  const input = JSON.stringify({ hook_event_name: "PreCompact", trigger: "auto", filler: big });
-  const r = cp.spawnSync("node", [PRECOMPACT], { input, maxBuffer: 64 * 1024 * 1024 });
+  const input = JSON.stringify({ hook_event_name: "SessionStart", source: "compact", filler: big });
+  const r = cp.spawnSync("node", [COMPACTFIDELITY], { input, maxBuffer: 64 * 1024 * 1024 });
   assert.strictEqual((r.stdout || "").toString().trim(), "", "over-cap stdin must fail open, not emit");
 });
 
-test("precompact-fidelity: the emitted block is valid, parseable JSON (flushed in full)", () => {
-  const r = precompact({ hook_event_name: "PreCompact", trigger: "manual" });
+test("compact-fidelity: the emitted block is valid, parseable JSON (flushed in full)", () => {
+  const r = compactFidelity(COMPACT_START);
   assert.ok(r && typeof r.hookSpecificOutput.additionalContext === "string" && r.hookSpecificOutput.additionalContext.length > 0,
     "the additionalContext must be present and non-empty");
 });
 
-test("precompact-fidelity: empty stdin still emits (PreCompact may carry no body)", () => {
-  // A bare/empty payload must not suppress preservation — the hook should fail-open toward emitting.
-  const out = cp.execFileSync("node", [PRECOMPACT], { input: "" }).toString();
-  assert.ok(out.trim().length > 0, "an empty PreCompact payload should still emit the preservation block");
+test("compact-fidelity: empty stdin still emits (fail toward preserve when the event carries no source)", () => {
+  // A bare/empty payload (no source) must not suppress preservation — the hook fails-open toward emitting,
+  // and the hooks.json `compact` matcher already scopes the real Claude Code path to a compaction.
+  const out = cp.execFileSync("node", [COMPACTFIDELITY], { input: "" }).toString();
+  assert.ok(out.trim().length > 0, "an empty payload should still emit the preservation block");
   const j = JSON.parse(out);
-  assert.strictEqual(j.hookSpecificOutput.hookEventName, "PreCompact");
+  assert.strictEqual(j.hookSpecificOutput.hookEventName, "SessionStart");
 });
 
-test("hooks.json wires precompact-fidelity.js under PreCompact", () => {
+test("hooks.json wires compact-fidelity.js under SessionStart with the compact matcher", () => {
   const hj = JSON.parse(fs.readFileSync(path.join(HOOKS, "hooks.json"), "utf8"));
-  const cmds = (hj.hooks.PreCompact || []).flatMap((e) => (e.hooks || []).map((x) => x.command || ""));
-  assert.ok(cmds.some((c) => /precompact-fidelity\.js/.test(c)), "PreCompact must invoke precompact-fidelity.js");
+  const entry = (hj.hooks.SessionStart || []).find((e) => (e.hooks || []).some((x) => /compact-fidelity\.js/.test(x.command || "")));
+  assert.ok(entry, "SessionStart must invoke compact-fidelity.js");
+  assert.ok(new RegExp(`^(?:${entry.matcher})$`).test("compact"), "its matcher must cover the compact source");
+});
+
+test("hooks.json no longer wires a PreCompact hook (CC rejects hookSpecificOutput on PreCompact)", () => {
+  // Regression lock for the shipped defect: precompact-fidelity.js emitted hookSpecificOutput under
+  // PreCompact, which Claude Code's hook-output schema rejects with "Invalid input" — the nudge never
+  // landed and an error was shown on every compaction. The fix relocated the emit to SessionStart(compact);
+  // PreCompact must stay UNWIRED so the emit cannot drift back into the rejected event.
+  const hj = JSON.parse(fs.readFileSync(path.join(HOOKS, "hooks.json"), "utf8"));
+  assert.ok(!hj.hooks.PreCompact, "PreCompact must not be wired (its hookSpecificOutput output is rejected by Claude Code)");
 });

@@ -3,6 +3,18 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.27.3]
+
+**Fix:** the compaction-fidelity hook never worked on Claude Code and errored on every compaction. It was wired under `PreCompact` and emitted `hookSpecificOutput.additionalContext`, but Claude Code's hook-output schema has **no `PreCompact` `hookSpecificOutput` variant** — so the output was rejected (`Hook JSON output validation failed — (root): Invalid input`), the preservation reminder never reached the summary, and a validation error was shown to the user on **every** `/compact` (and auto-compaction). Caught by the RELEASING.md step-5 smoke driving a real Claude Code `/compact`; the unit tests had asserted the hook's JSON in isolation and never validated it against Claude Code's actual `PreCompact` output contract.
+
+### Changed
+- **Hook relocated `PreCompact` → `SessionStart`·`compact`.** Renamed `precompact-fidelity.js` → `compact-fidelity.js`; it now fires right AFTER a compaction — the only supported context-injection path around a compaction (the same `hookSpecificOutput.additionalContext` shape the failure-memory `SessionStart` hook already uses and that Claude Code accepts) — and re-injects the `<<UDFLOW_PRESERVE_…>>` reminder into the fresh post-compaction context. The `PreCompact` wiring is removed entirely, which eliminates the per-compaction validation error. The `preserveOnCompact` opt-out, fail-open posture, and nonce fence are unchanged; the hook emits only for `source: "compact"` (never on startup/resume/clear), and fails toward emitting when no source is present.
+- **Tests:** the suite now asserts the `SessionStart` shape, that a non-`compact` source emits nothing, and a new regression locks that `hooks.json` never wires a `PreCompact` hook (so the emit can't drift back into the rejected event). `validate-structure.mjs` WIRING and `validate.yml` `node --check` updated to the relocated hook; `hooks-portability.test.mjs` WIRED entry moved to `SessionStart`.
+- **Docs:** README (EN + zh-TW) hooks table + Compatibility, SKILL.md step 8, and RELEASING.md step 5 updated for the relocation; the stale "fails open, never errors" framing is corrected — under `PreCompact` it DID surface a validation error on Claude Code.
+
+### Notes
+- Version bumped 0.27.2 → 0.27.3 across `plugin.json`, `package.json`, and `marketplace.json`. `node --test` + `validate-structure` green; no hand-tag (CI owns tagging).
+
 ## [0.27.2]
 
 Compatibility docs: the 0.27.x hook set (incl. the new `PreCompact` hook) was **live-verified to install and load under GitHub Copilot CLI 1.0.65** — `copilot plugin update` upgraded the installed copy v0.25.1 → v0.27.1 cleanly ("Updated 2 skills"), both skills enumerate, and the new hook + its wiring are present verbatim in Copilot's installed copy (its `hooks.json` carries the `PreCompact` entry), so the added `PreCompact` event does not disturb Copilot's hook loading. **Docs only — no runtime / hook / agent / skill / machine-token change.**

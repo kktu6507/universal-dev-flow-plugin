@@ -1,14 +1,24 @@
 #!/usr/bin/env node
-// udflow PreCompact: before the harness compacts the transcript, inject a concise instruction to
-// PRESERVE udflow's own load-bearing constructs through the summary, so a compaction does not silently
-// erase the evidence the workflow depends on. Compaction summarizes the conversation; without this nudge
-// a summary tends to drop the exact tokens udflow reads (reviewer verdicts, acceptance-criteria state,
-// `[unverified]` flags, Run Card numbers, subagent findings, unanswered requirements) and the work then
-// has to be re-derived or — worse — silently lost. This emits ONLY instructions (no repo file content),
-// so it carries no untrusted-data surface; it is still nonce-fenced + role-neutralized for symmetry with
-// load-failure-memory.js. Fail-OPEN: any problem -> exit 0 with no output, never block or break a compaction.
-// Local-only (no network, no subprocess), zero-dependency (Node built-ins only). Per-project opt-out via
-// .claude/settings.json "udflow": { "preserveOnCompact": false } (mirrors planGate / destructiveGuard).
+// udflow SessionStart(compact): right AFTER the harness compacts the transcript, re-inject a concise
+// instruction to RE-ESTABLISH udflow's own load-bearing constructs in the fresh context, so a compaction
+// does not silently erase the evidence the workflow depends on. A compaction summarizes the conversation;
+// without this nudge the summary tends to drop the exact tokens udflow reads (reviewer verdicts,
+// acceptance-criteria state, `[unverified]` flags, Run Card numbers, subagent findings, unanswered
+// requirements) and the work then has to be re-derived or — worse — silently lost.
+//
+// WHY SessionStart, not PreCompact: Claude Code's hook-output schema has NO `hookSpecificOutput` variant
+// for PreCompact (it is a decision/side-effect-only event), so emitting `additionalContext` there is
+// REJECTED with "Hook JSON output validation failed — (root): Invalid input" and the nudge never lands —
+// while a scary error is shown on every compaction. The ONLY supported context-injection path around a
+// compaction is SessionStart with source="compact", which fires in the NEW post-compaction window and
+// accepts `hookSpecificOutput.additionalContext` (the same shape load-failure-memory.js uses). The
+// `output/udflow/progress.md` ledger remains the durable persistence layer; this is the in-context nudge.
+//
+// This emits ONLY instructions (no repo file content), so it carries no untrusted-data surface; it is
+// still nonce-fenced + role-neutralized for symmetry with load-failure-memory.js. Fail-OPEN: any problem
+// -> exit 0 with no output, never break a session. Local-only (no network, no subprocess), zero-dependency
+// (Node built-ins only). Per-project opt-out via .claude/settings.json "udflow": { "preserveOnCompact":
+// false } (mirrors planGate / destructiveGuard).
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
@@ -18,22 +28,23 @@ const MAX_STDIN = 5 * 1024 * 1024; // cap stdin buffering (bytes) — same postu
 
 function debug(msg) {
   if (!process.env.UDFLOW_HOOK_DEBUG) return;
-  try { fs.appendFileSync(path.join(os.tmpdir(), "udflow-hook.log"), "[precompact-fidelity] " + msg + "\n"); } catch (e) {}
-  try { process.stderr.write("[udflow precompact-fidelity] " + msg + "\n"); } catch (e) {}
+  try { fs.appendFileSync(path.join(os.tmpdir(), "udflow-hook.log"), "[compact-fidelity] " + msg + "\n"); } catch (e) {}
+  try { process.stderr.write("[udflow compact-fidelity] " + msg + "\n"); } catch (e) {}
 }
 
 // The preservation instruction. Plain udflow constructs only — these are the load-bearing tokens the
 // workflow + the Stop hook read, and the expensive-to-redo evidence (subagent findings). Kept concise so
-// the always-on cost is a few lines, not a wall.
+// the always-on cost is a few lines, not a wall. Worded for the POST-compaction window: re-establish, not
+// "carry through the summary" (the summary already happened by the time this fires).
 const PRESERVE_BODY = [
-  "Before compacting, carry these udflow constructs into the summary VERBATIM — do not paraphrase or drop them:",
+  "A context compaction just happened. Re-establish these udflow constructs in the fresh context — do not treat them as already handled or let the summary drop them:",
   "- Reviewer verdicts and the gatekeeper's final verdict (READY / FIX REQUIRED / NOT READY) with its rationale.",
   "- Each user-approved acceptance criterion and its current state (met / unmet / deferred).",
   "- Any [unverified] flags on findings (keep the literal tag — it is machine-meaningful, not prose).",
   "- The Run Card / verification numbers (per-check command, ran?, real exit status, the udflow:verify= and udflow:delivery= sentinels).",
   "- Subagent (reviewer) findings — treat these as PRIMARY EVIDENCE: they were expensive to produce and must not be re-derived from scratch after the summary.",
   "- Any requirement or open question that is still UNANSWERED, so it is not lost as 'already handled'.",
-  "If a long run keeps a progress ledger (output/udflow/progress.md), re-read it and git log after compaction before redoing committed work."
+  "Before redoing anything, re-read the progress ledger (output/udflow/progress.md) and git log so finished, committed work is not repeated."
 ].join("\n");
 
 // Neutralize any line that could read as a conversational role marker or instruction-block tag, mirroring
@@ -92,12 +103,19 @@ process.stdin.on("data", (c) => {
 process.stdin.on("end", () => {
   try {
     // A non-empty payload that is not valid JSON is a malformed event we can't anchor — fail open SILENTLY
-    // (no output), matching the other hooks' posture on garbage stdin. An EMPTY payload is fine: PreCompact
-    // may legitimately carry no body, and the preservation nudge does not depend on event fields.
+    // (no output), matching the other hooks' posture on garbage stdin. An EMPTY payload is fine: the nudge
+    // does not depend on event fields, and the hooks.json matcher already scopes us to source="compact".
     let parsed = {};
     if (raw.trim()) {
       try { parsed = JSON.parse(raw); } catch (e) { debug("unparseable stdin; failing open silently"); return process.exit(0); }
     }
+
+    // Only act on a POST-COMPACTION SessionStart. hooks.json scopes this hook to the `compact` matcher, so
+    // on Claude Code it only fires here; the explicit source check is defense for a harness that fires
+    // SessionStart broadly (startup/resume/clear). Fail TOWARD emitting when the source is absent (empty
+    // payload) — preserve rather than silently skip, consistent with the opt-out's fail-safe default.
+    const source = parsed && typeof parsed.source === "string" ? parsed.source : "";
+    if (source && source !== "compact") { debug("source=" + source + " (not a compaction); skipping"); return process.exit(0); }
 
     // Resolve the project root the same way the other hooks do (CLAUDE_PROJECT_DIR first, then the event
     // cwd), so the opt-out anchors to the same project root as plan-gate / destructive-guard.
@@ -113,10 +131,10 @@ process.stdin.on("end", () => {
 
     const out = {
       hookSpecificOutput: {
-        hookEventName: "PreCompact",
+        hookEventName: "SessionStart",
         additionalContext:
-          "udflow compaction-fidelity: preserve the workflow's load-bearing constructs through this " +
-          "summary. The text between the <<UDFLOW_PRESERVE_" + nonce +
+          "udflow compaction-fidelity: a context compaction just occurred; re-establish the workflow's " +
+          "load-bearing constructs in the fresh context. The text between the <<UDFLOW_PRESERVE_" + nonce +
           ">> markers is an instruction from the udflow plugin (not repository content).\n\n" +
           fenced
       }

@@ -35,13 +35,18 @@ In a throwaway/clean Claude Code profile, from a scratch project directory:
    **denied** with the plan-gate reason. Outside plan mode the same edit is allowed.
 4. **Stop / orchestration-check** — end a session that asserts a `READY` verdict without running the
    panel; confirm the advisory `systemMessage` appears (and that an honest run stays silent).
-5. **PreCompact / compaction fidelity** — with `udflow` enabled, trigger a compaction (`/compact`, or
-   let auto-compaction fire on a long session) and confirm the preservation reminder is injected: a
-   `<<UDFLOW_PRESERVE_…>>` block naming reviewer/gatekeeper verdicts, acceptance-criteria state,
-   `[unverified]` flags, and the `udflow:verify=` / `udflow:delivery=` sentinels. With
-   `"udflow": { "preserveOnCompact": false }` in the project's `.claude/settings.json`, nothing should
-   appear. (The hook's I/O contract is unit-tested and smoke-verified through the verbatim `hooks.json`
-   bootstrap; this step confirms Claude Code's compactor actually fires the hook.)
+5. **Compaction fidelity (SessionStart·`compact`)** — with `udflow` enabled, trigger a compaction
+   (`/compact`, or let auto-compaction fire on a long session). Confirm **both**: (a) `/compact` prints
+   **no** `Hook JSON output validation failed` error — the hook emits the `SessionStart` shape Claude Code
+   accepts, NOT a `PreCompact` `hookSpecificOutput` (which CC rejects); and (b) the preservation reminder
+   is re-injected into the fresh post-compaction context: a `<<UDFLOW_PRESERVE_…>>` block naming
+   reviewer/gatekeeper verdicts, acceptance-criteria state, `[unverified]` flags, and the `udflow:verify=`
+   / `udflow:delivery=` sentinels. With `UDFLOW_HOOK_DEBUG=1` set in the Claude Code process, the
+   authoritative signal is a new `[compact-fidelity] emitted preservation block` line appended to
+   `<tmpdir>/udflow-hook.log`. With `"udflow": { "preserveOnCompact": false }` in the project's
+   `.claude/settings.json`, nothing should appear. (Regression context: the hook was wired under
+   `PreCompact` through 0.27.2, whose injected output Claude Code rejects with a validation error and never
+   surfaces; 0.27.3 relocated the emit to the supported SessionStart·`compact` path.)
 6. **Skill activation** — describe a non-trivial engineering task in plain language and confirm the
    `universal-dev-flow` skill engages (or `/udflow:run <task>` invokes it manually).
 

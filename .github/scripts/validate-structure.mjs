@@ -224,7 +224,7 @@ if (fs.existsSync(path.join(root, hooksRel))) {
       { event: "PreToolUse", hook: "destructive-guard.js", tokens: ["Bash"] }, // all-modes destructive-command safety net
       { event: "SessionStart", hook: "load-failure-memory.js", tokens: ["startup", "resume", "clear", "compact"] },
       { event: "Stop", hook: "orchestration-check.js", tokens: [] }, // Stop has no matcher
-      { event: "PreCompact", hook: "precompact-fidelity.js", tokens: ["manual", "auto"] }, // compaction-fidelity nudge fires on both triggers
+      { event: "SessionStart", hook: "compact-fidelity.js", tokens: ["compact"] }, // post-compaction fidelity nudge (relocated from PreCompact: CC rejects hookSpecificOutput there)
     ];
     for (const w of WIRING) {
       if (!wiresUnder(w.event, w.hook)) fail(`hooks.json: ${w.event} does not wire ${w.hook} (hook would never fire)`);

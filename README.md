@@ -126,7 +126,7 @@ Five Node hooks — **all fail-open** (any error, or no Node on PATH → they do
 | `plan-gate.js` (PreToolUse) | **deny** edits + *obvious* Bash writes **while in plan mode**; exempts `~/.claude/plans/` | on · `"udflow":{"planGate":false}` |
 | `destructive-guard.js` (PreToolUse) | **ask** (never deny) before unrecoverable Bash in **any** mode: `rm -rf` (incl. separated `rm -r -f`), `git reset --hard`, `git push --force`, `find -delete`, `dd of=`, `mkfs`, `shred` — plus the PowerShell forms `Remove-Item -Recurse` / `Format-Volume` / `Clear-Disk` (Windows / Copilot) | on · `"udflow":{"destructiveGuard":false}` |
 | `load-failure-memory.js` (SessionStart) | **read** your `FAILURE_MEMORY.md` and inject a nonce-fenced, role-neutralized digest into your own session | on · no file → no-op |
-| `precompact-fidelity.js` (PreCompact) | **inject** a concise instruction so a context compaction preserves udflow's own constructs (reviewer verdicts, acceptance-criteria state, `[unverified]` flags, Run Card numbers, subagent findings, unanswered requirements) — instruction only, no file read | on · `"udflow":{"preserveOnCompact":false}` |
+| `compact-fidelity.js` (SessionStart · `compact`) | right **after** a context compaction, **inject** a concise instruction so the fresh context re-establishes udflow's own constructs (reviewer verdicts, acceptance-criteria state, `[unverified]` flags, Run Card numbers, subagent findings, unanswered requirements) — instruction only, no file read. Relocated from `PreCompact` in 0.27.3 (Claude Code rejects a `PreCompact` hook's injected output) | on · `"udflow":{"preserveOnCompact":false}` |
 | `orchestration-check.js` (Stop) | **advise** at session end: warns on a `READY` claim without the panel, an unhonored block verdict, or a red/unrun required check while delivering | advisory · hard-blocks only with `UDFLOW_ENFORCE_STOP` |
 
 - **What they never do:** change system/security settings, alter file permissions, delete anything (`destructive-guard` only *prompts before* your own delete/wipe commands — it never deletes), or transmit your code or transcript anywhere.
@@ -201,7 +201,7 @@ Two very different numbers — ballparks from our own runs (orders of magnitude,
 
 ## Compatibility
 
-udflow targets **Claude Code**; its **subagents** and **skills** also load under **GitHub Copilot CLI** (live-verified 1.0.65 — `plugin list`, `skill list`, all subagents enumerated, the hooks observed firing). The **0.27.x** hook set was live-verified to **install and load** under Copilot 1.0.65: `copilot plugin update` to v0.27.1 succeeded ("Updated 2 skills"), both skills enumerate, and the new `precompact-fidelity.js` PreCompact hook + its wiring are present verbatim in Copilot's installed copy — so the added `PreCompact` event does **not** disturb hook loading; its injected output is a no-op under Copilot (see the table). Cross-harness loading is derived from each tool's documented plugin format.
+udflow targets **Claude Code**; its **subagents** and **skills** also load under **GitHub Copilot CLI** (live-verified 1.0.65 — `plugin list`, `skill list`, all subagents enumerated, the hooks observed firing). The **0.27.x** hook set was live-verified to **install and load** under Copilot 1.0.65: `copilot plugin update` to v0.27.1 succeeded ("Updated 2 skills"), both skills enumerate, the compaction-fidelity hook (`compact-fidelity.js`, wired under `SessionStart`·`compact` since 0.27.3 — relocated from `PreCompact`, whose injected output Claude Code rejects) loads in the same class as the already-verified failure-memory `SessionStart` hook; its injected output is a no-op under Copilot (see the table). Cross-harness loading is derived from each tool's documented plugin format.
 
 **Claude-Code-only** (degrade gracefully elsewhere — never an error):
 
@@ -210,7 +210,7 @@ udflow targets **Claude Code**; its **subagents** and **skills** also load under
 | Plan-gate enforcement | no-op (Copilot has no `plan` permission mode) |
 | Deep-mode Workflow | no-op (no Workflow capability) |
 | Failure-memory auto-digest | no-op — Copilot runs hooks but **doesn't surface injected output**; falls back to manual retrieval during planning |
-| Compaction-fidelity (`PreCompact`) hook | no-op — same class as the digest: the hook **loads** (live-verified at 0.27.1) but injected output isn't surfaced, and Copilot may not fire a `PreCompact` event at all; it fails open, never errors. The `output/udflow/progress.md` ledger is the continuity fallback |
+| Compaction-fidelity (`SessionStart`·`compact`) hook | no-op — same class as the digest: the hook **loads** but Copilot doesn't surface `SessionStart` injected output; it fails open, never errors. (On Claude Code it now works — relocated from `PreCompact` in 0.27.3, whose injected output Claude Code rejected with a validation error.) The `output/udflow/progress.md` ledger is the continuity fallback |
 | `UDFLOW_ENFORCE_STOP` block | no-op (Stop output not surfaced) |
 | `destructive-guard` prompt | **applies** — a PreToolUse decision, not injected output (live-verified: it gated `git reset --hard` under 1.0.65). On Windows the deny-list also covers the PowerShell forms the model emits |
 

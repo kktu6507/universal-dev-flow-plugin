@@ -24,7 +24,7 @@ const WIRED = [
   { event: "PreToolUse", file: "destructive-guard.js" },
   { event: "SessionStart", file: "load-failure-memory.js" },
   { event: "Stop", file: "orchestration-check.js" },
-  { event: "PreCompact", file: "precompact-fidelity.js" },
+  { event: "SessionStart", file: "compact-fidelity.js" }, // relocated from PreCompact (CC rejects its hookSpecificOutput)
 ];
 // PreToolUse now wires two hooks (plan-gate + destructive-guard) in separate entries; resolve by file
 // when given, else fall back to the first entry (the plan-gate, which the shell behavior suite drives).
