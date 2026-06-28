@@ -201,7 +201,7 @@ Two very different numbers — ballparks from our own runs (orders of magnitude,
 
 ## Compatibility
 
-udflow targets **Claude Code**; its **subagents** and **skills** also load under **GitHub Copilot CLI** (live-verified 1.0.65, 2026-06-26 — `plugin list`, `skill list`, all subagents enumerated, the four hooks then shipped observed firing; the later `precompact-fidelity.js` PreCompact hook is unit-tested but not yet live-smoked under Copilot). Cross-harness loading is derived from each tool's documented plugin format.
+udflow targets **Claude Code**; its **subagents** and **skills** also load under **GitHub Copilot CLI** (live-verified 1.0.65 — `plugin list`, `skill list`, all subagents enumerated, the hooks observed firing). The **0.27.x** hook set was live-verified to **install and load** under Copilot 1.0.65: `copilot plugin update` to v0.27.1 succeeded ("Updated 2 skills"), both skills enumerate, and the new `precompact-fidelity.js` PreCompact hook + its wiring are present verbatim in Copilot's installed copy — so the added `PreCompact` event does **not** disturb hook loading; its injected output is a no-op under Copilot (see the table). Cross-harness loading is derived from each tool's documented plugin format.
 
 **Claude-Code-only** (degrade gracefully elsewhere — never an error):
 
@@ -210,6 +210,7 @@ udflow targets **Claude Code**; its **subagents** and **skills** also load under
 | Plan-gate enforcement | no-op (Copilot has no `plan` permission mode) |
 | Deep-mode Workflow | no-op (no Workflow capability) |
 | Failure-memory auto-digest | no-op — Copilot runs hooks but **doesn't surface injected output**; falls back to manual retrieval during planning |
+| Compaction-fidelity (`PreCompact`) hook | no-op — same class as the digest: the hook **loads** (live-verified at 0.27.1) but injected output isn't surfaced, and Copilot may not fire a `PreCompact` event at all; it fails open, never errors. The `output/udflow/progress.md` ledger is the continuity fallback |
 | `UDFLOW_ENFORCE_STOP` block | no-op (Stop output not surfaced) |
 | `destructive-guard` prompt | **applies** — a PreToolUse decision, not injected output (live-verified: it gated `git reset --hard` under 1.0.65). On Windows the deny-list also covers the PowerShell forms the model emits |
 

@@ -3,6 +3,16 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.27.2]
+
+Compatibility docs: the 0.27.x hook set (incl. the new `PreCompact` hook) was **live-verified to install and load under GitHub Copilot CLI 1.0.65** — `copilot plugin update` upgraded the installed copy v0.25.1 → v0.27.1 cleanly ("Updated 2 skills"), both skills enumerate, and the new hook + its wiring are present verbatim in Copilot's installed copy (its `hooks.json` carries the `PreCompact` entry), so the added `PreCompact` event does not disturb Copilot's hook loading. **Docs only — no runtime / hook / agent / skill / machine-token change.**
+
+### Changed
+- **README (EN + zh-TW) Compatibility:** intro updated from "not yet live-smoked under Copilot" to the live load-verification; new table row documenting that the `PreCompact` compaction-fidelity hook is a no-op under Copilot (the hook loads and fails open, but its injected output isn't surfaced — same class as the failure-memory digest).
+
+### Notes
+- Version bumped 0.27.1 → 0.27.2 across `plugin.json`, `package.json`, and `marketplace.json`. `node --test` + `validate-structure` green; no hand-tag (CI owns tagging).
+
 ## [0.27.1]
 
 Marketplace metadata fix: align the catalog `category` with Anthropic's official taxonomy. The official plugin catalog has no `workflow` category — workflow / review plugins are filed under `development` — so the `kktmarketplace` entry's `category` is changed `workflow` → `development` to match, improving discoverability when the plugin is listed. **Metadata only — no runtime, hook, agent, skill, or machine-token change.**
