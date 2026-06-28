@@ -261,6 +261,26 @@ if (fs.existsSync(path.join(root, hooksRel))) {
         if (!eventMatchesForHook(w.event, t, w.hook)) fail(`hooks.json: the ${w.event} matcher does not cover "${t}" (the hook would never fire for it)`);
       }
     }
+
+    // 5g. Claude Code OUTPUT-CONTRACT conformance — the external boundary that broke once. CC's hook-output
+    // validator only accepts `hookSpecificOutput` on a fixed set of events; emitting it on any other event is
+    // SILENTLY REJECTED. This is exactly why `compact-fidelity`, wired under `PreCompact`, shipped broken for
+    // three versions (CHANGELOG 0.27.3 / ARCHITECTURE.md "Boundaries"). So: any hook whose SOURCE emits
+    // `hookSpecificOutput` must be wired ONLY to events in CC's accept-set. Unlike 5c (which checks udflow's
+    // OWN wiring) this checks conformance to CC's external, evolving contract. If CC's documented hook-output
+    // contract changes, update HSO_ACCEPT_EVENTS and re-smoke per RELEASING.md.
+    const HSO_ACCEPT_EVENTS = new Set(["PreToolUse", "UserPromptSubmit", "PostToolUse", "PostToolBatch", "SessionStart", "Stop", "SubagentStop"]);
+    for (const event of Object.keys(h)) {
+      for (const cmd of cmdsFor(event)) {
+        const m = cmd.match(/hooks\/([a-z0-9-]+\.js)/i);
+        if (!m) continue;
+        const src = path.join(root, `${PLUGIN}/hooks/${m[1]}`);
+        if (!fs.existsSync(src)) continue; // a missing hook is already reported above
+        if (fs.readFileSync(src, "utf8").includes("hookSpecificOutput") && !HSO_ACCEPT_EVENTS.has(event)) {
+          fail(`hooks.json: ${m[1]} emits \`hookSpecificOutput\` but is wired to "${event}", which Claude Code's hook-output schema does NOT accept it on — it would be silently rejected (the compact-fidelity/PreCompact bug class). CC accepts hookSpecificOutput only on: ${[...HSO_ACCEPT_EVENTS].join(", ")}.`);
+        }
+      }
+    }
   }
 }
 

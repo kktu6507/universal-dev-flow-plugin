@@ -9,7 +9,9 @@ never tag by hand. This file is the **manual pre-release smoke** for the one thi
 - `validate-structure.mjs` — manifests parse; `plugin.json` / `marketplace.json` / `package.json` /
   `CHANGELOG.md` versions agree; SKILL-linked references and wired hooks exist; **hook wiring** (each
   lifecycle hook registered under the right event with a matcher that covers the tools/lifecycles it
-  must fire for); distribution hygiene; text integrity; bilingual README parity.
+  must fire for); **CC output-contract conformance** (`5g`: a hook that emits `hookSpecificOutput` is
+  wired only to events Claude Code actually accepts it on — the compact-fidelity/PreCompact bug class);
+  distribution hygiene; text integrity; bilingual README parity.
 - `node --check` on all five hooks; `node --test` (behavioral hook tests).
 - `claude plugin validate` — **best-effort, non-blocking** (Linux-only; the Claude Code CLI may not
   run fully headless in CI).
@@ -52,3 +54,17 @@ In a throwaway/clean Claude Code profile, from a scratch project directory:
 
 If any step fails, do **not** rely on the release for that surface — fix and re-run. Note the result
 in the PR or the `EVIDENCE.md` log so the activation path has a paper trail.
+
+## Contract conformance (Claude Code)
+
+udflow's deepest dependency is Claude Code's hook/agent **contract**, which evolves
+([`ARCHITECTURE.md`](ARCHITECTURE.md), *Boundaries*). CI's `5g` guard pins the one contract that broke
+before — `hookSpecificOutput` only on events CC accepts it on — but it cannot prove the rest of CC's
+contract still holds; the manual smoke above is the live conformance check. Record what it was tested
+against so drift is visible:
+
+- **Last live-smoked:** Claude Code — the compaction-fidelity `SessionStart·compact` path verified via a
+  real `/compact` (2026-06-28); GitHub Copilot CLI **1.0.65** — hooks + skills load-verified.
+- **When Claude Code changes a hook-output contract** (a new/removed event, or a changed accepted shape):
+  update `HSO_ACCEPT_EVENTS` / the `WIRING` table in `.github/scripts/validate-structure.mjs`, re-run this
+  smoke, and update the line above.
