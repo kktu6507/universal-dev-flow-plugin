@@ -53,9 +53,13 @@ a prompt-injection vector. Mitigations (defense-in-depth, in the hook source): t
 titles/tags only (not free body text). To remove the surface entirely, delete the file — with no
 `FAILURE_MEMORY.md` present the hook is a no-op.
 
-## Roadmap (owner-side)
+## Integrity roadmap
 
-- **Signed release tags** — add a signing key to the release workflow so each `vX.Y.Z` tag is
-  verifiable as the maintainer's (requires a maintainer-held key in CI secrets).
-- **Build provenance** — consider SLSA provenance / a published checksum for releases once a signing
-  identity exists.
+- **Signed release tags — wired (opt-in, gated).** The release job
+  ([`.github/workflows/validate.yml`](.github/workflows/validate.yml)) **GPG-signs** each `vX.Y.Z` tag
+  when the `GPG_PRIVATE_KEY` repo secret is set; without it the flow is unchanged (unsigned annotated
+  tag), and a signing problem can never block a release (it falls back to unsigned). To activate: add
+  the secret + register the matching **public** key on the maintainer's GitHub account (so the tagger
+  email is a *verified* one). Verify any release locally with `git verify-tag vX.Y.Z`. Setup steps:
+  `RELEASING.md`.
+- **Build provenance** — consider SLSA provenance / a published checksum for releases (future).
