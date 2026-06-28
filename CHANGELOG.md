@@ -3,6 +3,20 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.27.5]
+
+Rename the self-hosted marketplace `kktmarketplace` → `kktu`, so the install id follows the conventional owner-handle style (`udflow@kktu`, matching the `kktu` owner/author already in the manifests). **Distribution metadata + docs only — no hook, agent, skill, reference, sentinel, or machine-token change; the shipped `udflow/` tree is byte-identical.** Does **not** affect the pending official community-marketplace submission (that keys on the repo source + plugin name `udflow`, not the self-hosted marketplace name).
+
+### Changed
+- **`.claude-plugin/marketplace.json`**: marketplace `name` `kktmarketplace` → `kktu`.
+- **README.md / README.zh-TW.md / RELEASING.md**: every `udflow@kktmarketplace` install / enable / update / troubleshoot / Copilot-disable reference updated to `udflow@kktu` (EN ↔ zh-TW parity preserved). Historical mentions in `CHANGELOG.md` (the 0.27.1 entry) and `EVIDENCE.md` (Live run 5's observed `udflow@kktmarketplace v0.23.0`) are left as-is — they record what was true at the time.
+
+### Migration (existing direct-install users)
+- The install id changes. Re-add the marketplace under the new name and reinstall: `/plugin marketplace remove kktmarketplace` → `/plugin marketplace add simba6507/universal-dev-flow-plugin` → `/plugin install udflow@kktu`. Done now while adoption is low; the official community-marketplace path is unaffected.
+
+### Notes
+- Version bumped 0.27.4 → 0.27.5 across `plugin.json`, `package.json`, and `marketplace.json` (metadata + plugin entry), mirroring the 0.27.1 marketplace-metadata release. `node --test` + `validate-structure` + `claude plugin validate` green; no hand-tag (CI owns tagging).
+
 ## [0.27.4]
 
 Lower the friction of logging a verified run — the project's only evidence channel, since udflow ships **no telemetry**. The issue form collapses to **two picks + one paste**, and udflow's own end-of-run output now surfaces a one-click link to it, so a real run files the moment the evidence is in hand.

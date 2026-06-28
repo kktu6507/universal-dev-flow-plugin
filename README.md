@@ -51,23 +51,23 @@ Prerequisites: **Claude Code** + `node` on PATH (the hooks are Node scripts; wit
 ```text
 # in your project directory, inside Claude Code:
 /plugin marketplace add simba6507/universal-dev-flow-plugin
-/plugin install udflow@kktmarketplace
+/plugin install udflow@kktu
 # udflow ships DISABLED — enable it: /plugin → Installed → toggle udflow on
-#   (or: claude plugin enable udflow@kktmarketplace), then:
+#   (or: claude plugin enable udflow@kktu), then:
 /reload-plugins
 # hand it a task:
 /udflow:run Fix the login flow so it refreshes when the token expires
 ```
 
 - **Install ≠ enable.** It ships **opt-in (disabled)**; until enabled, the hooks and skills do nothing. Once enabled it **auto-engages on non-trivial work**; trivial edits and plain Q&A are left alone (force the full flow with `/udflow:run`).
-- **Marketplace name is `kktmarketplace`** (not the repo) → the install id is `udflow@kktmarketplace`.
-- **Update:** `/plugin marketplace update kktmarketplace` then `/reload-plugins` (custom marketplaces don't auto-update).
+- **Marketplace name is `kktu`** (not the repo) → the install id is `udflow@kktu`.
+- **Update:** `/plugin marketplace update kktu` then `/reload-plugins` (custom marketplaces don't auto-update).
 
 **Troubleshooting**
 
 | Symptom | Fix |
 |---|---|
-| Install "not found" | use `udflow@kktmarketplace` (marketplace name, not repo); confirm with `/plugin marketplace list` |
+| Install "not found" | use `udflow@kktu` (marketplace name, not repo); confirm with `/plugin marketplace list` |
 | Gate never blocks / nothing happens | check `node --version`; set `UDFLOW_HOOK_DEBUG=1` for a hook trace |
 | Plan gate firing in the wrong project | `"udflow": { "planGate": false }` in that project's `.claude/settings.json` |
 | `opus` unavailable | `security-reviewer` / `gatekeeper` fall back to the session model and say so (lower verdict confidence) |
@@ -143,11 +143,11 @@ Everything is **off / risk-proportional by default** — you only opt in.
 
 | Option | Effect | Default |
 |---|---|---|
-| Enable in `/plugin` (or `claude plugin enable udflow@kktmarketplace`) | turns hooks + skills on | **disabled** |
+| Enable in `/plugin` (or `claude plugin enable udflow@kktu`) | turns hooks + skills on | **disabled** |
 | `"udflow": { "planGate": false }` in `.claude/settings.json` | this project's plan-mode write gate off | gate **on** (missing/malformed → on) |
 | `"udflow": { "destructiveGuard": false }` in `.claude/settings.json` | this project's destructive-command prompt off | guard **on** (missing/malformed → on) |
 | `"udflow": { "preserveOnCompact": false }` in `.claude/settings.json` | this project's compaction-fidelity nudge off | nudge **on** (missing/malformed → on) |
-| `{ "enabledPlugins": { "udflow@kktmarketplace": false } }` in `~/.copilot/settings.json` | disable under **Copilot CLI only** | enabled if installed |
+| `{ "enabledPlugins": { "udflow@kktu": false } }` in `~/.copilot/settings.json` | disable under **Copilot CLI only** | enabled if installed |
 | `{ "disableAllHooks": true }` in `~/.copilot/settings.json` | all plugin hooks off under Copilot | hooks on |
 
 **Run flags** — `/udflow:run <flags> <task>`
@@ -215,7 +215,7 @@ udflow targets **Claude Code**; its **subagents** and **skills** also load under
 | `UDFLOW_ENFORCE_STOP` block | no-op (Stop output not surfaced) |
 | `destructive-guard` prompt | **applies** — a PreToolUse decision, not injected output (live-verified: it gated `git reset --hard` under 1.0.65). On Windows the deny-list also covers the PowerShell forms the model emits |
 
-Disable under Copilot only: `{ "enabledPlugins": { "udflow@kktmarketplace": false } }` (or `{ "disableAllHooks": true }`) in `~/.copilot/settings.json`.
+Disable under Copilot only: `{ "enabledPlugins": { "udflow@kktu": false } }` (or `{ "disableAllHooks": true }`) in `~/.copilot/settings.json`.
 
 ---
 
