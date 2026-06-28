@@ -233,8 +233,25 @@ real use, not a record of it.
 > omission/intent weakness these runs surfaced. So treat the numbers as a **historical capability snapshot**,
 > not a live measurement of the current build. The cheapest honest refresh is a **bounded** re-test — the
 > 32-bug curated subset, on the current build + model, with **repo-native** intent and an **independent judge**
-> (udflow's reviewers are Claude, so judge independence must be preserved) — **not yet done**; a full
-> 77-bug/12-repo re-sweep is low-ROI versus the still-open Track-2 (non-maintainer) gate.
+> (udflow's reviewers are Claude, so judge independence must be preserved) — **attempted 2026-06-28; see the
+> next note**. A full 77-bug/12-repo re-sweep is low-ROI versus the still-open Track-2 (non-maintainer) gate.
+
+> **Fresh re-test attempt — 2026-06-28 — result NOT published as a rate (extraction too noisy).** A bounded blind
+> benchmark was run on the **current build + model**: a workflow extracted recent single-function bug-fixes from
+> public repos (requests, gin, chi, go-redis, rust-lang/regex, tokio, gson, jackson, …), wrote each function's
+> intent from its signature/doc *bug-blind*, had the **current `udflow:code-reviewer`** review the pre-fix code
+> blind, and an **independent judge** scored each against the known fix. **The rate is withheld** because ad-hoc
+> web-extraction proved too noisy to publish honestly: 2/10 bugs had the real defect *outside* the extracted
+> function (the judge dropped them), and both apparent "false positives" were excerpt artifacts (a missing import
+> → spurious `NameError`) or a heavily-hedged finding — not genuine precision failures. What the **cleanly-extracted**
+> cases confirmed *qualitatively* (not as a rate): the current reviewer still catches concrete control-flow defects
+> cleanly with **0 false positives on clean code** (chi missing-`return`; go-redis missing context-cancel guard),
+> and still misses the **known-weakness classes** as a lone code-reviewer without intent/panel — security CVEs
+> (requests netloc/netrc), subtle language soundness (regex double-`as_ref`), omissions (gson missing quote case),
+> state-machine (tokio closed-state). That is exactly the profile the 32-bug corpus characterized, so the snapshot
+> above still describes the reviewer's *reach*. **A publishable refresh needs the original's *validated* extraction
+> harness** (clone + AST-extract the exact pre-fix function, confirm the defect is in-scope) — not a one-shot
+> workflow. Until then the provenance stamp above stands.
 
 ### Run 1 — 2026-06-19 · Plan_PJ (C#/.NET) · retroactive blind bug-catch
 

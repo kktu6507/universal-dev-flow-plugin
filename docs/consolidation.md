@@ -57,7 +57,7 @@ stop. When in doubt, it's blocked.
 - [x] L1 regression guards are in CI and green (prose drift is caught automatically). — `validate-structure.mjs` **5f contract-invariant guard**: asserts the verbatim machine literals (verdict / severity / sentinel tokens) survive in the files that own them (gatekeeper, reviewer-common, reviewer-selection, SKILL.md).
 - [ ] README 60-second value + reconciled cost section shipped.
 - [x] Surface-area audit complete (consolidation pass done). — Phase 2 audit (6 auditors): 0 removals, 0 real dedups, doc-alignment applied (0.27.7); behavior-add suggestions parked below.
-- [ ] A current-build re-test number is published in `EVIDENCE.md`.
+- [~] A current-build re-test number is published in `EVIDENCE.md`. — **attempted 2026-06-28; NOT publishable.** A bounded fresh blind benchmark ran (current `udflow:code-reviewer`, repo-native intent, independent judge), but ad-hoc web-extraction was too noisy for an honest rate (2/10 defects landed outside the extracted function; the apparent FPs were excerpt artifacts). Cleanly-extracted cases re-confirmed the profile (0 FP on clean code; misses the known security/soundness/omission classes as a lone reviewer). A publishable rate needs the original's **validated** extraction harness (a bounded future project); the provenance stamp handles the staleness meanwhile. **Decision needed:** invest in the validated harness, or accept the provenance stamp + documented attempt as sufficient to un-freeze.
 
 **Drop the "experimental" label (a separate, higher bar — adoption-driven, not code):**
 - [ ] ≥10 verified real runs, across ≥3 projects, **with ≥1 not by the maintainer**.
