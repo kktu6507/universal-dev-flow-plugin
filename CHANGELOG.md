@@ -3,6 +3,22 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.27.6]
+
+Repository transferred to a new GitHub owner: `simba6507/universal-dev-flow-plugin` → **`kktu6507/universal-dev-flow-plugin`**. Update every **operational** reference to the new owner (GitHub keeps an automatic redirect from the old path, so existing installs/links keep working, but the canonical URLs are now correct). **Owner/metadata + one shipped reference only — no hook, agent, skill, or machine-token change; the install id stays `udflow@kktu` and the plugin name stays `udflow`.**
+
+### Changed
+- **`udflow/.claude-plugin/plugin.json`**: `homepage` / `repository` → `kktu6507/…`.
+- **`.claude-plugin/marketplace.json`**: `owner.url` → `https://github.com/kktu6507`.
+- **`.github/CODEOWNERS`**: `@simba6507` → `@kktu6507`.
+- **README.md / README.zh-TW.md**: the Validate badge, the `marketplace add …` source, and the `Verified udflow run` issue link → `kktu6507/…` (EN ↔ zh-TW parity preserved). The `simba6507/udflow-public-demo` demo link is **left unchanged** — that repo was not transferred.
+- **`RELEASING.md`**: the `marketplace add …` smoke step → `kktu6507/…`.
+- **`udflow/skills/universal-dev-flow/references/final-report.md`** (Evidence Record): the one-line share link → `kktu6507/…`.
+- **Left as-is (history):** the `simba6507/…` PR / release URLs in `CHANGELOG.md` and `EVIDENCE.md` record what was true at the time and resolve via GitHub's redirect.
+
+### Notes
+- Does **not** affect the pending official community-marketplace submission beyond the URL change — update that submission's repo URL to the new owner (owner-side, Console form). The self-hosted marketplace name (`kktu`) and the plugin name (`udflow`) are unchanged. Version bumped 0.27.5 → 0.27.6 across `plugin.json`, `package.json`, and `marketplace.json` (metadata + plugin entry). `node --test` + `validate-structure` + `claude plugin validate` green; no hand-tag (CI owns tagging).
+
 ## [0.27.5]
 
 Rename the self-hosted marketplace `kktmarketplace` → `kktu`, so the install id follows the conventional owner-handle style (`udflow@kktu`, matching the `kktu` owner/author already in the manifests). **Distribution metadata + docs only — no hook, agent, skill, reference, sentinel, or machine-token change; the shipped `udflow/` tree is byte-identical.** Does **not** affect the pending official community-marketplace submission (that keys on the repo source + plugin name `udflow`, not the self-hosted marketplace name).

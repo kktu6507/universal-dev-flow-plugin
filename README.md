@@ -1,6 +1,6 @@
 # udflow — Universal Dev Flow (Claude Code plugin)
 
-[![Validate](https://github.com/simba6507/universal-dev-flow-plugin/actions/workflows/validate.yml/badge.svg)](https://github.com/simba6507/universal-dev-flow-plugin/actions/workflows/validate.yml)
+[![Validate](https://github.com/kktu6507/universal-dev-flow-plugin/actions/workflows/validate.yml/badge.svg)](https://github.com/kktu6507/universal-dev-flow-plugin/actions/workflows/validate.yml)
 
 **English** · [繁體中文](README.zh-TW.md)
 
@@ -50,7 +50,7 @@ Prerequisites: **Claude Code** + `node` on PATH (the hooks are Node scripts; wit
 
 ```text
 # in your project directory, inside Claude Code:
-/plugin marketplace add simba6507/universal-dev-flow-plugin
+/plugin marketplace add kktu6507/universal-dev-flow-plugin
 /plugin install udflow@kktu
 # udflow ships DISABLED — enable it: /plugin → Installed → toggle udflow on
 #   (or: claude plugin enable udflow@kktu), then:
@@ -222,7 +222,7 @@ Disable under Copilot only: `{ "enabledPlugins": { "udflow@kktu": false } }` (or
 ## Project status & contributing
 
 - **Early / experimental, solo-maintained** (bus factor of one) — dogfooded on real work, but weigh that before depending on it for release gating. Issues/PRs welcome, response best-effort.
-- **Most valuable contribution: a verified run.** udflow ships **no telemetry**, so a real run only counts if written down — udflow prints a paste-ready `Live run` block at the end. **→ [Open a "Verified udflow run" issue](https://github.com/simba6507/universal-dev-flow-plugin/issues/new?template=verified-run.yml)** (misses & false alarms wanted too; sanitize secrets first). See [`CONTRIBUTING.md`](CONTRIBUTING.md) and [`EVIDENCE.md`](EVIDENCE.md).
+- **Most valuable contribution: a verified run.** udflow ships **no telemetry**, so a real run only counts if written down — udflow prints a paste-ready `Live run` block at the end. **→ [Open a "Verified udflow run" issue](https://github.com/kktu6507/universal-dev-flow-plugin/issues/new?template=verified-run.yml)** (misses & false alarms wanted too; sanitize secrets first). See [`CONTRIBUTING.md`](CONTRIBUTING.md) and [`EVIDENCE.md`](EVIDENCE.md).
 - **Open gate to drop "experimental":** ≥10 verified runs, across ≥3 projects, with ≥1 not by the maintainer.
 
 ---

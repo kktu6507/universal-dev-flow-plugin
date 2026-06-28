@@ -24,7 +24,7 @@ right after) a release that touches hooks, the skill, `hooks.json`, or the manif
 In a throwaway/clean Claude Code profile, from a scratch project directory:
 
 1. **Install + enable + reload**
-   - `/plugin marketplace add simba6507/universal-dev-flow-plugin`
+   - `/plugin marketplace add kktu6507/universal-dev-flow-plugin`
    - `/plugin install udflow@kktu`
    - `/plugin` → **Installed** → toggle **udflow** on (or `claude plugin enable udflow@kktu`)
    - `/reload-plugins`
