@@ -3,6 +3,18 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.27.7]
+
+Consolidation-phase **documentation alignment** (per `docs/consolidation.md`), after a Phase-2 surface audit: bring SKILL.md's deep-mode / panel-selection wording into line with its own references. **Doc alignment only — no behavior, hook, agent, sentinel, or machine-token change.** The surface audit found **0 dead weight to remove** (every agent / hook / reference earns its keep).
+
+### Changed
+- **`SKILL.md`**: align internal wording with the references it points to — the Tier-1 auto-engage trigger now reads "high-risk **or correctness-critical**" (matching `deep-mode.md` and SKILL.md's own step 6); `--lite` / `--deep` are labelled by **Tier** (`--lite` skips the costlier **Tier 2**; `--deep` *is* Tier 2) so the brief flag line can't be misread as skipping Tier-1 enforcement; the always-on pair is named "**core reviewers**" consistently with `reviewer-selection.md` and the README.
+- **`docs/consolidation.md`**: record the Phase-2 audit outcome (0 removals, 17 keep) and park the audit's **behavior-add** suggestions as a *post-unfreeze backlog* (they add rules → blocked by the freeze), plus two deferred consolidation candidates.
+- **`CHANGELOG.md`**: reconcile the 0.27.6 demo-link note (the `udflow-public-demo` repo was *subsequently* also transferred to `kktu6507`) without rewriting the point-in-time history.
+
+### Notes
+- The audit's other "doc-fix" suggestions were **filtered out** with maintainer judgment: most were new agent/gatekeeper rules (behavior — blocked by the freeze) or were already satisfied / pedantic. Version bumped 0.27.6 → 0.27.7 (SKILL.md ships) across `plugin.json`, `package.json`, `marketplace.json` (metadata + plugin entry). `node --test` + `validate-structure` (incl. the new 5f contract-invariant guard) + `claude plugin validate` green; no hand-tag (CI owns tagging).
+
 ## [0.27.6]
 
 Repository transferred to a new GitHub owner: `simba6507/universal-dev-flow-plugin` → **`kktu6507/universal-dev-flow-plugin`**. Update every **operational** reference to the new owner (GitHub keeps an automatic redirect from the old path, so existing installs/links keep working, but the canonical URLs are now correct). **Owner/metadata + one shipped reference only — no hook, agent, skill, or machine-token change; the install id stays `udflow@kktu` and the plugin name stays `udflow`.**
@@ -11,7 +23,7 @@ Repository transferred to a new GitHub owner: `simba6507/universal-dev-flow-plug
 - **`udflow/.claude-plugin/plugin.json`**: `homepage` / `repository` → `kktu6507/…`.
 - **`.claude-plugin/marketplace.json`**: `owner.url` → `https://github.com/kktu6507`.
 - **`.github/CODEOWNERS`**: `@simba6507` → `@kktu6507`.
-- **README.md / README.zh-TW.md**: the Validate badge, the `marketplace add …` source, and the `Verified udflow run` issue link → `kktu6507/…` (EN ↔ zh-TW parity preserved). The `simba6507/udflow-public-demo` demo link is **left unchanged** — that repo was not transferred.
+- **README.md / README.zh-TW.md**: the Validate badge, the `marketplace add …` source, and the `Verified udflow run` issue link → `kktu6507/…` (EN ↔ zh-TW parity preserved). The `simba6507/udflow-public-demo` demo link is **left unchanged** — that repo was not transferred *at this point*. *(Superseded: the demo repo was also transferred to `kktu6507` shortly after, and its links were repointed in a follow-up docs change.)*
 - **`RELEASING.md`**: the `marketplace add …` smoke step → `kktu6507/…`.
 - **`udflow/skills/universal-dev-flow/references/final-report.md`** (Evidence Record): the one-line share link → `kktu6507/…`.
 - **Left as-is (history):** the `simba6507/…` PR / release URLs in `CHANGELOG.md` and `EVIDENCE.md` record what was true at the time and resolve via GitHub's redirect.

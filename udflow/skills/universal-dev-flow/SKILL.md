@@ -43,7 +43,7 @@ Keep `SKILL.md` as the lightweight entry point. Read these references only when 
 - `references/verification-gate.md`: before verification or failure-memory updates.
 - `references/final-report.md`: at final delivery, for the end-of-run report format (compact by default; `--report full` for the detailed tables).
 - `references/external-capabilities.md`: before using any MCP tool, external subagent, or external skill (including `ui-ux-pro-max` for UI work).
-- `references/deep-mode.md`: before expressing the panel as a deterministic Workflow — Tier-1 enforcement auto-engages on high-risk work when the Workflow capability is present (opt-out); Tier-2 deeper verification (adversarial checks, max effort) is explicit opt-in.
+- `references/deep-mode.md`: before expressing the panel as a deterministic Workflow — Tier-1 enforcement auto-engages on high-risk or correctness-critical work when the Workflow capability is present (opt-out); Tier-2 deeper verification (adversarial checks, max effort) is explicit opt-in.
 - `references/browser-evidence.md`: before driving a live browser for UI verification — Detect → Use → Else-Disclose for the Chrome extension; in `--deep` + UI in scope the live drive is required (else a disclosed gap).
 - `references/app-launch.md`: before bringing the app up in `--deep` when a needed live process (web app or backend/API) is not already running — delegate to `/run` (auto-launch + disclose + tear down only what udflow started); never auto-launches in standard mode.
 
@@ -71,7 +71,7 @@ Non-trivial work must pass an explicit plan gate before implementation begins. T
 - Modify only requested scope unless a broader change is required for correctness, safety, buildability, or testability.
 - Verify with commands, browser evidence, text-integrity checks, or explicit blockers as applicable.
 - Use the smallest sufficient formal review panel when subagents are authorized and available.
-- Keep cost risk-proportional and **user-adjustable**: the panel auto-scales to risk by default; `--lite` forces the smallest panel and skips deep mode (with a safety floor — see `references/reviewer-selection.md`), and `--deep`/`--no-deep` tune deep mode. State the selected panel + cost tier up-front at the plan gate and recap it in the final report.
+- Keep cost risk-proportional and **user-adjustable**: the panel auto-scales to risk by default; `--lite` forces the smallest panel and skips the costlier deep-mode **Tier 2** (with a safety floor — see `references/reviewer-selection.md`), and `--deep` (Tier 2) / `--no-deep` tune deep mode. State the selected panel + cost tier up-front at the plan gate and recap it in the final report.
 - Do not spawn non-applicable reviewers merely to satisfy process.
 - Do not use full thread history as the default reviewer input.
 - Do not present local self-review as formal multi-agent review.
@@ -125,9 +125,9 @@ When touching human-readable text, check for mojibake, replacement characters, b
    - If a command or check cannot run, state the exact blocker and remaining uncertainty.
 
 5. Review panel selection
-   - Always include `spec-reviewer` and `test-reviewer` for non-trivial formal review.
+   - Always include the **core reviewers** `spec-reviewer` and `test-reviewer` for non-trivial formal review.
    - Add conditional reviewers only when their risk criteria apply.
-   - The panel size is risk-proportional and user-adjustable: `--lite` forces the smallest sufficient panel (core + `code-reviewer` when code changed) and skips deep mode, except it keeps a directly-relevant safety reviewer when a high-risk signal is present and discloses it (see `references/reviewer-selection.md`, *Lite path*).
+   - The panel size is risk-proportional and user-adjustable: `--lite` forces the smallest sufficient panel (core + `code-reviewer` when code changed) and skips deep-mode Tier 2, except it keeps a directly-relevant safety reviewer when a high-risk signal is present and discloses it (see `references/reviewer-selection.md`, *Lite path*).
    - Prepare a Review Packet before reviewer handoff, and fill the "Shared reviewer contract" block into each handoff verbatim (a spawned reviewer cannot reach `references/reviewer-common.md` by path).
    - Read `references/review-packet.md` and `references/reviewer-selection.md`.
 

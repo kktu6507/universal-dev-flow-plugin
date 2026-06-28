@@ -70,3 +70,29 @@ stop. When in doubt, it's blocked.
   panel on prose would violate its own pragmatism axiom).
 - **Audits / benchmark evals** → read-only exploration / a verification workflow with an
   independent judge — not udflow.
+
+## Post-unfreeze backlog (from the Phase 2 surface audit, 2026-06-28)
+
+The Phase 2 audit (6 read-only auditors over 10 agents / 12 references / 5 hooks) found
+**0 dead weight to remove** and 17 "keep" — the surface is large but every piece earns its
+keep. It produced doc-alignment fixes (applied: SKILL.md Tier-1/Tier-2 + core-reviewer
+wording) and the following **behavior-add candidates**, which are BLOCKED by the freeze
+(they add new rules, not align docs) and parked here for the un-freeze:
+
+- gatekeeper: treat a behavior-changing acceptance criterion with **no fail-first→pass test**
+  as a blocking omission.
+- implementer: document **rollback steps** for deploy/schema/config changes; emit test output
+  with **parseable test IDs** (to feed the regression ratchet).
+- spec-reviewer: an explicit **exported-API / contract-break** check on changed paths.
+- planner-creator: flag **vague/unmeasurable acceptance criteria**; surface `design.md`
+  presence in the grounding output.
+- code-reviewer ↔ architecture-reviewer: make the **local-vs-structural duplication &
+  maintainability boundary** explicit in each file.
+- destructive-guard: parenthesized POSIX forms (`(rm -rf …)`) slip the deny-list while the
+  PowerShell patterns already match `(` — closing it is a regex (behavior) change.
+
+**Deferred consolidation (a careful per-file pass, no behavior change):**
+- `deep-mode.md` ↔ `runtime-policy.md` restate the same Workflow-enforcement mechanism — make
+  one authoritative and point from the other.
+- the Detect → Use → Else-Disclose protocol is restated in ~5 references — reduce to a minimal
+  point-of-use checklist + pointer to `external-capabilities.md` (preserve clarity).
