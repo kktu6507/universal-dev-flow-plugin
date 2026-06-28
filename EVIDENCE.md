@@ -51,7 +51,7 @@ it rather than blur it:
   from dominating.
 
 New `### Live run N …` entries are tagged with their tier. The first three logged below are maintainer
-**self-attested** (private); **Live run 4 is the first publicly verifiable** (a public-repo PR) — but all four
+**self-attested** (private); **Live runs 4–6 are publicly verifiable** (public-repo PRs) — but all six
 are maintainer runs, which is exactly why the ≥3-projects breadth and the ≥1 non-maintainer requirement remain open.
 
 ## Graduation criteria (two tracks)
@@ -76,8 +76,8 @@ whether the **workflow + verdict** holds up in practice, which is the claim the 
 
 | Metric | Now | Track-1 target | Track-2 target |
 |---|---|---|---|
-| **Real-world verified runs (Type B)** | **5 logged** | — | ≥ 10 |
-| — of which **publicly verifiable** (vs self-attested / private) | **2** | — | — |
+| **Real-world verified runs (Type B)** | **6 logged** | — | ≥ 10 |
+| — of which **publicly verifiable** (vs self-attested / private) | **3** | — | — |
 | Distinct real projects (Type B) | **2 logged** (one private repo + udflow's own public repo) | — | ≥ 3 |
 | Independent (non-maintainer) runs | **0** | — | ≥ 1 |
 | External repos (Type A benchmark) | **~13** | ≥ 3 ✓ | — |
@@ -94,8 +94,8 @@ lower), and **~29% bug-blind at n=77**. The robust, condition-independent streng
 false-positive rate**. Track 2 (**real-world runs**) is **not yet met** — that is now the honest reason
 "experimental" stays. The defensible relabel is a *characterized* "beta" ("near-zero FP; recall scales with the
 quality of the intent you give it; real-world track record still accumulating"), to be earned by the Type-B
-runs this log is built to collect — the **first five of which are now logged below (5 of ≥10)**, across **two
-projects** (one private, plus udflow's own public repo) and now including **two publicly-verifiable** entries, so
+runs this log is built to collect — the **first six of which are now logged below (6 of ≥10)**, across **two
+projects** (one private, plus udflow's own public repo) and now including **three publicly-verifiable** entries, so
 the **≥3-projects breadth and the ≥1 non-maintainer run remain open**.
 
 ---
@@ -201,6 +201,19 @@ shape:
 - **Outcome after follow-up:** **merged** (PR #30, merge commit `5d6a613`) and auto-released as **`v0.23.0`**; a docs follow-up (PR #31, merge `e50a5c7`) recorded the Copilot live-verify with **no version bump**. Whether the verdict holds long-term is **to be confirmed** over time.
 - **Cost:** ~1.51M new tokens (observed: implementer ~109K + deep panel R1 ~783K + repair panel R2 ~369K; orchestrator main-thread ~250K estimate) · ~24 subagents across 2 workflow runs · **Evidence:** public — PR https://github.com/simba6507/universal-dev-flow-plugin/pull/30 · commit `f8bef45` · release `v0.23.0` · compat follow-up PR https://github.com/simba6507/universal-dev-flow-plugin/pull/31.
 - **Copilot compatibility (live-verified this session):** udflow 0.23.0 on **GitHub Copilot CLI 1.0.65** (model claude-sonnet-4.6) — `copilot plugin list` shows `udflow@kktmarketplace (v0.23.0)`, `copilot skill list` lists both skills, a live `copilot -p` session enumerated **all nine subagents** (`implementer` + 7 reviewers + `gatekeeper`), and the **SessionStart + Stop hooks fired** (hook-debug log). One finding: Copilot **runs** the hooks but does **not surface their injected output** to the model → the auto failure-memory digest is a **no-op under Copilot** (fail-open; degrades to manual retrieval during planning). Documented in README Compatibility (PR #31).
+
+### Live run 6 — 2026-06-28 · `universal-dev-flow-plugin` (udflow's own repo — Markdown / Node JS) · verified live task (merged) · **publicly verifiable**
+
+- **Task:** review + verify the 0.27.4 "verified-run friction reduction" change (commit `6a4f9ec`) — slim the `Verified udflow run` issue form to two-picks-one-paste and surface a one-click contribution link in udflow's end-of-run output. Invoked via the `universal-dev-flow` skill as a **retrospective dogfood review of an already-merged change** (maintainer's run).
+- **Intent given:** **contract-level** — reduce verified-run submission friction without degrading evidence quality, and keep `verified-run.yml` ↔ `final-report.md` in sync; five numbered acceptance criteria (a–e) handed in.
+- **Reviewers:** spec / test (2-reviewer panel) + gatekeeper; code / security / architecture / operability / ui-ux correctly scoped out (docs/config, no behavior-changing code, no UI). · **Verdict: READY** (first iteration).
+- **Verification:** `node --test` → 173 pass / 0 fail / 4 skip (Windows symlink-EPERM, known; exit 0); `node .github/scripts/validate-structure.mjs` → pass; `claude plugin validate .` and `./udflow` → both ✔.
+- **Caught:** 2 × **minor** (cosmetic only) — a share-link example phrasing drift vs the canonical "two picks + one paste", and a hardcoded absolute share-URL that forms a latent second sync point with the `plugin.json` homepage (currently consistent). No real defect.
+- **False alarms: 0** — both minors are legitimate cosmetic observations, not false positives.
+- **Missed:** none known at the verdict — to confirm in follow-up use.
+- **Outcome after follow-up:** **merged** (PR #47, merge commit `49a7843`) and auto-released as **`v0.27.4`**; CI green on macOS / Ubuntu / Windows, no regression. Whether the verdict holds long-term is **to be confirmed**.
+- **Cost:** ~105K new tokens (observed: spec ~28K + test ~42K + gatekeeper ~34K; orchestrator main-thread an estimate) · 3 reviewer subagents ~76–111s each · **Evidence:** public — PR https://github.com/simba6507/universal-dev-flow-plugin/pull/47 · commit `6a4f9ec` · release `v0.27.4` · reported via issue #48.
+- **Evidentiary weight (honest caveat): low.** A maintainer **self-review of the maintainer's own docs/config change**, retrospective (already merged) and finding no real defect — a "verdict held on a clean small change" data point, the same weak class as runs 4–5, **not** a blind catch. It does **not** satisfy the Track-2 "≥1 run not by the maintainer" gate.
 
 _More runs needed for Track 2 — especially at least one **not** by the maintainer, and breadth beyond the current
 two projects (one private, one this public plugin repo). Add yours via the issue template above._
