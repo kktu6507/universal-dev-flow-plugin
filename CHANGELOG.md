@@ -3,6 +3,16 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.27.1]
+
+Marketplace metadata fix: align the catalog `category` with Anthropic's official taxonomy. The official plugin catalog has no `workflow` category — workflow / review plugins are filed under `development` — so the `kktmarketplace` entry's `category` is changed `workflow` → `development` to match, improving discoverability when the plugin is listed. **Metadata only — no runtime, hook, agent, skill, or machine-token change.**
+
+### Changed
+- `.claude-plugin/marketplace.json`: the plugin entry's `category` `"workflow"` → `"development"` (the official catalog has no `workflow` category; review/workflow plugins file under `development`).
+
+### Notes
+- Version bumped 0.27.0 → 0.27.1 in `plugin.json`, `package.json`, and `marketplace.json` (metadata + plugin entry) so the four version fields stay in agreement (`validate-structure`) and the metadata fix lands as its own release. `node --test` / `validate-structure` green; no hand-tag (CI owns tagging).
+
 ## [0.27.0]
 
 Spirit-filtered self-improvement: sharpen the two proven weaknesses (omission/intent recall, test generation) and add two bounded defensive capabilities, without regressing leanness or the no-telemetry stance. **No new agent (roster stays 10); machine-checked tokens byte-identical.**
