@@ -229,4 +229,4 @@ Disable under Copilot only: `{ "enabledPlugins": { "udflow@kktu": false } }` (or
 
 ## License
 
-[MIT](LICENSE) · version history in [CHANGELOG.md](CHANGELOG.md) · how it fits together + honest limits in [ARCHITECTURE.md](ARCHITECTURE.md).
+[MIT](LICENSE) · version history in [CHANGELOG.md](CHANGELOG.md) · how it fits together + honest limits in [ARCHITECTURE.md](ARCHITECTURE.md) · trust model + reporting in [SECURITY.md](SECURITY.md).

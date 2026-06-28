@@ -85,8 +85,9 @@ are the higher-risk, less-defended edges** — the rest of this section names th
   present, the gap disclosed if absent, never a hard dependency. udflow must run standalone.
 - **Distribution / supply chain** — hooks **auto-execute in every consumer session**, distributed
   by `git clone` via the marketplace, with **no signing / checksum / provenance today**. A
-  compromised repo or marketplace would run hook code in every session. *(Mitigation planned —
-  signed releases + an integrity note; see [`SECURITY.md`](SECURITY.md) when present.)*
+  compromised repo or marketplace would run hook code in every session. [`SECURITY.md`](SECURITY.md)
+  states the trust model + how to reduce risk (pin a tag/SHA; audit the zero-dependency tree; run
+  `/udflow:doctor`); signed releases remain an owner-side roadmap item there.
 
 ## Honest limits
 
