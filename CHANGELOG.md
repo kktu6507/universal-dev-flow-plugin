@@ -3,6 +3,18 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.27.4]
+
+Lower the friction of logging a verified run — the project's only evidence channel, since udflow ships **no telemetry**. The issue form collapses to **two picks + one paste**, and udflow's own end-of-run output now surfaces a one-click link to it, so a real run files the moment the evidence is in hand.
+
+### Changed
+- **`Verified udflow run` issue form simplified** (`.github/ISSUE_TEMPLATE/verified-run.yml`): dropped the reviewer checkboxes and the separate evidence textarea. A run now files as two dropdowns (**Run type**, **Final udflow verdict**) plus one **The run** box pre-filled with the skeleton (Reviewers / Verification / Caught / **Missed** / **False alarms** / **Outcome** / Evidence folded into the one block). The easiest path is still to paste udflow's end-of-run `### Live run` block, which already carries every line. The honest-negative prompts and the sanitize warning are **kept** — they are what keeps a submission *evidence* and not a testimonial (per `CONTRIBUTING.md`'s adoption-vs-evidence rule).
+- **End-of-run output now surfaces a one-click contribution link** (`udflow/skills/universal-dev-flow/references/final-report.md`, *Evidence Record*): on a **real run**, the paste-ready `### Live run` block is followed by a one-line, user-language share link to the prefilled form, so the evidence files at the exact moment it exists. Emitted **only on a real run** (never trivial edits / pure Q&A / benchmark runs) and **one line** only — no nagging, no new always-on cost. The Evidence Record's form sheet is re-synced to **two picks + one paste** (reviewers + evidence now travel inside the block).
+- **Docs:** `CONTRIBUTING.md` "Reporting a verified run" updated to the two-pick form (drops "tick the reviewers"; `Run details` → `The run`).
+
+### Notes
+- Repo-root form/docs + one shipped reference. **No hook, agent, sentinel, or machine-token change** — the `udflow:verify=` / `udflow:delivery=` sentinels and the verdict/severity literals are byte-identical, and the 5d/5e `final-report.md` guards are untouched (the edits live in the *Evidence Record* section, outside both report fences). Version bumped 0.27.3 → 0.27.4 across `plugin.json`, `package.json`, and `marketplace.json` (metadata + plugin entry). `node --test` + `validate-structure` green; no hand-tag (CI owns tagging).
+
 ## [0.27.3]
 
 **Fix:** the compaction-fidelity hook never worked on Claude Code and errored on every compaction. It was wired under `PreCompact` and emitted `hookSpecificOutput.additionalContext`, but Claude Code's hook-output schema has **no `PreCompact` `hookSpecificOutput` variant** — so the output was rejected (`Hook JSON output validation failed — (root): Invalid input`), the preservation reminder never reached the summary, and a validation error was shown to the user on **every** `/compact` (and auto-compaction). Caught by the RELEASING.md step-5 smoke driving a real Claude Code `/compact`; the unit tests had asserted the hook's JSON in isolation and never validated it against Claude Code's actual `PreCompact` output contract.

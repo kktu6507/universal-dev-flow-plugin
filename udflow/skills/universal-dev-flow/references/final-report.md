@@ -136,9 +136,10 @@ Cost honesty (no telemetry) — **every figure carries its basis**. Tag each fig
 
 ## Evidence Record (real runs only)
 
-When udflow actually ran the workflow on a **real task in an actual project** (not a throwaway demo or a benchmark experiment), also emit a compact, paste-ready evidence record so the run can be logged with no reformatting. This is the only way real-use evidence gets logged: udflow ships no telemetry, so a run that isn't written down does not count. Emit two things:
-- the **`### Live run` block** below — paste it into the project's `EVIDENCE.md` *Real-world runs* section (or a PR that adds that section), and into the [`Verified udflow run`](.github/ISSUE_TEMPLATE/verified-run.yml) issue form's `Run details` box;
-- a short **issue-form sheet** — the few form choices the block doesn't carry (run type, verdict, reviewers), so the whole run files in three picks and one paste.
+When udflow actually ran the workflow on a **real task in an actual project** (not a throwaway demo or a benchmark experiment), also emit a compact, paste-ready evidence record so the run can be logged with no reformatting. This is the only way real-use evidence gets logged: udflow ships no telemetry, so a run that isn't written down does not count. Emit:
+- the **`### Live run` block** below — paste it into the project's `EVIDENCE.md` *Real-world runs* section (or a PR that adds that section), and into the [`Verified udflow run`](.github/ISSUE_TEMPLATE/verified-run.yml) issue form's **The run** box;
+- a **one-line share link** directly under the block, in the user's language, so filing the run is one click while the evidence is in hand — point at the prefilled form: `https://github.com/simba6507/universal-dev-flow-plugin/issues/new?template=verified-run.yml` (e.g. *"Share this run — no telemetry, so a run only counts if logged: <link> · pick run type + verdict, paste the block above"*). This line is emitted **only on a real run** (never for trivial edits, pure Q&A, or benchmark runs) and stays **one line** — no nagging, no per-run cost beyond it;
+- a short **issue-form sheet** — the two form choices the block doesn't carry (run type, verdict), so the whole run files in two picks and one paste.
 
 ```markdown
 ### Live run — <YYYY-MM-DD> · <project / stack> (<language>) · verified live task
@@ -153,16 +154,14 @@ When udflow actually ran the workflow on a **real task in an actual project** (n
 - Cost: <~tokens / wall-clock> · Evidence: <commit / PR / sanitized log>
 ```
 
-### Verified-run issue form — three picks + one paste
+### Verified-run issue form — two picks + one paste
 
-The [`Verified udflow run`](.github/ISSUE_TEMPLATE/verified-run.yml) form is short: two dropdowns, the reviewers checkboxes, and one `Run details` box that takes the whole `### Live run` block above. Field names are the form's exact labels — keep them and the option literals verbatim:
+The [`Verified udflow run`](.github/ISSUE_TEMPLATE/verified-run.yml) form is short: two dropdowns and one **The run** box that takes the whole `### Live run` block above (the block already carries the reviewers, the evidence link, and the Missed / False alarms / Outcome lines). Field names are the form's exact labels — keep them and the option literals verbatim:
 
 ```text
 1. Run type — [select] Live task
 2. Final udflow verdict — [select] READY | FIX REQUIRED | NOT READY | No formal verdict
-3. Reviewers involved — [check] <only the reviewers that ran>
-4. Run details — [paste] the whole `### Live run` block above (its header already carries date · stack · language; keep the Missed / False alarms / Outcome lines)
-5. Evidence or links — [paste] <commit / PR / sanitized log> · optional
+3. The run — [paste] the whole `### Live run` block above (its header already carries date · stack · language; keep the Reviewers · Evidence · Missed / False alarms / Outcome lines)
 ```
 
 - Marker words and prose follow the **user's language** (e.g. 〔貼〕 paste / 〔選〕 select / 〔勾〕 check); the **field names and option literals stay verbatim** so they match the GitHub form.
