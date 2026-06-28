@@ -83,9 +83,9 @@ jobs:
     permissions:
       contents: write   # push the tag and create the release (overrides the read-only default)
     env:
-      # Tag signing is OPT-IN + gated: with the GPG_PRIVATE_KEY secret set, release tags are GPG-signed
+      # Tag signing is OPT-IN + gated: with the UDFLOW_SIGN_PRIVATE_KEY secret set, release tags are GPG-signed
       # (GitHub "Verified"); without it the flow is unchanged (unsigned annotated tag). See SECURITY.md.
-      HAS_GPG: ${{ secrets.GPG_PRIVATE_KEY != '' }}
+      HAS_GPG: ${{ secrets.UDFLOW_SIGN_PRIVATE_KEY != '' }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
@@ -93,15 +93,15 @@ jobs:
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: "20"
-      - name: Import GPG signing key (only when the GPG_PRIVATE_KEY secret is set)
+      - name: Import GPG signing key (only when the UDFLOW_SIGN_PRIVATE_KEY secret is set)
         if: env.HAS_GPG == 'true'
         continue-on-error: true   # a key problem must NEVER break the release — the tag step falls back to unsigned
         env:
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          UDFLOW_SIGN_PRIVATE_KEY: ${{ secrets.UDFLOW_SIGN_PRIVATE_KEY }}
         shell: bash
         run: |
           set -euo pipefail
-          printf '%s\n' "$GPG_PRIVATE_KEY" | gpg --batch --import
+          printf '%s\n' "$UDFLOW_SIGN_PRIVATE_KEY" | gpg --batch --import
           keyid=$(gpg --list-secret-keys --with-colons --keyid-format=long | awk -F: '/^sec:/{print $5; exit}')
           uid=$(gpg --list-keys --with-colons "$keyid" | awk -F: '/^uid:/{print $10; exit}')
           git config user.signingkey "$keyid"

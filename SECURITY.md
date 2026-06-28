@@ -57,7 +57,7 @@ titles/tags only (not free body text). To remove the surface entirely, delete th
 
 - **Signed release tags — wired (opt-in, gated).** The release job
   ([`.github/workflows/validate.yml`](.github/workflows/validate.yml)) **GPG-signs** each `vX.Y.Z` tag
-  when the `GPG_PRIVATE_KEY` repo secret is set; without it the flow is unchanged (unsigned annotated
+  when the `UDFLOW_SIGN_PRIVATE_KEY` repo secret is set; without it the flow is unchanged (unsigned annotated
   tag), and a signing problem can never block a release (it falls back to unsigned). To activate: add
   the secret + register the matching **public** key on the maintainer's GitHub account (so the tagger
   email is a *verified* one). Verify any release locally with `git verify-tag vX.Y.Z`. Setup steps:

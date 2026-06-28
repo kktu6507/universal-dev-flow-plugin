@@ -71,15 +71,15 @@ against so drift is visible:
 
 ## Release signing (opt-in)
 
-The release job signs each `vX.Y.Z` tag when the `GPG_PRIVATE_KEY` secret is set, and falls back to an
+The release job signs each `vX.Y.Z` tag when the `UDFLOW_SIGN_PRIVATE_KEY` secret is set, and falls back to an
 unsigned annotated tag otherwise (a signing problem never blocks a release). To activate, one-time:
 
 1. Generate a **passphrase-less** GPG signing key whose email is **verified** on the maintainer's GitHub
    account: `gpg --quick-generate-key "Name <verified-email>" ed25519 sign 0` (leave the passphrase blank).
 2. Register the **public** key on GitHub (Settings → SSH and GPG keys → New GPG key):
    `gpg --armor --export <KEYID>`.
-3. Store the **private** key as the repo secret `GPG_PRIVATE_KEY`:
-   `gpg --armor --export-secret-keys <KEYID> | gh secret set GPG_PRIVATE_KEY` (run from the repo dir).
+3. Store the **private** key as the repo secret `UDFLOW_SIGN_PRIVATE_KEY`:
+   `gpg --armor --export-secret-keys <KEYID> | gh secret set UDFLOW_SIGN_PRIVATE_KEY` (run from the repo dir).
 
 After that, the next version bump produces a **Verified** tag. Confirm with `git verify-tag vX.Y.Z` or the
 green *Verified* badge on the GitHub tags page. (A passphrase-protected key would need `GPG_PASSPHRASE` +
