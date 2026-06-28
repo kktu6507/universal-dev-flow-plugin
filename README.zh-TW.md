@@ -33,6 +33,7 @@
 
 - **精度是穩健的強項** —— ~110 次盲審約 1 個誤報。它升 `major`/`blocker` 時幾乎都是真的。
 - **召回隨你把意圖講得多具體而變** —— 只看程式碼約 30%；契約級意圖可達 ~84%。真實 udflow 透過 **Review Packet** 把意圖交給 reviewer,所以召回跟著你需求的品質走。
+- **出處 —— 2026 年中的快照。** 於 2026-06-19/20 量測,跑的是當時的 reviewer(約 v0.9.x 時代;模型未記錄),**早於** 0.24–0.27.x 的召回強化(omission-critic、acceptance↔test↔change 追溯、silent-failure lens、fail-first 測試)與現行模型。把它讀作 reviewer 已刻畫的*觸及範圍*,而非當前 build 的即時保證 —— 完整方法與限制見 [`EVIDENCE.md`](EVIDENCE.md)。
 
 <details>
 <summary><b>證據 —— 方法與限制</b></summary>

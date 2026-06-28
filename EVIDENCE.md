@@ -225,6 +225,17 @@ two projects (one private, one this public plugin repo). Add yours via the issue
 Blind bug-catch experiments. These characterize the reviewers' reach and precision; they are a **proxy** for
 real use, not a record of it.
 
+> **Provenance / staleness (read first).** Every Type-A run below was measured **2026-06-19/20** against the
+> reviewer prompts of that time (around **v0.8–0.9.x** — the fixes these runs motivated shipped in **v0.9.0**
+> and **v0.9.2**). The **model used was not recorded.** They therefore **predate the 0.24–0.27.x recall work**
+> (omission-critic · acceptance-criterion↔test↔change traceability · silent-failure lens · fail-first test
+> generation · repair-loop precision) **and the current model (Opus 4.8)** — both of which target the exact
+> omission/intent weakness these runs surfaced. So treat the numbers as a **historical capability snapshot**,
+> not a live measurement of the current build. The cheapest honest refresh is a **bounded** re-test — the
+> 32-bug curated subset, on the current build + model, with **repo-native** intent and an **independent judge**
+> (udflow's reviewers are Claude, so judge independence must be preserved) — **not yet done**; a full
+> 77-bug/12-repo re-sweep is low-ROI versus the still-open Track-2 (non-maintainer) gate.
+
 ### Run 1 — 2026-06-19 · Plan_PJ (C#/.NET) · retroactive blind bug-catch
 
 Method: pre-fix code of 8 real fixed bugs, extracted to packets outside the repo (the repo's own

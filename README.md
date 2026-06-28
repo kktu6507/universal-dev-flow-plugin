@@ -33,6 +33,7 @@ Task → Understand → Plan mode (no code yet) → [high-risk] ground in code +
 
 - **Precision is the robust strength** — ≈1 false positive across ~110 blind reviews. When it raises a `major`/`blocker`, it's almost always real.
 - **Recall scales with how specifically you state intent** — code-only ≈30%; contract-level intent up to ~84%. Real udflow feeds reviewers that intent via its **Review Packet**, so recall tracks the quality of your requirement.
+- **Provenance — a mid-2026 snapshot.** Measured 2026-06-19/20 on the reviewers of the day (≈v0.9.x era; model not recorded), *before* the 0.24–0.27.x recall work (omission-critic, acceptance↔test↔change traceability, silent-failure lens, fail-first tests) and the current model. Read them as the reviewers' characterized *reach*, not a live guarantee of the current build — full method &amp; limits in [`EVIDENCE.md`](EVIDENCE.md).
 
 <details>
 <summary><b>Evidence — method &amp; limits</b></summary>
