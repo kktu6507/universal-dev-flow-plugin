@@ -56,7 +56,7 @@ stop. When in doubt, it's blocked.
 **Un-freeze (may resume capability work) when ALL hold:**
 - [x] L1 regression guards are in CI and green (prose drift is caught automatically). — `validate-structure.mjs` **5f contract-invariant guard**: asserts the verbatim machine literals (verdict / severity / sentinel tokens) survive in the files that own them (gatekeeper, reviewer-common, reviewer-selection, SKILL.md).
 - [ ] README 60-second value + reconciled cost section shipped.
-- [ ] Surface-area audit complete (consolidation pass done).
+- [x] Surface-area audit complete (consolidation pass done). — Phase 2 audit (6 auditors): 0 removals, 0 real dedups, doc-alignment applied (0.27.7); behavior-add suggestions parked below.
 - [ ] A current-build re-test number is published in `EVIDENCE.md`.
 
 **Drop the "experimental" label (a separate, higher bar — adoption-driven, not code):**
@@ -91,8 +91,15 @@ wording) and the following **behavior-add candidates**, which are BLOCKED by the
 - destructive-guard: parenthesized POSIX forms (`(rm -rf …)`) slip the deny-list while the
   PowerShell patterns already match `(` — closing it is a regex (behavior) change.
 
-**Deferred consolidation (a careful per-file pass, no behavior change):**
-- `deep-mode.md` ↔ `runtime-policy.md` restate the same Workflow-enforcement mechanism — make
-  one authoritative and point from the other.
-- the Detect → Use → Else-Disclose protocol is restated in ~5 references — reduce to a minimal
-  point-of-use checklist + pointer to `external-capabilities.md` (preserve clarity).
+**Investigated → kept as-is (NOT duplication; the audit's two "consolidation candidates" did not survive a read of the actual content):**
+- `deep-mode.md` ↔ `runtime-policy.md` are **two complementary angles**, not a copy: deep-mode
+  describes *what the Workflow graph runs*; runtime-policy's *Deep Mode Enforcement* (~3 stable
+  sentences) describes *which thread-hygiene rules the graph enforces*, and already cross-links.
+- the per-reference `## Detect → Use → Else-Disclose` sections are the protocol **applied** to a
+  specific capability — `browser-evidence` (the detection order), `app-launch` (the probe/launch
+  steps), `design-spec` (`design.md` presence) — i.e. capability-specific content, NOT copies of
+  the generic protocol (which lives once in `external-capabilities.md`; `plan-grounding.md`
+  already uses a one-line pointer). Consolidating would lose point-of-use clarity (usability > DRY).
+
+**Net WS1 finding:** the surface is large but has **no dead weight to remove and no real
+redundancy to merge** — every agent / hook / reference earns its keep and is non-duplicative.
