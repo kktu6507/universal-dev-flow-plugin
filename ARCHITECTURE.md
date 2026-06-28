@@ -97,10 +97,12 @@ are the higher-risk, less-defended edges** — the rest of this section names th
   showed reviewers affirmatively declaring buggy code "safe" (a Rust soundness bug, a Tokio
   state-machine case). The **only true independence is cross-model** (the Codex seam), which is
   opt-in and off by default. Treat the panel as recall-via-breadth, not as independent verification.
-- **Prompt-driven core, thin behavioral net.** The hooks are unit-tested and the literals are
-  guarded (`5d/5f`), but the *review quality* is prompt behavior with **no executable behavioral
-  regression test** — a prompt edit can subtly degrade recall and pass every gate. (L1 guards that
-  the literals *exist*, not that the reviewers *behave*.)
+- **Prompt-driven core, thin behavioral net.** The hooks are unit-tested and the literals are guarded
+  (`5d/5f`), but the *review quality* is prompt behavior. Two nets exist, with a gap between them: `5f`
+  guards that the literals *exist* (per-commit, in CI), and the committed `eval/` fixture suite measures
+  whether the reviewer *behaves* (catches a planted defect, stays precise on a clean control) — but the
+  latter costs model tokens, so it is **on-demand, not a per-commit CI gate**. A prompt edit can still
+  degrade recall between eval runs; re-run `eval/` after any reviewer/agent-prompt change (`eval/README.md`).
 - **No telemetry → no self-operability.** By design udflow reports nothing, so when a hook fails
   open in a user's session the maintainer never learns of it (the `compact-fidelity` bug was
   invisible until a manual smoke). *Mitigated (opt-in): `/udflow:doctor` runs a local, on-demand

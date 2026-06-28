@@ -48,7 +48,7 @@ The tests exercise the Claude Code hook scripts (`udflow/hooks/*.js`) as CLI pro
 
 1. Keep the change scoped.
 2. Update documentation when behavior changes.
-3. Add or update tests for hook behavior.
+3. Add or update tests for hook behavior. **When you change a reviewer/agent prompt, re-run the `eval/` behavioral fixture suite** (`eval/README.md`) and update `eval/baseline.md` — a clear drop in hit-recall or a new false positive on a clean control is a regression to fix before merging.
 4. Update `CHANGELOG.md` for user-visible changes — and bump the version in the four manifests (`udflow/.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json` ×2, `package.json`) when the shipped `udflow/` tree changes. Pure repo-root docs (README, EVIDENCE, this file) don't ship and don't need a bump.
 5. Do not commit the workflow's runtime output (failure-memory files) or temporary verification artifacts into this repo.
 
