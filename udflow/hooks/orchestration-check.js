@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// udflow Stop hook (best-effort, non-blocking). Three advisories, all fail-open:
+// udflow Stop hook (best-effort, non-blocking). Four advisories, all fail-open:
 //   1. Verdict not honored: the gatekeeper's last verdict in the transcript was a BLOCKING
 //      one (FIX REQUIRED / NOT READY), but the final message claims the work is done/ready
 //      without surfacing that block. This is the highest-value check — it guards the product's
@@ -10,6 +10,12 @@
 //      check failed or never ran, yet the session is delivering. The command exit status is
 //      authority over reviewer prose — a red/unrun required check must gate delivery. Fires ONLY
 //      on the explicit sentinel (no prose inference), mirroring advisory 1's delivery-sentinel path.
+//   4. Evidence not logged: a real, verified, DELIVERED run (a gatekeeper Task ran AND
+//      udflow:verify=pass AND the session is delivering) carries NO `### Live run` evidence block.
+//      udflow ships no telemetry, so a run that isn't written down does not count — this nudges the
+//      run to emit its paste-ready evidence block (references/final-report.md, Evidence Record). A pure
+//      logging reminder, never a block; excludes trivial (verify=na / no sentinel) and held/mid-repair
+//      runs (gated on delivering), so it only fires on a completed real run that forgot to log itself.
 // A Stop hook is ADVISORY by default (systemMessage, never blocks) — the pragmatism default, so a
 // false positive can never trap the user. An explicit opt-in (UDFLOW_ENFORCE_STOP) upgrades ONLY the
 // highest-confidence, fully sentinel-based signal (a real id-bound gatekeeper blocking verdict AND an
@@ -338,6 +344,28 @@ process.stdin.on("end", () => {
         "must gate delivery — the command's exit status is authority, reviewer findings cannot override " +
         "a red build. Fix and rerun the check until it is green (udflow:verify=pass), or hold delivery " +
         "(udflow:delivery=held) and report what failed or was not run.";
+      return process.stdout.write(JSON.stringify({ systemMessage: msg }), () => process.exit(0));
+    }
+
+    // (4) Evidence not logged. A REAL, verified, DELIVERED run — a gatekeeper Task actually ran, the
+    // verification sentinel is green (udflow:verify=pass), and the session is delivering — yet the final
+    // report carries no `### Live run` evidence block. Placed LAST (lowest priority): the three integrity
+    // advisories above early-return, so reaching here means the run is otherwise clean, which is exactly
+    // when a real run is contracted to log itself (references/final-report.md, Evidence Record). This is a
+    // pure logging NUDGE, never a block. It is conservative by construction — it requires the gatekeeper
+    // Task (a real udflow verdict, not a bare sentinel), verify=pass (so trivial verify=na / no-sentinel
+    // and red/unrun runs never trip it), and sessionDelivers (so a held / mid-repair run is not nagged) —
+    // honoring the pragmatism axiom that a false positive is worse than a documented miss. Detection of the
+    // block is GENEROUS (loose /Live run/ match) so an existing block reliably suppresses the nudge; the
+    // `### Live run` header is a guarded literal (validate-structure 5f) so a prose rename can't silently
+    // make this inert. Like every advisory it is finalText-scoped and emits at most one systemMessage.
+    const hasLiveRun = /\bLive run\b/i.test(finalText);
+    if (finalVerify === "pass" && sessionDelivers && ran.has("gatekeeper") && !hasLiveRun) {
+      const msg = "udflow: this was a real, verified run (a gatekeeper verdict ran and udflow:verify=pass), " +
+        "but the final report has no `### Live run` evidence block. udflow ships no telemetry, so a run " +
+        "that isn't written down does not count — emit the `### Live run` block (see references/final-report.md, " +
+        "Evidence Record) so the run can be pasted into EVIDENCE.md or the Verified-run issue form. Omit it " +
+        "only for trivial edits, pure Q&A, or benchmark/demo runs.";
       return process.stdout.write(JSON.stringify({ systemMessage: msg }), () => process.exit(0));
     }
   } catch (e) { debug("error: " + (e && e.message)); }

@@ -192,6 +192,10 @@ const CONTRACT_INVARIANTS = {
   [`${PLUGIN}/agents/gatekeeper.agent.md`]: ["READY", "FIX REQUIRED", "NOT READY"],
   [`${PLUGIN}/skills/universal-dev-flow/references/reviewer-common.md`]: ["blocker", "major", "minor"],
   [`${PLUGIN}/skills/universal-dev-flow/references/reviewer-selection.md`]: ["spec-reviewer", "test-reviewer"],
+  // The `### Live run` evidence-block header is tooling-read: orchestration-check.js (advisory 4) detects
+  // a real verified run that omitted the block by matching this literal, so a prose rename would silently
+  // make the "real run -> always log evidence" nudge go inert. Guard it like the other machine literals.
+  [`${PLUGIN}/skills/universal-dev-flow/references/final-report.md`]: ["### Live run"],
   [`${PLUGIN}/skills/universal-dev-flow/SKILL.md`]: [
     "udflow:verify=", "udflow:delivery=",
     "READY", "FIX REQUIRED", "NOT READY",

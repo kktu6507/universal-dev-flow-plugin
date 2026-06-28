@@ -3,6 +3,20 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.27.10]
+
+Make the paste-ready evidence block **reliable** on a real run (owner request: "real run 一律印" — a real run should always print it). Two layers: a firmer contract + a deterministic Stop-hook backstop.
+
+### Changed
+- **`### Live run` is now MUST-emit on a real run** — `references/final-report.md` upgraded from "is emitted" to **MUST** in both the compact and `--report full` renderings, and the Evidence Record section states it is required (not optional) on a real task. The **`### Live run` header is kept verbatim** (English) as a tooling-read marker, like the `udflow:` sentinels.
+
+### Added
+- **Stop-hook advisory 4 (evidence not logged)** — `hooks/orchestration-check.js`: when a run is genuinely real, verified, and delivered (a `gatekeeper` Task actually ran **and** `udflow:verify=pass` **and** the session is delivering) but the final report carries **no `### Live run` block**, the hook emits a one-line reminder to log it. It is a pure logging nudge (**never blocks**, fail-open) and conservative by construction — it requires the gatekeeper Task (not a bare sentinel), `verify=pass` (so trivial `verify=na` / no-sentinel and red/unrun runs never trip it), and delivering (so a held / mid-repair run is not nagged) — honoring the pragmatism axiom (a false positive is worse than a documented miss). 6 new tests.
+- **`5f` contract-invariant guard now covers `final-report.md`** (`### Live run`) — the header advisory 4 matches is a machine-coupled literal, so a prose rename now fails CI instead of silently making the nudge inert.
+
+### Notes
+- Shipped tree changed (`final-report.md`, `orchestration-check.js`) → bump 0.27.9 → 0.27.10. No verdict/severity/sentinel literal changed. `node --test` + `validate-structure` (incl. `5f`/`5g`) + `claude plugin validate` green. Advisory 4 surfaces only under Claude Code (a Stop-hook `systemMessage`); under Copilot CLI the Stop output is a no-op, so the firmer prose contract is the reliability path there.
+
 ## [0.27.9]
 
 Two architect-review follow-ups: a footgun guard for the run-artifacts directory (item D), and a verdict-stability measurement recorded honestly (item C).

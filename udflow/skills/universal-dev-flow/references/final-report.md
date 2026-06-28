@@ -8,7 +8,7 @@ The report has two renderings. **Compact is the default.** Emit the detailed tab
 
 ## Default (compact)
 
-Emitted unless `--report full` was passed. Summary one-liner · a Verification block (Checks table + acceptance-criteria line + a one-line cost summary) · a Findings severity table · the Final Verdict · then the two sentinel lines last. On a **real run**, the `### Live run` evidence block (see below) sits just above the footer.
+Emitted unless `--report full` was passed. Summary one-liner · a Verification block (Checks table + acceptance-criteria line + a one-line cost summary) · a Findings severity table · the Final Verdict · then the two sentinel lines last. On a **real run** (see *Evidence Record* below), the `### Live run` evidence block **MUST** be emitted just above the footer — it is **not optional on a real run**; the Stop hook (`orchestration-check.js`, advisory 4) reminds you if a real, verified, delivered run omits it.
 
 ~~~markdown
 ## Summary
@@ -41,7 +41,7 @@ udflow:verify=<pass|fail|unrun|na>
 udflow:delivery=<held|shipped>
 ~~~
 
-If blocked, add a `## Stuck Summary` (above the footer) with the unresolved blocker, attempted remedies, why progress is blocked, and what is needed next. On a real run, the `### Live run` block (see *Evidence Record* below) is emitted just above the footer.
+If blocked, add a `## Stuck Summary` (above the footer) with the unresolved blocker, attempted remedies, why progress is blocked, and what is needed next. On a real run, the `### Live run` block (see *Evidence Record* below) **MUST** be emitted just above the footer.
 
 ## `--report full`
 
@@ -126,7 +126,7 @@ udflow:verify=<pass|fail|unrun|na>
 udflow:delivery=<held|shipped>
 ~~~
 
-If blocked, add a `## Stuck Summary` (above the footer) with the unresolved blocker, attempted remedies, why progress is blocked, and what is needed next. On a real run, the `## Evidence Record` below is emitted just above the footer.
+If blocked, add a `## Stuck Summary` (above the footer) with the unresolved blocker, attempted remedies, why progress is blocked, and what is needed next. On a real run, the `## Evidence Record` below (including its `### Live run` block) **MUST** be emitted just above the footer.
 
 The footer restates the report's decision so the human-readable report and the machine rollup cannot silently disagree: `udflow:delivery=` mirrors the Final Verdict (`held` unless the verdict is READY and you are shipping), and `udflow:verify=` is the verification rollup — `pass` only when every required check actually ran and exited zero, `fail` on a non-zero required check, `unrun` when a required check was claimed but never ran, `na` when no command checks were required. The command exit status is authority over reviewer prose: a `fail` / `unrun` required check is incompatible with READY and shipping. Keep both tokens and their values verbatim (machine-checked, like the verdict). This is true in **both** the compact and `--report full` renderings — the sentinel footer is always the last thing emitted.
 
@@ -136,7 +136,7 @@ Cost honesty (no telemetry) — **every figure carries its basis**. Tag each fig
 
 ## Evidence Record (real runs only)
 
-When udflow actually ran the workflow on a **real task in an actual project** (not a throwaway demo or a benchmark experiment), also emit a compact, paste-ready evidence record so the run can be logged with no reformatting. This is the only way real-use evidence gets logged: udflow ships no telemetry, so a run that isn't written down does not count. Emit:
+When udflow actually ran the workflow on a **real task in an actual project** (not a throwaway demo or a benchmark experiment), it **MUST** also emit a compact, paste-ready evidence record so the run can be logged with no reformatting — on a real run this is **required, not optional**. This is the only way real-use evidence gets logged: udflow ships no telemetry, so a run that isn't written down does not count. The **`### Live run` header is kept verbatim** (English, exactly `### Live run`) regardless of the report's language — it is a tooling-read marker, like the `udflow:` sentinels: the Stop hook (`orchestration-check.js`, advisory 4) detects a real, verified, delivered run that omitted the block by matching it, and will remind you to add it. Emit:
 - the **`### Live run` block** below — paste it into the project's `EVIDENCE.md` *Real-world runs* section (or a PR that adds that section), and into the [`Verified udflow run`](.github/ISSUE_TEMPLATE/verified-run.yml) issue form's **The run** box;
 - a **one-line share link** directly under the block, in the user's language, so filing the run is one click while the evidence is in hand — point at the prefilled form: `https://github.com/kktu6507/universal-dev-flow-plugin/issues/new?template=verified-run.yml` (e.g. *"Share this run — no telemetry, so a run only counts if logged: <link> · pick run type + verdict, paste the block above"*). This line is emitted **only on a real run** (never for trivial edits, pure Q&A, or benchmark runs) and stays **one line** — no nagging, no per-run cost beyond it;
 - a short **issue-form sheet** — the two form choices the block doesn't carry (run type, verdict), so the whole run files in two picks and one paste.

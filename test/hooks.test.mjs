@@ -1271,6 +1271,76 @@ test("orchestration-check: a udflow:verify token only in a USER message stays si
   assert.strictEqual(orch({ transcript_path: tp }), null, "a verify token only in a user message must not trip the advisory (reads finalText only)");
 });
 
+// --- 0.27.10 advisory 4: a real verified delivered run must log its `### Live run` evidence block ---
+
+test("orchestration-check (advisory 4): a real verified delivered run with NO `### Live run` block nudges to log it", () => {
+  const tp = mkTranscript([
+    { role: "assistant", content: [{ type: "tool_use", name: "Task", input: { subagent_type: "udflow:spec-reviewer" } }] },
+    { role: "assistant", content: [{ type: "tool_use", name: "Task", input: { subagent_type: "udflow:test-reviewer" } }] },
+    { role: "assistant", content: [{ type: "tool_use", id: "g", name: "Task", input: { subagent_type: "udflow:gatekeeper" } }] },
+    { role: "user", content: [{ type: "tool_result", tool_use_id: "g", content: "Final verdict: READY — all good." }] },
+    { role: "assistant", content: "Final verdict: READY — readiness confirmed.\nudflow:verify=pass\nudflow:delivery=shipped" },
+  ]);
+  const r = orch({ transcript_path: tp });
+  assert.ok(r && /Live run/.test(r.systemMessage), "a real verified delivered run with no evidence block must be nudged to log it");
+  assert.ok(!r.decision, "advisory 4 is a logging nudge — must never block the stop");
+});
+
+test("orchestration-check (advisory 4): silent when the `### Live run` block IS present", () => {
+  const tp = mkTranscript([
+    { role: "assistant", content: [{ type: "tool_use", name: "Task", input: { subagent_type: "udflow:spec-reviewer" } }] },
+    { role: "assistant", content: [{ type: "tool_use", name: "Task", input: { subagent_type: "udflow:test-reviewer" } }] },
+    { role: "assistant", content: [{ type: "tool_use", id: "g", name: "Task", input: { subagent_type: "udflow:gatekeeper" } }] },
+    { role: "user", content: [{ type: "tool_result", tool_use_id: "g", content: "Final verdict: READY." }] },
+    { role: "assistant", content: "Final verdict: READY.\n### Live run — 2026-06-29 · acme/api (go) · verified live task\n- Task: add a guard\nudflow:verify=pass\nudflow:delivery=shipped" },
+  ]);
+  assert.strictEqual(orch({ transcript_path: tp }), null, "an emitted `### Live run` block must suppress the evidence nudge");
+});
+
+test("orchestration-check (advisory 4): inert on a trivial run (udflow:verify=na)", () => {
+  const tp = mkTranscript([
+    { role: "assistant", content: [{ type: "tool_use", name: "Task", input: { subagent_type: "udflow:spec-reviewer" } }] },
+    { role: "assistant", content: [{ type: "tool_use", name: "Task", input: { subagent_type: "udflow:test-reviewer" } }] },
+    { role: "assistant", content: [{ type: "tool_use", id: "g", name: "Task", input: { subagent_type: "udflow:gatekeeper" } }] },
+    { role: "user", content: [{ type: "tool_result", tool_use_id: "g", content: "Final verdict: READY." }] },
+    { role: "assistant", content: "Docs only — done.\nudflow:verify=na\nudflow:delivery=shipped" },
+  ]);
+  assert.strictEqual(orch({ transcript_path: tp }), null, "verify=na is a trivial run — no `### Live run` evidence is expected");
+});
+
+test("orchestration-check (advisory 4): inert on an honest hold (not delivering)", () => {
+  const tp = mkTranscript([
+    { role: "assistant", content: [{ type: "tool_use", name: "Task", input: { subagent_type: "udflow:spec-reviewer" } }] },
+    { role: "assistant", content: [{ type: "tool_use", name: "Task", input: { subagent_type: "udflow:test-reviewer" } }] },
+    { role: "assistant", content: [{ type: "tool_use", id: "g", name: "Task", input: { subagent_type: "udflow:gatekeeper" } }] },
+    { role: "user", content: [{ type: "tool_result", tool_use_id: "g", content: "Final verdict: READY." }] },
+    { role: "assistant", content: "Pausing here.\nudflow:verify=pass\nudflow:delivery=held" },
+  ]);
+  assert.strictEqual(orch({ transcript_path: tp }), null, "a held (mid-repair) run must not be nagged to log evidence");
+});
+
+test("orchestration-check (advisory 4): inert without a real gatekeeper verdict (bare verify=pass)", () => {
+  // verify=pass + shipped but NO gatekeeper Task and no ship-ready prose -> not a real udflow run; advisory 4
+  // requires the gatekeeper Task so a bare sentinel cannot trip the evidence nudge.
+  const tp = mkTranscript([
+    { role: "assistant", content: "Shipping.\nudflow:verify=pass\nudflow:delivery=shipped" },
+  ]);
+  assert.strictEqual(orch({ transcript_path: tp }), null, "a bare verify=pass without a gatekeeper Task must not trip advisory 4");
+});
+
+test("orchestration-check (advisory 4): panel-missing (advisory 2) takes precedence over the evidence nudge", () => {
+  // Gatekeeper ran but spec/test did not -> advisory 2 fires and early-returns; advisory 4 (lower priority)
+  // never runs, so exactly one systemMessage is emitted.
+  const tp = mkTranscript([
+    { role: "assistant", content: [{ type: "tool_use", id: "g", name: "Task", input: { subagent_type: "udflow:gatekeeper" } }] },
+    { role: "user", content: [{ type: "tool_result", tool_use_id: "g", content: "Final verdict: READY." }] },
+    { role: "assistant", content: "Final verdict: READY — ready to ship.\nudflow:verify=pass\nudflow:delivery=shipped" },
+  ]);
+  const r = orch({ transcript_path: tp });
+  assert.ok(r && /none of the core review panel|incomplete/.test(r.systemMessage), "advisory 2 (panel) must fire");
+  assert.ok(!/Live run/.test(r.systemMessage), "advisory 4 must not also fire (single emit, advisory 2 precedence)");
+});
+
 // --- 0.11.0 F1: load-failure-memory realpath containment (symlink/junction escapes are not injected) ---
 
 test("load-failure-memory F1: a junction at ai/ escaping the project is not read/injected (containment)", (t) => {
