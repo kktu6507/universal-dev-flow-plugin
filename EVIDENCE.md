@@ -82,9 +82,9 @@ whether the **workflow + verdict** holds up in practice, which is the claim the 
 | Independent (non-maintainer) runs | **0** | — | ≥ 1 |
 | External repos (Type A benchmark) | **~13** | ≥ 3 ✓ | — |
 | Languages (Type A) | **6** (C#, JS, Python, Java, Go, Rust) | ≥ 2 ✓ | — |
-| Qualifying Type-A points | **109** (32 curated + 77 automated) | ≥ 20 ✓ | — |
-| Catch rate (Type A) | diff-only ~34% hit; automated bug-blind-intent (n=77) **~29% hit / ~39% touched**; ~84% only with specific author intent (upper bound) | (reported) | — |
-| False-positive rate (Type A) | **~0** — 0 across the 32 single-reviewer corpus; **1 in 77** automated | (reported) | — |
+| Qualifying Type-A points | **230** (109 historical + **121 current-build**, 2026-06-29: 95 hit + 26 control, 3 passes) | ≥ 20 ✓ | — |
+| Catch rate (Type A) | **current build (2026-06-29, Opus 4.8, n=121, 3 passes): ~46% lone / ~59% panel** blind; the panel is the **+11–16-pt** recall lever; v0.9.2↔current prompts **indistinguishable** at equal power. _Historical (2026-06, prior model):_ diff-only ~34%, automated bug-blind ~29%, ~84% only with specific author intent (upper bound) | (reported) | — |
+| False-positive rate (Type A) | **current build:** lone **~6–12%**, panel **~25%** on a stricter post-fix control set (the multi-lens panel trades precision for recall; `--deep` adversarial verification claws it back). _Historical:_ **~0** (0/32 single-reviewer; 1-in-77 automated) | (reported) | — |
 
 **Status: capability is characterized; real-world validation is the remaining gate.** Track 1 (controlled
 benchmark) is **met** and pins the profile: at **~0 false positives** throughout, recall depends on the intent
@@ -97,6 +97,16 @@ quality of the intent you give it; real-world track record still accumulating"),
 runs this log is built to collect — the **first six of which are now logged below (6 of ≥10)**, across **two
 projects** (one private, plus udflow's own public repo) and now including **three publicly-verifiable** entries, so
 the **≥3-projects breadth and the ≥1 non-maintainer run remain open**.
+
+**Update — 2026-06-29 (current-build Type-A refresh).** A 121-bug / 13-repo / 6-language blind **2×2** benchmark on the
+current build (Opus 4.8, 3 passes — see the Type-A *Run — 2026-06-29*) now pins the **live** profile and revises the
+old characterization on three points: (1) blind recall is **~46% lone / ~59% panel** — well above the 2026-06
+*published* ~29–34%, but that gain is **the model + a cleaner corpus, not the reviewer prompts** (v0.9.2 prompts on
+the current model score the same; the two prompt generations are **indistinguishable at equal power**); (2) the
+**panel is the recall lever** (+11–16 pts, the one robust, repeatable effect); (3) precision is **not literally ~0** on
+a stricter post-fix control set — the **lone reviewer stays high (~88–94% clean)** but the multi-lens **panel trades
+precision for recall** (~25% FP on bare blind excerpts), which is what the `--deep` adversarial-verification layer
+exists to claw back. The historical near-zero-FP figure held on its own (easier, fresh-correct-code) controls.
 
 ---
 
@@ -251,7 +261,77 @@ real use, not a record of it.
 > state-machine (tokio closed-state). That is exactly the profile the 32-bug corpus characterized, so the snapshot
 > above still describes the reviewer's *reach*. **A publishable refresh needs the original's *validated* extraction
 > harness** (clone + AST-extract the exact pre-fix function, confirm the defect is in-scope) — not a one-shot
-> workflow. Until then the provenance stamp above stands.
+> workflow. **That validated refresh was completed 2026-06-29** (clone → extract the complete pre-fix function →
+> validate the fix is in-scope → blind review → independent judge): see the **Run — 2026-06-29** immediately
+> below, which **supersedes the 2026-06-19/20 snapshot for current-build numbers.**
+
+### Run — 2026-06-29 · current build (Opus 4.8) · 121 bugs / 13 repos / 6 languages · blind 2×2 (prompt-version × power), 3 passes · **publicly reproducible harness**
+
+The **current-build refresh** the provenance note called for — built on a *validated* extraction harness, so it is
+publishable as a rate (unlike the 2026-06-28 attempt). The **largest and cleanest Type-A run to date**, and it
+**supersedes the 2026-06-19/20 snapshot below for current numbers.**
+
+**Corpus.** A workflow cloned **13 representative public repos** (psf/requests · pallets/flask · axios · expressjs/express ·
+lodash · gin-gonic/gin · redis/go-redis · clap-rs/clap · BurntSushi/ripgrep · google/gson · FasterXML/jackson-core ·
+JamesNK/Newtonsoft.Json · restsharp/RestSharp) and extracted **95 real historical bug-fix cases** as self-contained blind
+packets — the **complete pre-fix function** + a **bug-blind native intent** line, each *validated* so the fix's changed lines
+fall inside the extracted function (this kills the extraction noise that sank the 2026-06-28 attempt). Plus **26 clean controls**
+= the **post-fix corrected** version of a packet (must NOT draw a confident blocker/major). 6 languages, ~13–24 hits each. An
+**independent judge** (not a udflow reviewer) scored every review against the on-disk ground truth.
+
+**2×2 design.** Only two variables — reviewer-prompt **version** × **power**; held constant: model **Opus 4.8**, native
+bug-blind intent, high effort.
+- **lone** = a single `code-reviewer` (matches the old published single-reviewer floor); **panel** = `code` + `spec` + `security`,
+  *hit if any lens catches it* (the Run-1 panel method).
+- **old** = the **v0.9.2** reviewer prompts (recovered from git — agent bodies + that era's `reviewer-common.md`, run as inline
+  reviewers on the current model); **new** = the current shipped prompts.
+- Run **3 independent passes** (pooled **238 hit-observations + 65 clean-observations**) to separate signal from run-to-run noise.
+
+**Results (pooled across 3 passes).**
+
+| condition | hit | false positives |
+|---|---|---|
+| old-lone (v0.9.2, single reviewer) | **45.0%** | 4/65 (~6%) |
+| new-lone (current, single reviewer) | **47.5%** | 8/65 (~12%) |
+| old-panel (v0.9.2, 3-lens) | **60.5%** | 16/65 (~25%) |
+| new-panel (current, 3-lens) | **58.0%** | 17/65 (~26%) |
+
+**Findings.**
+
+1. **Reviewer-prompt evolution (v0.9.2 → current) is recall-neutral at equal power.** The version delta is **−2.5 pts at panel**
+   and **+2.5 pts at lone** — opposite signs, both ~2.5 pts, against a noise floor where **45% of hit-packets flip hit↔miss
+   across passes** (per-pass panel delta −4.2 / −1.1 / −2.1; lone +1.1 / +3.2 / +4.2). The two prompt generations are
+   **statistically indistinguishable** — *confirming* this log's own Tuning-experiment conclusion (v0.9.0): **the recall lever
+   is structural, not reviewer prose.**
+2. **The panel is the recall lever — robustly.** **+10.5 pts (current) / +15.5 pts (v0.9.2)** over the lone reviewer, stable
+   across all three passes, and the panel **strictly dominated** lone (it recovered defects the lone reviewer missed and lost
+   none). Biggest lift on **medium-confidence** bugs (lone ~34–40% → panel ~53–55%) — the class a lone reviewer rationalizes
+   away and a second/third lens catches.
+3. **The jump vs the old _published_ ~29–34% is the model + a cleaner corpus, not the prompts.** Current-build blind recall is
+   ≈ **46% lone / 59% panel** — but the **v0.9.2 prompts on the current model score the same**, so the gain over the 2026-06
+   floor is **Opus 4.8 + validated extraction**, not reviewer-prompt improvement. Honest reading: udflow-today catches materially
+   more blind than the mid-2026 numbers — credit the model, not a prompt upgrade.
+4. **Precision: the lone reviewer stays high-precision (~88–94% clean); the multi-lens panel trades precision for recall.**
+   lone FP ~6–12%, panel FP ~25% — on a **stricter** control set than the historical runs (post-fix corrections sit right next
+   to a known-tricky spot, a harder probe than fresh correct code, which is why lone FP reads above the old "1-in-77"). The
+   panel's extra FPs are almost all `spec`/`security` over-flagging a **bare blind excerpt** without the grounding a real
+   **Review Packet** supplies; udflow's `--deep` adversarial-verification / gatekeeper layer targets exactly this — a separate
+   adjudication pass on one batch drove panel false positives toward **0** (at a small recall cost), but that filter is
+   calibration-sensitive and is **not** folded into the rates above.
+5. **Per language (current-build panel):** Rust 64% · C# 64% strongest; Java 62% · Go 58% · JS 54% mid; **Python 42% weakest.**
+   Notably **Rust is no longer the weak language** the 2026-06 run found (1/14 then) — the current model handles
+   ownership/lifetime reasoning far better.
+
+**Limits.** Same blind-bare-excerpt understatement as every Type-A run (real udflow supplies intent + full-file context via the
+Review Packet, which the strict harness withholds). Controls are post-fix corrections (a *stricter* precision probe, not random
+correct code). The judge is a Claude model (same-family caveat, as in `baseline.md`). "Panel" here models deep mode's recall
+lever; the full `--deep` workflow (deterministic graph + adversarial verify + max effort) is represented by the panel + the
+adjudication note, not run end-to-end. Extraction, packets, and per-packet verdicts are reproducible from public repos.
+
+---
+
+**The runs below are the historical 2026-06-19/20 snapshot** (v0.8–0.9.x reviewer prompts; model not recorded), retained for
+provenance. The **2026-06-29 run above supersedes them for current-build numbers.**
 
 ### Run 1 — 2026-06-19 · Plan_PJ (C#/.NET) · retroactive blind bug-catch
 
