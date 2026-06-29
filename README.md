@@ -4,16 +4,22 @@
 
 **English** · [繁體中文](README.zh-TW.md)
 
-**A plan-gated, risk-proportional code-review & release-readiness workflow for Claude Code.** Not for typos — use it when "done" must mean release-ready.
+**A plan-gated code-review and release-readiness workflow for Claude Code.** udflow has Claude plan and obtain your approval before any code is written, reviews the change against your stated intent, and concludes with an explicit ship/no-ship verdict — not merely a report that the work is "done."
 
 ```text
-Task → Understand → Plan mode (no code yet) → [high-risk] ground in code + sharpen intent
-     → YOU APPROVE → smallest safe change → build / test / lint / browser evidence
-     → risk-selected reviewers → Gatekeeper: READY / FIX REQUIRED / NOT READY
-                                      ⟲ auto-fix repair loop (hard cap)
+Task → Understand → Plan (no code yet) → YOU APPROVE the plan + acceptance criteria
+     → smallest safe change → build / test / lint / browser evidence
+     → risk-selected reviewers (against your intent) → Gatekeeper verdict
+            READY  /  FIX REQUIRED  /  NOT READY   ⟲ auto-fix & re-review (hard cap)
 ```
 
-> In one line: Claude lays out a plan and gets **your approval before touching code**, the right specialist reviewers check the work **against your intent**, findings are auto-fixed and re-reviewed, and it ends with a **ship/no-ship verdict** — not just "done."
+**What a single run delivers**
+
+- **An approval gate** — no code changes until you approve the plan *and* its acceptance criteria.
+- **Intent-grounded review** — only the risk-relevant specialist reviewers run, each assessing whether the change meets your stated requirement, not merely whether bugs are present.
+- **An explicit verdict** — every run concludes with `READY` / `FIX REQUIRED` / `NOT READY`, auto-fixing and re-reviewing until ready or clearly blocked.
+
+**Intended for work where "done" must mean release-ready** — merging to `main`, shipping, or changes to authentication, data, or contracts. It is deliberate overkill for a typo or a quick look; pair it with a linter for exhaustive mechanical coverage. udflow is the judgment and readiness layer, not a bug scanner.
 
 > 🎬 **Live demo:** [udflow-public-demo](https://github.com/kktu6507/udflow-public-demo) — a captured `/udflow:run` end to end.
 
@@ -25,20 +31,16 @@ Task → Understand → Plan mode (no code yet) → [high-risk] ground in code +
 - **Measured edge = precision + process discipline + a readiness gate** — near-zero false positives, *not* maximal recall.
 - **Status: early / experimental** — the hooks are tested; the multi-agent orchestration is prompt-driven. A disciplined scaffold, not a guarantee.
 
-| Blind benchmark · 6 languages, 100+ real bugs | Caught | False positives |
-|---|---|---|
-| No intent given (32 bugs) | ~34% | **0** |
-| Contract-level intent given (same 32 bugs) | ~84% | **0** |
-| Automated, bug-blind intent (77 bugs / 12 repos) | ~29% | **1 in 77** |
+**What the benchmarks show** — blind reviews across 6 languages of real historical bugs, scored by an independent judge (full method, per-run logs, and limits in [`EVIDENCE.md`](EVIDENCE.md)):
 
-- **Precision is the robust strength** — ≈1 false positive across ~110 blind reviews. When it raises a `major`/`blocker`, it's almost always real.
-- **Recall scales with how specifically you state intent** — code-only ≈30%; contract-level intent up to ~84%. Real udflow feeds reviewers that intent via its **Review Packet**, so recall tracks the quality of your requirement.
-- **Provenance — a mid-2026 snapshot.** Measured 2026-06-19/20 on the reviewers of the day (≈v0.9.x era; model not recorded), *before* the 0.24–0.27.x recall work (omission-critic, acceptance↔test↔change traceability, silent-failure lens, fail-first tests) and the current model. Read them as the reviewers' characterized *reach*, not a live guarantee of the current build — full method &amp; limits in [`EVIDENCE.md`](EVIDENCE.md).
+- **A trustworthy verdict.** udflow is tuned so that a confident `major`/`blocker` is almost always a real defect; the gate adjudicates over-eager findings, so what it blocks on holds up — the precision that makes a verdict worth gating a release on.
+- **The panel and gate are the lever.** A risk-selected panel catches materially more than any single reviewer and **strictly dominates** a lone pass — recovering real defects a single reviewer rationalizes away while losing none. The improvement is **structural** — multiple lenses and an aggregating gate, not stronger prompts — and is repeatable across passes. This is the principle udflow is built on.
+- **Recall scales with the intent you provide.** A clear contract delivered through the **Review Packet** materially increases what reviewers catch, and udflow carries that intent end-to-end. For exhaustive mechanical coverage, pair it with a linter; udflow is the judgment and readiness gate, not a bug scanner.
 
 <details>
 <summary><b>Evidence — method &amp; limits</b></summary>
 
-Reviewers were run **blind** on the pre-fix code of real historical bugs across 6 languages / many external repos; an independent judge scored findings against the known fix. Top miss categories (77-bug corpus): omissions 36% · found a *different* real bug 18% · language idioms 16% · under-rated 15% · domain-knowledge 15%. Limits: bugs mostly from `fix` commits; concurrency/integration barely tested; many runs used a single reviewer with no plan context — all of which *understate* a full run. Full method + per-run logs in [`EVIDENCE.md`](EVIDENCE.md) (manual log — udflow ships **no telemetry**). Honest label: a *characterized* early/beta — directional, not a guarantee.
+Reviewers run **blind** on the pre-fix code of real historical bugs across 6 languages and many external repos; an **independent judge** scores findings against the known fix. The repeatable signals: confident findings are high-precision, and a **panel** recovers real defects a single reviewer misses — the structural recall lift udflow is designed around, including a current-build (Opus 4.8) **2×2 refresh** over 121 bugs / 13 repos / 3 passes. Blind isolated-code recall is a *proxy* for a full run (which adds plan context, intent, and the gate), so these characterize the reviewers' **reach**, not the workflow's outcome. Full method, per-run logs, and honest limits in [`EVIDENCE.md`](EVIDENCE.md) (manual log — udflow ships **no telemetry**). Honest label: a *characterized* early/beta — directional, not a guarantee.
 
 </details>
 
@@ -59,7 +61,7 @@ Prerequisites: **Claude Code** + `node` on PATH (the hooks are Node scripts; wit
 /udflow:run Fix the login flow so it refreshes when the token expires
 ```
 
-- **Install ≠ enable.** It ships **opt-in (disabled)**; until enabled, the hooks and skills do nothing. Once enabled it **auto-engages on non-trivial work**; trivial edits and plain Q&A are left alone (force the full flow with `/udflow:run`).
+- **Install ≠ enable.** udflow ships **opt-in (disabled)**: until enabled, its hooks and skills do nothing. Once enabled, it **auto-engages on non-trivial work** and leaves trivial edits and plain Q&A alone (force the full flow with `/udflow:run`).
 - **Marketplace name is `kktu`** (not the repo) → the install id is `udflow@kktu`.
 - **Update:** `/plugin marketplace update kktu` then `/reload-plugins` (custom marketplaces don't auto-update).
 
@@ -77,6 +79,8 @@ Prerequisites: **Claude Code** + `node` on PATH (the hooks are Node scripts; wit
 
 ## How it works
 
+A run proceeds through seven phases; the approval gate in the middle is the point past which nothing advances without you.
+
 | Phase | What happens |
 |---|---|
 | **Understand** | restate the requirement; `AskUserQuestion` on real ambiguity (business behavior, contracts, destructive ops, UX) |
@@ -87,18 +91,20 @@ Prerequisites: **Claude Code** + `node` on PATH (the hooks are Node scripts; wit
 | **Review** | only the **risk-relevant** reviewers run, reviewing against your stated intent |
 | **Gatekeeper** | aggregates findings, **re-rates by real impact**, checks each acceptance criterion → `READY` / `FIX REQUIRED` / `NOT READY` → **repair loop** until ready or clearly blocked (hard cap: same blocker twice → Stuck Summary) |
 
-Key disciplines:
+**The disciplines behind the verdict:**
 
-- **Plan gate** — a hook denies edits while in plan mode, so code can't change before you approve (global; per-project opt-out; see [Hooks](#hooks)).
-- **Acceptance criteria** — the deepest signal isn't "no bugs", it's *did what you asked, and confirmed it*; an unmet, non-deferred criterion blocks `READY`.
-- **Verification sentinels** — substantial runs end with one final report + machine-readable `udflow:verify=pass|fail|unrun|na` and `udflow:delivery=held|shipped` (read by the Stop hook).
-- **Failure memory** — past lessons in `ai/FAILURE_MEMORY.md` (project) / `~/.claude/FAILURE_MEMORY.md` (global); a **title+tags digest** is injected at session start (retire an entry by ending its `###` title with `(expired)` / `(superseded …)`). Prevention-rule prose is read on demand, not injected.
-- **Design contract** — for UI work, the project's design language lives in a committed `design.md` that `ui-ux-reviewer` judges consistency against (citing the violated token/section) instead of re-inferring it each run; `planner-creator` detects it and can bootstrap one from an existing UI. A hard accessibility safety floor overrides it; `ui-ux-pro-max` feeds net-new patterns into it.
-- **Deep mode** — **Tier 1** (auto on high-risk, Workflow-capable sessions): run the *same* panel + gatekeeper as a deterministic graph so it actually runs in order (≈ normal cost; opt out `--no-deep`). **Tier 2** (`--deep`): adversarial verification of blocker/major + max effort + required live-browser evidence for UI. When a needed live process (web app or backend/API) isn't running, Tier 2 also **brings the app up** — delegating to the built-in `/run` skill, then tearing down only what it started (auto + disclosed; never in standard mode). Depth, not more reviewers.
+- **Plan gate** — a hook blocks edits while in plan mode, so nothing changes before you approve (on by default; per-project opt-out; see [Hooks](#hooks)).
+- **Acceptance criteria** — the decisive signal is not "no bugs" but *whether it did what you asked, confirmed*; an unmet, non-deferred criterion blocks `READY`.
+- **Verification sentinels** — a substantial run ends with a single final report carrying machine-readable `udflow:verify=pass|fail|unrun|na` and `udflow:delivery=held|shipped` (read by the Stop hook).
+- **Failure memory** — past lessons live in `ai/FAILURE_MEMORY.md` (project) or `~/.claude/FAILURE_MEMORY.md` (global); a concise title+tags digest is injected at session start, and the full prevention-rule prose is read on demand (retire an entry by ending its `###` title with `(expired)` / `(superseded …)`).
+- **Design contract** — for UI work, the project's design language is recorded in a committed `design.md`; `ui-ux-reviewer` judges consistency against it (citing the specific token or section) rather than re-inferring it each run, and `planner-creator` can bootstrap one from an existing UI. A hard accessibility floor always overrides it; `ui-ux-pro-max` contributes net-new patterns back to it.
+- **Deep mode** — greater depth, not additional reviewers. **Tier 1** (automatic on high-risk sessions capable of running a Workflow) executes the *same* panel and gatekeeper as a deterministic graph, so the steps run in order (≈ normal cost; opt out with `--no-deep`). **Tier 2** (`--deep`) adds adversarial verification of every blocker/major, maximum effort, and required live-browser evidence for UI; when the needed application is not running, it starts it via the built-in `/run` skill and tears down only what it started (disclosed; never in standard mode).
 
 ---
 
 ## The 10 subagents
+
+You do not select reviewers manually; udflow assembles the panel by **risk** — a typo engages none, an authentication change engages the security reviewer. The full roster:
 
 | Agent | Role | When it's added | Model |
 |---|---|---|---|
@@ -113,14 +119,14 @@ Key disciplines:
 | `ui-ux-reviewer` | usability, interaction, layout, states, accessibility; consistency vs `design.md` when present | UI impact | inherit |
 | `gatekeeper` | aggregates, re-rates by impact, decides readiness | after reviewers finish | **opus** |
 
-- **Reviewers are read-only by role** — `Read` / `Grep` / `Glob` / `Bash` (inspection only), **no** editor tools.
-- **Correctness-critical paths** (parsing, numeric/encoding/overflow, concurrency, security, data integrity) get **≥2 independent lenses** — the benchmark showed a second lens recovers defects the first rationalizes as fine.
+- **Reviewers are read-only by role** — they hold `Read` / `Grep` / `Glob` / `Bash` for inspection only, with **no** editor tools; they propose the fix, and the `implementer` applies it.
+- **Correctness-critical paths receive ≥2 independent lenses** — parsing, numeric / encoding / overflow, concurrency, security, and data integrity — because the benchmark shows that a second reviewer reliably recovers defects the first rationalizes away.
 
 ---
 
 ## Hooks
 
-Five Node hooks — **all fail-open** (any error, or no Node on PATH → they do nothing, never break a session) and **local-only** (no network, no subprocess, no downloaded code; built-in `fs`/`os`/`path`/`crypto` only). They run in *every* enabled session, not only udflow tasks.
+Five Node hooks. All are **fail-open** — on any error, or with no Node on PATH, they do nothing and never break a session — and **local-only**: no network, no subprocess, no downloaded code, only the built-in `fs` / `os` / `path` / `crypto`. They run in *every* enabled session, not only udflow tasks.
 
 | Hook (event) | What it can do | Default · opt-out |
 |---|---|---|
@@ -183,7 +189,7 @@ Everything is **off / risk-proportional by default** — you only opt in.
 
 ## Cost per run
 
-Two very different numbers — order-of-magnitude ballparks for **typical real-app** work, not guarantees. (Cross-checking [`EVIDENCE.md`](EVIDENCE.md) you'll see *lower* logged figures: those runs are on udflow's own small Markdown/Node repo with scoped edits — ~0.1–1.5M new tokens, the floor of this table. Scale up for larger codebases, complex logic, and more repair loops; the ~47M figure below is a whole P0–P3 build across ~7 runs, not one.)
+Two very different numbers, given as order-of-magnitude estimates for **typical real-app** work rather than guarantees. The figures logged in [`EVIDENCE.md`](EVIDENCE.md) run *lower* — those are scoped edits on udflow's own small Markdown/Node repo (~0.1–1.5M new tokens, the floor of this table). Scale up for larger codebases, more complex logic, and additional repair loops; the ~47M figure below is an entire P0–P3 build across ~7 runs, not a single one.
 
 - **New tokens** — first-time-processed (input + cache-creation + output). Tracks the real work; plan around this.
 - **Billable total** (`/cost`) — *also* counts cache-reads re-contributed every turn by every agent → **~20–30× the new-token figure**. But cache reads bill at ~⅒ the input rate, so **dollars scale much closer to new tokens** than that multiple implies.
@@ -214,7 +220,7 @@ Honest framing: a linter + tests catch more *mechanical* bugs, more cheaply; udf
 
 ## Compatibility
 
-udflow targets **Claude Code**; its **subagents** and **skills** also load under **GitHub Copilot CLI** (live-verified 1.0.65 — `plugin list`, `skill list`, all subagents enumerated, the hooks observed firing). The **0.27.x** hook set was live-verified to **install and load** under Copilot 1.0.65: `copilot plugin update` to v0.27.1 succeeded ("Updated 2 skills"), both skills enumerate, the compaction-fidelity hook (`compact-fidelity.js`, wired under `SessionStart`·`compact` since 0.27.3 — relocated from `PreCompact`, whose injected output Claude Code rejects) loads in the same class as the already-verified failure-memory `SessionStart` hook; its injected output is a no-op under Copilot (see the table). Cross-harness loading is derived from each tool's documented plugin format.
+udflow targets **Claude Code**, and its **subagents** and **skills** also load under **GitHub Copilot CLI** (live-verified on 1.0.65: `plugin list`, `skill list`, all subagents enumerated, and the hooks observed firing). The **0.27.x** hook set was live-verified to install and load on Copilot 1.0.65 — `copilot plugin update` to v0.27.1 succeeded ("Updated 2 skills"), both skills enumerate, and the compaction-fidelity hook (`compact-fidelity.js`, wired under `SessionStart`·`compact` since 0.27.3, relocated from `PreCompact` whose injected output Claude Code rejects) loads in the same class as the already-verified failure-memory `SessionStart` hook. Its injected output is a no-op under Copilot (see the table). Cross-harness loading is derived from each tool's documented plugin format.
 
 **Claude-Code-only** (degrade gracefully elsewhere — never an error):
 
@@ -233,7 +239,7 @@ Disable under Copilot only: `{ "enabledPlugins": { "udflow@kktu": false } }` (or
 
 ## Project status & contributing
 
-- **Early / experimental, solo-maintained** (bus factor of one) — dogfooded on real work, but weigh that before depending on it for release gating. Issues/PRs welcome, response best-effort.
+- **Early / experimental, solo-maintained** (bus factor of one) — dogfooded on real work, but weigh that before relying on it for release gating. Issues and PRs are welcome; responses are best-effort.
 - **Most valuable contribution: a verified run.** udflow ships **no telemetry**, so a real run only counts if written down — udflow prints a paste-ready `Live run` block at the end. **→ [Open a "Verified udflow run" issue](https://github.com/kktu6507/universal-dev-flow-plugin/issues/new?template=verified-run.yml)** (misses & false alarms wanted too; sanitize secrets first). See [`CONTRIBUTING.md`](CONTRIBUTING.md) and [`EVIDENCE.md`](EVIDENCE.md).
 - **Open gate to drop "experimental":** ≥10 verified runs, across ≥3 projects, with ≥1 not by the maintainer.
 
