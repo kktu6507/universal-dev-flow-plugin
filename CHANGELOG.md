@@ -3,6 +3,15 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.31.0] - 2026-06-30
+
+### Changed
+- **Codex disagreement now explicitly resolved by the existing evidence rules, not a separate negotiation protocol.** Clarified that when an opted-in Codex independent verdict disagrees with the gatekeeper's own assessment, it is treated as reviewer-grade evidence — weighed by the same *Conflict resolution rules* as any dissenting reviewer, never a second authority requiring mutual agreement. A persistent disagreement on the same issue counts toward the existing two-iteration stuck-loop cap (*Auto-fix loop rules*) rather than looping Claude and Codex toward consensus indefinitely. Closes a real failure-mode gap (no termination guarantee, cost/latency blowup, privacy-default regression) in a "dual gatekeeper, negotiate to agreement" design that was considered and rejected in favor of this lighter-weight clarification of already-shipped behavior.
+- `agents/gatekeeper.agent.md` (*Conflict resolution rules*, *Auto-fix loop rules*) and `references/external-capabilities.md` (*Codex*) — added a few sentences each; no new agent, hook, or capability. Codex remains off-by-default, opt-in per task; this changes nothing for a user who has not enabled it.
+
+### Notes
+- Shipped tree changed (`gatekeeper.agent.md`, `external-capabilities.md`) → bump 0.30.0 → 0.31.0 across `plugin.json`, `package.json`, and `marketplace.json` (metadata + plugin entry). No verdict/severity/sentinel literal changed (`validate-structure.mjs` 5f only pins `READY`/`FIX REQUIRED`/`NOT READY` in this file, all still present). `node --test` (256 pass) + `validate-structure` green.
+
 ## [0.30.0] - 2026-06-30
 
 ### Added

@@ -6,7 +6,7 @@
   },
   "metadata": {
     "description": "kktu's Claude Code plugin marketplace.",
-    "version": "0.30.0"
+    "version": "0.31.0"
   },
   "plugins": [
     {
@@ -14,7 +14,7 @@
       "displayName": "Universal Dev Flow",
       "source": "./udflow",
       "description": "Universal Dev Flow — risk-proportional multi-agent engineering workflow.",
-      "version": "0.30.0",
+      "version": "0.31.0",
       "category": "development",
       "defaultEnabled": false
     }
