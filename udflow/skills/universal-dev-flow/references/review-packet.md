@@ -6,6 +6,7 @@ Use a Review Packet before handing work to any reviewer. The packet is the revie
 
 - Task summary: one concise statement of the requested change.
 - Acceptance criteria (user-approved): a numbered checklist of observable, verifiable outcomes that define done — approved by the user at the plan gate. The `gatekeeper` checks each item (met / unmet / deferred; see `agents/gatekeeper.agent.md`), and an unmet, non-deferred criterion blocks `READY`. They are approved as part of the plan at ExitPlanMode — not a separate approval step. On high-risk work these are the plan-grounding **sharpened contract**.
+- Task contract pointer: when `output/udflow/contract.md` exists (`references/task-contract.md`), the packet's Acceptance criteria / In-Out scope / Verification evidence are **derived from it** (it is the single source), and the deterministic `scripts/contract-check.mjs` report is included as scope/AC evidence. State the **path**, not the re-pasted content.
 - In scope: workflows, files, modules, or user-visible behavior reviewed.
 - Out of scope: adjacent behavior intentionally not changed, plus work the plan/user explicitly **deferred**. Reviewers must treat these as intentional, not as missing-omissions (deferred ≠ missing — see the Shared reviewer contract).
 - Assumptions: only assumptions that affected implementation or verification.
