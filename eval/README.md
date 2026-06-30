@@ -52,3 +52,20 @@ compare to `expected`). Record the run in `baseline.md`.
 ## Baseline
 
 Last recorded scores, the model, and the date are in [`baseline.md`](baseline.md).
+
+## Model provenance
+
+The recall/false-positive numbers here and in `EVIDENCE.md` are driven mainly by the **model**, not the
+reviewer prompts (`EVIDENCE.md`, *2026-06-29 run*: the old prompts on the current model score the same as
+the current prompts). So a model upgrade/downgrade is the single biggest reason these numbers might no
+longer hold. `check-model-provenance.mjs` is a deterministic, repo-root maintainer tool — **not** a shipped
+hook (`eval/` never ships in the distributed `udflow/` plugin tree) — that flags a mismatch between the
+model you're about to rely on and the model `baseline.md` was last validated against:
+
+```
+node eval/check-model-provenance.mjs --model <model-id>
+```
+
+Fail-open and advisory only: a missing/unparseable baseline or no `--model` reports `UNKNOWN` (no claim),
+never a guessed match. On a `MISMATCH`, re-run this suite and the `EVIDENCE.md` Type-A refresh before
+trusting the published numbers for the new model.

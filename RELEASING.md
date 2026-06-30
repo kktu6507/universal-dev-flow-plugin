@@ -156,6 +156,22 @@ against so drift is visible:
   update `HSO_ACCEPT_EVENTS` / the `WIRING` table in `.github/scripts/validate-structure.mjs`, re-run this
   smoke, and update the line above.
 
+## Model provenance (when the validated model changes)
+
+`EVIDENCE.md`'s reviewer recall/false-positive numbers are driven mainly by the **model**, not the
+reviewer prompts (see *2026-06-29 run* there). If the model you develop/release against changes (a Claude
+model upgrade, or switching the default session model), run:
+
+```bash
+node eval/check-model-provenance.mjs --model <new-model-id>
+```
+
+A `MISMATCH` means the published numbers in `EVIDENCE.md` / `eval/baseline.md` were validated against a
+different model and may not hold — re-run `eval/fixtures/` (`eval/README.md`) and the `EVIDENCE.md` Type-A
+refresh before relying on them, then update `baseline.md`'s `**Date:**` / `**Reviewer under test:**` lines
+so the recorded provenance matches. This is a repo-root dev tool only — it is never shipped to a
+consumer's plugin install (`eval/` is outside the distributed `udflow/` tree) and never blocks a release.
+
 ## Release signing (opt-in)
 
 The release job signs each `vX.Y.Z` tag when the `UDFLOW_SIGN_PRIVATE_KEY` secret is set, and falls back to an
