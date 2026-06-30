@@ -48,6 +48,40 @@ export function scopeDiff(contract, changedPaths) {
   };
 }
 
+// AC-coverage: behavior-changing criteria carrying no verification mapping. Presence-only — the QUALITY
+// of the mapping stays the gatekeeper's judgment (the deterministic layer is narrow + high-confidence).
+export function acCoverage(contract) {
+  const acs = (contract && Array.isArray(contract.acceptanceCriteria)) ? contract.acceptanceCriteria : [];
+  return {
+    total: acs.length,
+    uncovered: acs
+      .filter((a) => a && a.behaviorChanging === true && !(typeof a.verification === "string" && a.verification.trim()))
+      .map((a) => (a && a.id) || "(unnamed)"),
+  };
+}
+
+// One compact, LLM-readable evidence block for the gatekeeper. No new `udflow:` machine sentinel is
+// emitted (the guarded-literal surface stays as-is, by design) — this is plain evidence text.
+export function formatReport({ contractFound, scope, coverage }) {
+  if (!contractFound) {
+    return "udflow contract-check: no machine-readable contract found (output/udflow/contract.md absent " +
+      "or no ```json block) — NO deterministic scope/AC claim; gatekeeper uses prose judgment.";
+  }
+  const lines = ["udflow contract-check (deterministic):"];
+  if (scope.forbiddenHits && scope.forbiddenHits.length) lines.push("  forbidden-path hits: " + scope.forbiddenHits.join(", "));
+  if (scope.allowListed) {
+    lines.push(scope.outOfScope && scope.outOfScope.length
+      ? "  out-of-scope changed files: " + scope.outOfScope.join(", ")
+      : "  scope: clean (all changed files within allowedPaths)");
+  } else {
+    lines.push("  scope: no allowedPaths declared — no allow-list claim");
+  }
+  lines.push(coverage.uncovered && coverage.uncovered.length
+    ? "  AC missing verification mapping: " + coverage.uncovered.join(", ")
+    : "  AC coverage: every behavior-changing criterion maps to a verification entry");
+  return lines.join("\n");
+}
+
 // CLI wiring is completed in the next task (it needs acCoverage + formatReport). Exported here so the
 // module imports cleanly; the direct-invocation guard stays inert until then.
 function changedPathsFromGit(base) {
@@ -58,7 +92,20 @@ function changedPathsFromGit(base) {
 }
 export const _internal = { changedPathsFromGit };
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
-  // Completed in Task 3.
+function main(argv) {
+  const args = argv.slice(2);
+  const get = (flag, def) => { const i = args.indexOf(flag); return (i >= 0 && args[i + 1]) ? args[i + 1] : def; };
+  const contractPath = get("--contract", "output/udflow/contract.md");
+  const base = get("--base", "");
+  let markdown = "";
+  try { markdown = fs.readFileSync(contractPath, "utf8"); } catch (e) { markdown = ""; }
+  const contract = extractContractJson(markdown);
+  process.stdout.write(formatReport({
+    contractFound: contract != null,
+    scope: scopeDiff(contract, changedPathsFromGit(base)),
+    coverage: acCoverage(contract),
+  }) + "\n");
   process.exit(0);
 }
+
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) main(process.argv);
