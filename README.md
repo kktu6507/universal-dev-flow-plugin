@@ -114,7 +114,7 @@ Linters catch mechanical issues. Tests catch known expected behavior. Static ana
 | **Understand** | Restate the requirement; ask only when ambiguity changes behavior, contracts, destructive operations, security, or UX. |
 | **Plan** | Stay read-only, ground the approach in the repo, and produce acceptance criteria. |
 | **Approval** | No code changes before you approve the plan and criteria. |
-| **Implement** | `implementer` applies the smallest safe change. |
+| **Implement** | `implementer` applies the smallest safe change and writes the per-run task contract (`output/udflow/contract.md`). |
 | **Verify** | Run build / test / lint / typecheck / browser evidence as applicable; command exit status is authority. |
 | **Review** | Only risk-relevant reviewers run, using a focused Review Packet instead of full thread history. |
 | **Gatekeeper** | Aggregate findings, re-rate by impact, check each acceptance criterion, and decide `READY` / `FIX REQUIRED` / `NOT READY`. |

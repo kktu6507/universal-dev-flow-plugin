@@ -46,10 +46,11 @@ Code subagent isolation), not just by prose (`references/runtime-policy.md`).
   network, Node built-ins only: `plan-gate` (PreToolUse), `destructive-guard` (PreToolUse),
   `load-failure-memory` (SessionStart), `compact-fidelity` (SessionStart·compact),
   `orchestration-check` (Stop).
-- **12 references** (`udflow/skills/universal-dev-flow/references/*.md`) — lazy-loaded contracts
+- **13 references** (`udflow/skills/universal-dev-flow/references/*.md`) — lazy-loaded contracts
   for each step (Review Packet, reviewer-common, reviewer-selection, plan-grounding, design-spec,
   runtime-policy, verification-gate, final-report, external-capabilities, deep-mode,
-  browser-evidence, app-launch). The surface audit (2026-06-28) found these non-duplicative.
+  browser-evidence, app-launch, task-contract). The surface audit (2026-06-28) found these non-duplicative.
+- **1 session script** (`udflow/skills/universal-dev-flow/scripts/contract-check.mjs`) — dependency-free, fail-open scope-diff + AC-coverage over `output/udflow/contract.md`; run at verify time, its report read by `gatekeeper`. Not a CC hook, not CI-only.
 - **Skills**: `universal-dev-flow` (the workflow) and `run` (app-launch helper).
 
 ## Stable contract (what consumers / tooling may depend on)

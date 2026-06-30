@@ -40,6 +40,11 @@ Produce:
 2. **Implied edge checklist** — enumerate the boundary inputs this change implies (empty / zero / overflow / very-large, multibyte / non-ASCII, null / empty / duplicate / multiple, malformed, by-value vs receiver, concurrent), each tagged with the expected result **or** "needs user decision".
 3. **Open product decisions** — every ambiguity the contract surfaces becomes an `AskUserQuestion` option at the plan gate. Do **not** decide product behavior unilaterally.
 4. **Gaps vs intent** — anything the requirement implies that the draft plan does not yet cover; fold these into the plan before presenting it.
+5. **Contract-readiness check (high-risk, soft).** Before presenting the plan, assert the contract has (a) at least one *observable* acceptance criterion, (b) a `must-not-change` / scope statement, and (c) a verification path for each behavior-changing criterion. If any is missing, surface a `not contract-ready` disclosure at the plan gate naming the gap, e.g.:
+
+   `This task is not contract-ready. Missing: observable AC · must-not-change scope · verification path.`
+
+   This is a **disclosure + request to fill**, not a hard block — the user may still approve with the gap disclosed (usability-over-strictness). It runs **only** on the high-risk path this step already gates; low/medium-risk work never triggers it.
 
 ## Where the outputs go
 

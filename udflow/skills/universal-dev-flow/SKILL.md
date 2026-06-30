@@ -35,6 +35,7 @@ If the task is borderline, prefer this workflow.
 Keep `SKILL.md` as the lightweight entry point. Read these references only when needed:
 
 - `references/review-packet.md`: before spawning reviewers or handing work to a reviewer.
+- `references/task-contract.md`: before writing the post-approval `output/udflow/contract.md` artifact and before running `scripts/contract-check.mjs` — the persisted per-run contract schema + lifecycle.
 - `references/reviewer-common.md`: the shared reviewer contract (severity vocabulary, scope discipline, base output) referenced by every reviewer.
 - `references/reviewer-selection.md`: before selecting or re-running a review panel.
 - `references/plan-grounding.md`: before presenting the plan on high-risk work (the conditional plan-grounding / intent-sharpening step; its Stage A grounding runs via the `planner-creator` agent, else `Explore`).
@@ -61,6 +62,7 @@ Non-trivial work must pass an explicit plan gate before implementation begins. T
 3. Present the plan for approval using **ExitPlanMode**. Only proceed to implementation after the user approves.
 4. When a decision has discrete options (e.g. competing designs, ambiguous business behavior, destructive vs. non-destructive paths), surface them with **AskUserQuestion** rather than guessing. On high-risk work, the plan-grounding step (`references/plan-grounding.md`) enumerates these options and the change's implied edge inputs so your approval is informed.
 5. Do not spawn `implementer` until the plan is approved and plan mode is exited.
+6. On the high-risk plan-grounding path, run the **contract-readiness check** (`references/plan-grounding.md`, Stage B): if the contract lacks an observable AC, a must-not-change scope, or a per-criterion verification path, disclose `not contract-ready` and the missing piece at the gate before approval. It is a soft disclosure (the user may still approve), risk-proportional (high-risk only), and never blocks low/medium work.
 
 ## Core Rules
 
@@ -115,6 +117,7 @@ When touching human-readable text, check for mojibake, replacement characters, b
    - Follow repository conventions first, then the project language/framework's official best practices.
    - For UI/frontend work, prefer `ui-ux-pro-max` design tokens/guidance when available before writing UI; otherwise implement for usability and maintainability and disclose the fallback.
    - When the approved plan establishes or changes a design contract, the `implementer` **writes / updates `design.md`** post-approval — the blessed bootstrap draft (extracted from the existing UI), or a design-system change recorded in the same PR (`references/design-spec.md`).
+   - Post-approval, the `implementer` writes the **task contract** to `output/udflow/contract.md` (`references/task-contract.md`): the JSON machine block (acceptance criteria + verification mapping, allowed/forbidden paths, must-not-change) plus the human body. Full block on high-risk; the reduced Requirement/AC/Verification subset on low/medium. It is gitignored run scratch (`references/verification-gate.md`, Artifact Hygiene), never committed.
    - Surface newly discovered risk immediately.
 
 4. Verification
@@ -122,6 +125,7 @@ When touching human-readable text, check for mojibake, replacement characters, b
    - For local browser-visible UI changes, use Claude in Chrome / in-app browser or an accepted fallback and record the target, scenario, observed result, tool used, screenshot need, and focus/hover/keyboard/clipboard behavior when relevant. In `--deep` + UI in scope, driving the live browser per `references/browser-evidence.md` is a required verification step (Detect → Use → Else-Disclose; absence is a disclosed gap); standard mode stays best-effort.
    - In `--deep`, when a needed live process (web app or backend/API) is not already running, bring it up per `references/app-launch.md` before verifying — delegate to the built-in `/run` skill (auto-launch + disclose), then tear down only what udflow started. Standard mode never auto-launches; an unreachable app stays a documented gap. An app that cannot be launched is a disclosed gap the `gatekeeper` weighs, never an error.
    - For human-readable content, run text-integrity checks.
+   - When `output/udflow/contract.md` exists, run the deterministic `scripts/contract-check.mjs` (`node ${CLAUDE_PLUGIN_ROOT}/skills/universal-dev-flow/scripts/contract-check.mjs --base <pre-implementation-ref>`) and carry its report into the Review Packet as scope/AC evidence for the `gatekeeper`. It is fail-open: an absent/unparseable contract makes no claim, and the `gatekeeper` falls back to its prose scope/criteria judgment.
    - If a command or check cannot run, state the exact blocker and remaining uncertainty.
 
 5. Review panel selection

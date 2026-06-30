@@ -3,6 +3,14 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.28.0] - 2026-06-30
+
+### Added
+- Persisted per-run task contract (`output/udflow/contract.md`, gitignored) externalizing acceptance criteria + verification mapping, allowed/forbidden paths, and must-not-change scope (`references/task-contract.md`).
+- Dependency-free `scripts/contract-check.mjs`: deterministic scope-diff + AC-coverage evidence for the gatekeeper; fail-open.
+- Risk-proportional, soft contract-readiness disclosure at the plan gate (high-risk only).
+- `validate-structure.mjs` section 5j guards the contract/packet template fields.
+
 ## [0.27.11]
 
 ### Added
