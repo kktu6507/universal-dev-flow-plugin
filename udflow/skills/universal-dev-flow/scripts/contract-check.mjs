@@ -3,7 +3,8 @@
 // Session-time helper (NOT a Claude Code hook, NOT CI-only): the orchestrator runs it at the verify /
 // gatekeeper step and feeds its report to the gatekeeper as evidence. Dependency-free (Node built-ins
 // only). Fail-open: an absent/unparseable contract yields a no-claim report; the CLI always exits 0 and
-// never throws to its caller. AC-coverage + formatReport land in the next task.
+// never throws to its caller. Exposes pure functions (extract / glob / scopeDiff / acCoverage /
+// formatReport) for the test suite; main() wraps them over git under the import.meta.url guard.
 import fs from "node:fs";
 import cp from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -18,7 +19,10 @@ export function extractContractJson(markdown) {
 }
 
 // Minimal dependency-free glob: `*` matches within a path segment, `**` matches across segments. Paths
-// normalize to forward slashes first so the matcher is identical on Windows and POSIX (CI runs both).
+// normalize to forward slashes first so the matcher is identical on Windows and POSIX (CI runs both). A
+// run of consecutive `*` collapses to ONE quantifier (`**` or more => `.*`, a lone `*` => `[^/]*`), so a
+// glob like `****` can never emit stacked `.*` groups — that stacking is the catastrophic-backtracking
+// (ReDoS) shape, and an operator-authored contract glob must never stall the checker (fail-open intent).
 export function matchesGlob(p, glob) {
   const norm = String(p).replace(/\\/g, "/");
   const g = String(glob).replace(/\\/g, "/");
@@ -26,10 +30,12 @@ export function matchesGlob(p, glob) {
   for (let i = 0; i < g.length; i++) {
     const c = g[i];
     if (c === "*") {
-      if (g[i + 1] === "*") { re += ".*"; i++; }   // ** crosses segments
-      else re += "[^/]*";                            // * within a segment
+      let stars = 0;
+      while (g[i] === "*") { stars++; i++; }  // consume the whole *-run...
+      i--;                                    // ...the for-loop's i++ steps past the last star
+      re += stars >= 2 ? ".*" : "[^/]*";      // ** (or more) crosses segments; a lone * is segment-local
     } else if (".+?^${}()|[]\\".includes(c)) {
-      re += "\\" + c;                                // escape regex specials
+      re += "\\" + c;                         // escape regex specials
     } else { re += c; }
   }
   return new RegExp("^" + re + "$").test(norm);
@@ -82,8 +88,8 @@ export function formatReport({ contractFound, scope, coverage }) {
   return lines.join("\n");
 }
 
-// CLI wiring is completed in the next task (it needs acCoverage + formatReport). Exported here so the
-// module imports cleanly; the direct-invocation guard stays inert until then.
+// Changed paths come from `git diff --name-only` (vs --base, else HEAD). Exposed via _internal for the
+// CLI; a git failure is swallowed to [] so the checker stays fail-open and never throws to its caller.
 function changedPathsFromGit(base) {
   try {
     const args = base ? ["diff", "--name-only", base] : ["diff", "--name-only", "HEAD"];

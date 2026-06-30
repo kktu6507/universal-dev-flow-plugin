@@ -84,3 +84,28 @@ test("formatReport: surfaces out-of-scope, forbidden, and uncovered", () => {
   assert.match(r, /forbidden-path hits: src\/billing\/p\.ts/);
   assert.match(r, /AC missing verification mapping: AC-2/);
 });
+
+test("matchesGlob collapses long * runs without catastrophic backtracking (ReDoS guard)", () => {
+  // A stacked-quantifier regression (adjacent ** => `.*.*.*`) backtracks exponentially on a non-matching
+  // input and would hang the test runner; the collapsed matcher returns instantly. This pins the fix.
+  assert.ok(matchesGlob("a/b/c/d/e/f/g", "********************"));                  // 20 stars => single .* => matches
+  assert.ok(!matchesGlob("a/b/c/d/e/f/g/h/i/j/k/l/m/n/o/p", "********************Z")); // long non-match returns fast
+});
+
+test("matchesGlob normalizes backslashes in the CHANGED path too (not only the glob)", () => {
+  assert.ok(matchesGlob("src\\billing\\pay.ts", "src/billing/**"));
+});
+
+test("formatReport: no allowedPaths declared => explicit no-allow-list-claim line", () => {
+  const r = formatReport({
+    contractFound: true,
+    scope: { outOfScope: [], forbiddenHits: [], allowListed: false },
+    coverage: { uncovered: [], total: 0 },
+  });
+  assert.match(r, /no allowedPaths declared — no allow-list claim/);
+});
+
+test("acCoverage names an uncovered, id-less criterion '(unnamed)'", () => {
+  const c = { acceptanceCriteria: [{ behaviorChanging: true, verification: "" }] };
+  assert.deepStrictEqual(acCoverage(c).uncovered, ["(unnamed)"]);
+});

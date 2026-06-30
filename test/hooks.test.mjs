@@ -1031,6 +1031,30 @@ test("validate-structure: a version mismatch across manifests FAILS", () => {
   } finally { fs.rmSync(tree, { recursive: true, force: true }); }
 });
 
+test("validate-structure: §5j FAILS CLOSED when task-contract.md drops a guarded machine field", () => {
+  const tree = copyRepoTree();
+  try {
+    const tc = path.join(tree, "udflow", "skills", "universal-dev-flow", "references", "task-contract.md");
+    // Strip every occurrence of a field contract-check.mjs reads; the §5j guard must bite so a prose
+    // edit can't silently gut the deterministic inputs while CI stays green (mirrors the 5d/5e guards).
+    fs.writeFileSync(tc, fs.readFileSync(tc, "utf8").split("forbiddenPaths").join("XXX"), "utf8");
+    const { code, out } = runValidator(tree);
+    assert.notStrictEqual(code, 0, "dropping a guarded contract field must fail the build");
+    assert.match(out, /no longer documents the machine field "forbiddenPaths"/, "the failure must name the dropped field");
+  } finally { fs.rmSync(tree, { recursive: true, force: true }); }
+});
+
+test("validate-structure: §5j FAILS CLOSED when review-packet.md drops a required template field", () => {
+  const tree = copyRepoTree();
+  try {
+    const pk = path.join(tree, "udflow", "skills", "universal-dev-flow", "references", "review-packet.md");
+    fs.writeFileSync(pk, fs.readFileSync(pk, "utf8").split("Verification evidence").join("XXX"), "utf8");
+    const { code, out } = runValidator(tree);
+    assert.notStrictEqual(code, 0, "dropping a packet template field must fail the build");
+    assert.match(out, /review-packet\.md template is missing the required field/, "the failure must name the missing packet field");
+  } finally { fs.rmSync(tree, { recursive: true, force: true }); }
+});
+
 test("validate-structure: a missing SKILL-linked reference FAILS", () => {
   const tree = copyRepoTree();
   try {
