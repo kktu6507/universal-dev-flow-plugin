@@ -326,6 +326,29 @@ for (const [rel, snippets] of exampleProvenance) {
   }
 }
 
+// 5j. Contract / packet template field guard — the contract.md schema (references/task-contract.md)
+// and the Review Packet handoff template (references/review-packet.md) must keep the fields the
+// runtime contract-check.mjs and the reviewers depend on, so a prose edit can't silently gut the
+// deterministic inputs while CI stays green. Narrow, high-confidence, fail-CLOSED (mirrors 5d/5e/5f).
+const taskContractRel = `${PLUGIN}/skills/universal-dev-flow/references/task-contract.md`;
+if (!fs.existsSync(path.join(root, taskContractRel))) {
+  fail(`missing reference: ${PLUGIN}/skills/universal-dev-flow/references/task-contract.md (contract schema doc)`);
+} else {
+  const tc = fs.readFileSync(path.join(root, taskContractRel), "utf8");
+  for (const field of ["acceptanceCriteria", "allowedPaths", "forbiddenPaths", "behaviorChanging", "verification"]) {
+    if (!tc.includes(field))
+      fail(`task-contract.md no longer documents the machine field "${field}" (contract-check.mjs reads it)`);
+  }
+}
+const packetRel = `${PLUGIN}/skills/universal-dev-flow/references/review-packet.md`;
+if (fs.existsSync(path.join(root, packetRel))) {
+  const pk = fs.readFileSync(path.join(root, packetRel), "utf8");
+  for (const field of ["Acceptance criteria", "Out of scope", "Verification evidence"]) {
+    if (!pk.includes(field))
+      fail(`review-packet.md template is missing the required field "${field}"`);
+  }
+}
+
 // 6. distribution hygiene: runtime/process artifacts must never ship in the
 // plugin subdir, and scratch/temp files must not be committed anywhere.
 const forbidden = [
