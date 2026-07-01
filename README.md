@@ -121,6 +121,26 @@ Linters catch mechanical issues. Tests catch known expected behavior. Static ana
 
 Verdicts are release-readiness decisions, not absolute truths. See [`docs/how-to-read-verdicts.md`](docs/how-to-read-verdicts.md).
 
+## The 10 subagents
+
+You do not select reviewers manually; udflow assembles the panel by **risk** — a typo engages none, an authentication change engages the security reviewer. The full roster:
+
+| Agent | Role | When it's added | Model |
+|---|---|---|---|
+| `planner-creator` | grounds the plan in real code, drafts the approach, pre-selects the panel, detects/recommends `design.md` (bootstrap from an existing UI) (read-only; feeds plan approval, never replaces it) | high-risk / correctness-critical planning | inherit |
+| `implementer` | smallest safe change; never self-certifies | after plan approval | inherit |
+| `spec-reviewer` | requirement / business-rule / contract fidelity | core (non-trivial) | inherit |
+| `test-reviewer` | missing tests, weak verification, edges, regressions | core (non-trivial) | inherit |
+| `code-reviewer` | local quality, maintainability, framework use, efficiency | non-trivial code | inherit |
+| `security-reviewer` | auth/authz, input handling, secrets, trust boundaries | security-relevant risk | **opus** |
+| `architecture-reviewer` | layering, boundaries, dependency direction, placement | structural concerns | inherit |
+| `operability-reviewer` | observability, retries/timeouts, deploy, rollback | runtime/prod impact | inherit |
+| `ui-ux-reviewer` | usability, interaction, layout, states, accessibility; consistency vs `design.md` when present | UI impact | inherit |
+| `gatekeeper` | aggregates, re-rates by impact, decides readiness | after reviewers finish | **opus** |
+
+- **Reviewers hold no editor tools** — `Read` / `Grep` / `Glob` / `Bash` for inspection; review-only behavior is enforced by policy and context isolation, not a hard read-only capability boundary (see [`ARCHITECTURE.md`](ARCHITECTURE.md)). They propose the fix; the `implementer` applies it.
+- **Correctness-critical paths receive ≥2 independent lenses** — parsing, numeric / encoding / overflow, concurrency, security, and data integrity — because the benchmark shows that a second reviewer reliably recovers defects the first rationalizes away.
+
 ## Examples and evidence
 
 - [`examples/ready-run.md`](examples/ready-run.md) - real `READY` example extracted from `EVIDENCE.md`.
