@@ -54,3 +54,4 @@ URL note: `EVIDENCE.md` records historical `simba6507` URLs from the time of the
 
 udflow:verify=pass
 udflow:delivery=shipped
+udflow:panel=full

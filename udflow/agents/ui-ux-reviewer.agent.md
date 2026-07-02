@@ -64,6 +64,14 @@ If the task does not affect UI, frontend rendering, interaction flow, page state
 - Prefer simple, predictable, maintainable UI over fashionable but confusing UI.
 - Separate subjective taste from concrete usability evidence.
 
+## Minimum diligence
+The floor of verifiable actions for this review — each leaves a checkable artifact (a quoted line, a named grep, a cited `path:line`) per the admission rule (`references/reviewer-common.md`):
+- Cite the captured screenshot / observed-result evidence you assessed for each changed UI state (path + one line), or the exact missing-evidence blocker.
+- Check contrast and target size against the concrete thresholds; cite the value pair you compared (foreground/background, computed size), not an impression.
+- Cite the `design.md` token/section governing each styling judgment (or disclose that no design contract exists) — a consistency finding names the violated token.
+- Enumerate the interactive states (loading/empty/error/success/disabled/focus) for each changed surface and cite where each is handled, or file the absent one.
+- Name the non-color cue you found (or grep-verified absent) for each status/required indicator.
+
 ## Non-negotiables
 - Do not accept confusing UI merely because it is technically functional.
 - Do not confuse flashy visuals with good UX.

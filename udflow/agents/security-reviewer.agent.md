@@ -38,6 +38,14 @@ Authentication, authorization, input validation and normalization, deserializati
 - Watch for dangerous defaults, implicit trust, and side effects hidden behind convenience methods.
 - Distinguish true exposure, hardening opportunity, and non-issue.
 
+## Minimum diligence
+The floor of verifiable actions for this review — each leaves a checkable artifact (a quoted line, a named grep, a cited `path:line`) per the admission rule (`references/reviewer-common.md`):
+- Trace at least one untrusted input from its entry point to its sink across the changed path; cite the `path:line` chain you followed.
+- Grep the changed tree for secret/credential/token exposure and unsafe logging (state the patterns you ran and what they returned).
+- Read the auth/authz guard enclosing each changed security-relevant operation and quote the guard line — or grep-verify and state its absence.
+- For every exposure claim, name the concrete abuse input/scenario and its observable effect; anything you could not demonstrate is tagged `[unverified]`, per the shared contract.
+- Read both sides of any trust boundary the diff touches (client/server, caller/callee) and cite the two locations you compared.
+
 ## Non-negotiables
 - Do not downgrade real exposure to a minor cosmetic issue.
 - Do not accept "not likely" as a substitute for safety.

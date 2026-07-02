@@ -148,7 +148,7 @@ if (fs.existsSync(path.join(root, finalReportRel))) {
     fail(`final-report.md: cannot locate the compact (Default) ~~~markdown template fence — the report structure changed; re-point the 5d sentinel guard`);
   } else {
     const compactFence = fence[1];
-    for (const tok of ["udflow:verify=", "udflow:delivery=", "READY", "FIX REQUIRED", "NOT READY"]) {
+    for (const tok of ["udflow:verify=", "udflow:delivery=", "udflow:panel=", "READY", "FIX REQUIRED", "NOT READY"]) {
       if (!compactFence.includes(tok))
         fail(`final-report.md compact template is missing the machine-contract literal "${tok}" (the default report must keep the sentinel footer + verdict literals)`);
     }
@@ -197,7 +197,7 @@ const CONTRACT_INVARIANTS = {
   // make the "real run -> always log evidence" nudge go inert. Guard it like the other machine literals.
   [`${PLUGIN}/skills/universal-dev-flow/references/final-report.md`]: ["### Live run"],
   [`${PLUGIN}/skills/universal-dev-flow/SKILL.md`]: [
-    "udflow:verify=", "udflow:delivery=",
+    "udflow:verify=", "udflow:delivery=", "udflow:panel=",
     "READY", "FIX REQUIRED", "NOT READY",
     "blocker", "major", "minor",
   ],
@@ -343,9 +343,30 @@ if (!fs.existsSync(path.join(root, taskContractRel))) {
 const packetRel = `${PLUGIN}/skills/universal-dev-flow/references/review-packet.md`;
 if (fs.existsSync(path.join(root, packetRel))) {
   const pk = fs.readFileSync(path.join(root, packetRel), "utf8");
-  for (const field of ["Acceptance criteria", "Out of scope", "Verification evidence"]) {
+  for (const field of ["Acceptance criteria", "Out of scope", "Verification evidence", "Must-not-change"]) {
     if (!pk.includes(field))
       fail(`review-packet.md template is missing the required field "${field}"`);
+  }
+}
+
+// 5k. Rigor-contract dual-write guard — the claims-evidence discipline (admission rule, evidence
+// grading, self-refutation, two-channel output) lives in BOTH references/reviewer-common.md (the
+// source of truth) and the review-packet.md "Shared reviewer contract" verbatim block (the ONLY copy
+// a spawned reviewer ever receives — review-packet.md's sync mandate). A drift that drops one side
+// silently guts the contract for every reviewer while CI stays green. Narrow literal-presence
+// anchors only, no wording constraints — same philosophy as 5f/5j.
+const RIGOR_ANCHORS = ["Admission to the findings index", "Evidence grading", "refute your strongest finding", /[Tt]wo channels/];
+for (const rel of [
+  `${PLUGIN}/skills/universal-dev-flow/references/reviewer-common.md`,
+  `${PLUGIN}/skills/universal-dev-flow/references/review-packet.md`,
+]) {
+  const abs = path.join(root, rel);
+  if (!fs.existsSync(abs)) { fail(`rigor-contract guard: ${rel} is missing (cannot verify the claims-evidence anchors)`); continue; }
+  const text = fs.readFileSync(abs, "utf8");
+  for (const anchor of RIGOR_ANCHORS) {
+    const ok = anchor instanceof RegExp ? anchor.test(text) : text.includes(anchor);
+    if (!ok)
+      fail(`rigor-contract guard: ${rel} no longer contains the anchor ${anchor instanceof RegExp ? String(anchor) : `"${anchor}"`} — the reviewer-common ↔ review-packet dual write drifted (the verbatim block is the only copy reviewers receive)`);
   }
 }
 

@@ -5,7 +5,11 @@
 //      without surfacing that block. This is the highest-value check — it guards the product's
 //      core promise (a ship/no-ship verdict that actually gates delivery).
 //   2. Panel missing/incomplete: a READY verdict is asserted but the core review panel
-//      (spec-reviewer, test-reviewer, gatekeeper) did not all run as independent subagents.
+//      (spec-reviewer, test-reviewer, gatekeeper) did not all run as independent subagents. One
+//      disclosed escape: a reviewer named in the final message's udflow:panel=substituted:<names>
+//      sentinel is exempt IF it is on the EXEMPTIBLE whitelist (test-reviewer only) AND
+//      udflow:verify=pass — the evidence-substituted fast lane (references/reviewer-selection.md).
+//      spec-reviewer and gatekeeper are never exemptible.
 //   3. Verification not honored: the verification sentinel (udflow:verify=) reports a REQUIRED
 //      check failed or never ran, yet the session is delivering. The command exit status is
 //      authority over reviewer prose — a red/unrun required check must gate delivery. Fires ONLY
@@ -31,6 +35,11 @@ const os = require("os");
 const path = require("path");
 
 const REQUIRED = ["spec-reviewer", "test-reviewer", "gatekeeper"];
+// The only REQUIRED name the evidence-substituted fast lane may exempt from the panel advisory
+// (references/reviewer-selection.md, Evidence substitution). A whitelist, not a config knob:
+// spec-reviewer (the only omission lens) and gatekeeper (the verdict itself) are never exemptible,
+// so a sentinel naming them changes nothing — the floor holds even against a persuasive final summary.
+const EXEMPTIBLE = new Set(["test-reviewer"]);
 const MAX_TRANSCRIPT = 32 * 1024 * 1024; // cap the synchronous transcript read; fail-open (skip) above it
 
 // Opt-in HARD enforcement (default OFF). When UDFLOW_ENFORCE_STOP is truthy, the single highest-
@@ -157,6 +166,31 @@ function verifySentinel(text) {
   return "unrun";
 }
 
+// THE PANEL SENTINEL (the disclosure line for evidence-substituted review): the orchestrator states
+// which review panel actually ran, so the exemption below is never inferred from prose. Format
+// (case/space tolerant), distinct stem from `delivery`/`verify` so the three regexes never cross-match:
+//   udflow:panel=full                                  → the full selected panel ran (pure disclosure)
+//   udflow:panel=substituted:<comma-separated-names>   → the named reviewers were evidence-substituted
+// The name list uses a BOUNDED charset ([a-z0-9,-]): finalText is stringified JSON, so a newline in the
+// final message is a literal "\n" — a greedy match would swallow the next sentinel line; the bound makes
+// the backslash terminate the list. NO synonym folds here, unlike the two decoders above: the value
+// gates an exemption (a weaker warning), so only the exact contract grammar may decode — an
+// unrecognized value or an empty name list yields null, failing toward warning, never toward a
+// silent exemption. The charset includes "," so a value like "substituted:," matches the regex yet
+// decodes to zero names — that decoded-but-empty list is normalized to null too, keeping the
+// null-means-no-sentinel contract exact. Last-match scan (like the two sentinels above) so the
+// final rollup line wins.
+function panelSentinel(text) {
+  const re = /udflow\s*:\s*panel\s*=\s*(full|substituted\s*:\s*[a-z0-9,\-]+)/ig;
+  let m, last = null;
+  while ((m = re.exec(text)) !== null) last = m[1];
+  if (last === null) return null;
+  const v = last.toLowerCase().replace(/\s+/g, "");
+  if (v === "full") return { mode: "full", names: [] };
+  const names = v.slice("substituted:".length).split(",").filter(Boolean);
+  return names.length ? { mode: "substituted", names } : null;
+}
+
 let raw = "";
 process.stdin.setEncoding("utf8");
 process.stdin.on("error", () => process.exit(0));
@@ -271,15 +305,33 @@ process.stdin.on("end", () => {
     const finalHoldsDelivery = holdsDelivery(finalText);
     const finalDelivery = deliverySentinel(finalText); // "held" | "shipped" | null
     const finalVerify = verifySentinel(finalText);     // "pass" | "fail" | "unrun" | "na" | null
+    const finalPanel = panelSentinel(finalText);       // {mode:"full"|"substituted",names:[…]} | null
     // Is the session delivering without honoring the block? The delivery sentinel is authoritative
     // when present (deterministic, language-neutral); otherwise fall back to the English prose
     // heuristic. This is the structural fix for the false-positive class that prose-parsing produced.
     const sessionDelivers = finalDelivery !== null
       ? finalDelivery === "shipped"
       : (finalClaimsComplete && !finalHoldsDelivery);
+    // Evidence-substitution exemption for advisory 2 (references/reviewer-selection.md, Evidence
+    // substitution): a missing REQUIRED reviewer stops counting as missing ONLY when the final message
+    // explicitly discloses the substitution (udflow:panel=substituted:<names>), the name is on the
+    // EXEMPTIBLE whitelist by EXACT lowercase match against the REQUIRED literal (never a substring —
+    // ran-detection above may substring-match "udflow:test-reviewer", but an exemption must not be
+    // buyable with "test-reviewer-lite"), AND the verification sentinel is green (udflow:verify=pass).
+    // `na` does not qualify: no required checks means no red→green positive evidence, so nothing
+    // actually answered the substituted reviewer's question. Anything less — no sentinel, panel=full,
+    // a fail/unrun/na/absent verify, an unlisted or non-exemptible name — leaves the advisory exactly
+    // as before (fail toward warning).
+    const exempted = new Set(
+      (finalPanel && finalPanel.mode === "substituted" && finalVerify === "pass")
+        ? finalPanel.names.filter((n) => EXEMPTIBLE.has(n))
+        : []
+    );
+    const unmet = missing.filter((n) => !exempted.has(n));
     debug("verdict=" + verdict + " claimsComplete=" + finalClaimsComplete + " reportsBlock=" + finalReportsBlock +
       " shipReady=" + finalShipReady + " holds=" + finalHoldsDelivery + " sentinel=" + finalDelivery +
-      " verify=" + finalVerify + " delivers=" + sessionDelivers + " ran=[" + [...ran].join(",") + "]");
+      " verify=" + finalVerify + " panel=" + (finalPanel ? finalPanel.mode + (finalPanel.names.length ? ":" + finalPanel.names.join(",") : "") : null) +
+      " delivers=" + sessionDelivers + " ran=[" + [...ran].join(",") + "] unmet=[" + unmet.join(",") + "]");
 
     // (1) Verdict not honored — highest value. A real blocking verdict was reached, yet the session
     // is DELIVERING (per the sentinel, or per the prose heuristic when no sentinel). An honest hold —
@@ -314,17 +366,21 @@ process.stdin.on("end", () => {
     // claims READY + ships ("was NOT READY, but it's ready now") must still warn. Gating on the bare
     // `NOT READY`/`FIX REQUIRED` token wrongly silenced that case (the panel safety-net defeated by a
     // prose mention); `holdsDelivery` keys on the ship DECISION, and `delivery=held` is authoritative.
-    if (finalShipReady && !finalHoldsDelivery && missing.length > 0 && finalDelivery !== "held") {
+    // A second, narrower escape is the evidence-substitution exemption computed above: `unmet` is
+    // `missing` minus any disclosed + whitelisted + verify=pass substitution — only that name is
+    // removed; everything else about this advisory (gating, grading, never blocking) is unchanged.
+    if (finalShipReady && !finalHoldsDelivery && unmet.length > 0 && finalDelivery !== "held") {
       const msg = ran.size === 0
         ? "udflow: a READY verdict was asserted but none of the core review panel (spec-reviewer, " +
           "test-reviewer, gatekeeper) appears to have run as a subagent this session. A self-review is " +
           "not a formal multi-agent review — run the panel, or downgrade to FIX REQUIRED and disclose " +
           "it as local self-review."
         : "udflow: a READY verdict was asserted, but the core review panel is incomplete — " +
-          missing.join(", ") + " did not run as a subagent this session. spec-reviewer and " +
+          unmet.join(", ") + " did not run as a subagent this session. spec-reviewer and " +
           "test-reviewer do the actual review work; a verdict resting on a partial panel is not a " +
-          "formal multi-agent review. Run the missing reviewer(s), or downgrade to FIX REQUIRED and " +
-          "disclose the gap.";
+          "formal multi-agent review. Run the missing reviewer(s), disclose an eligible evidence " +
+          "substitution (udflow:panel=substituted:test-reviewer, valid only with udflow:verify=pass — " +
+          "references/reviewer-selection.md), or downgrade to FIX REQUIRED and disclose the gap.";
       return process.stdout.write(JSON.stringify({ systemMessage: msg }), () => process.exit(0));
     }
 

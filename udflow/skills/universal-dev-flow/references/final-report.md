@@ -2,13 +2,13 @@
 
 The end-of-run report emitted at final delivery. Load this at final delivery time; the during-verification rules stay in `references/verification-gate.md`.
 
-For substantial tasks, end with the single report below. Write the labels and prose in the **user's language**, but keep the machine-checked literals verbatim: the verdict `READY` / `FIX REQUIRED` / `NOT READY`, the severities `blocker` / `major` / `minor`, and the sentinel tokens `udflow:verify=` / `udflow:delivery=`. The two sentinel lines are the machine-readable rollup the Stop hook reads, so they are the **last lines** in both renderings below. Same threshold throughout — omit the whole report for trivial edits and pure Q&A (which emit no sentinel tokens).
+For substantial tasks, end with the single report below. Write the labels and prose in the **user's language**, but keep the machine-checked literals verbatim: the verdict `READY` / `FIX REQUIRED` / `NOT READY`, the severities `blocker` / `major` / `minor`, and the sentinel tokens `udflow:verify=` / `udflow:delivery=` / `udflow:panel=`. The three sentinel lines are the machine-readable rollup the Stop hook reads, so they are the **last lines** in both renderings below. Same threshold throughout — omit the whole report for trivial edits and pure Q&A (which emit no sentinel tokens).
 
 The report has two renderings. **Compact is the default.** Emit the detailed tables only when the run was invoked with `--report full`.
 
 ## Default (compact)
 
-Emitted unless `--report full` was passed. Summary one-liner · a Verification block (Checks table + acceptance-criteria line + a one-line cost summary) · a Findings severity table · the Final Verdict · then the two sentinel lines last. On a **real run** (see *Evidence Record* below), the `### Live run` evidence block **MUST** be emitted just above the footer — it is **not optional on a real run**; the Stop hook (`orchestration-check.js`, advisory 4) reminds you if a real, verified, delivered run omits it.
+Emitted unless `--report full` was passed. Summary one-liner · a Verification block (Checks table + acceptance-criteria line + a one-line cost summary) · a Findings severity table · the Final Verdict · then the three sentinel lines last. On a **real run** (see *Evidence Record* below), the `### Live run` evidence block **MUST** be emitted just above the footer — it is **not optional on a real run**; the Stop hook (`orchestration-check.js`, advisory 4) reminds you if a real, verified, delivered run omits it.
 
 ~~~markdown
 ## Summary
@@ -24,6 +24,7 @@ Emitted unless `--report full` was passed. Summary one-liner · a Verification b
 
 - Acceptance criteria: ✅ <N/N met> · list any unmet/deferred (note user-consented deferrals) · "n/a" for trivial work — an unmet, non-deferred criterion is incompatible with READY
 - Cost: ~<new tokens> new tokens · tier: <lite | default | deep> (observed where surfaced, orchestrator estimated; no telemetry)
+- Panel: <full, or name each evidence-substituted reviewer + the evidence that qualified it (fast lane — `references/reviewer-selection.md`)> — mirrored by the `udflow:panel=` footer line
 - External capabilities: only when a required MCP / skill / subagent was unavailable — name it, the local fallback, and the resulting verification gap (omit the line entirely when none were needed or all were available). A real capability gap is decision-relevant, so it stays visible even in the compact report.
 
 ## Findings
@@ -39,6 +40,7 @@ Emitted unless `--report full` was passed. Summary one-liner · a Verification b
 
 udflow:verify=<pass|fail|unrun|na>
 udflow:delivery=<held|shipped>
+udflow:panel=<full|substituted:comma-separated-names>
 ~~~
 
 If blocked, add a `## Stuck Summary` (above the footer) with the unresolved blocker, attempted remedies, why progress is blocked, and what is needed next. On a real run, the `### Live run` block (see *Evidence Record* below) **MUST** be emitted just above the footer.
@@ -124,11 +126,12 @@ Per-component basis: the harness rarely surfaces a per-subagent Input/Output/Cac
 
 udflow:verify=<pass|fail|unrun|na>
 udflow:delivery=<held|shipped>
+udflow:panel=<full|substituted:comma-separated-names>
 ~~~
 
 If blocked, add a `## Stuck Summary` (above the footer) with the unresolved blocker, attempted remedies, why progress is blocked, and what is needed next. On a real run, the `## Evidence Record` below (including its `### Live run` block) **MUST** be emitted just above the footer.
 
-The footer restates the report's decision so the human-readable report and the machine rollup cannot silently disagree: `udflow:delivery=` mirrors the Final Verdict (`held` unless the verdict is READY and you are shipping), and `udflow:verify=` is the verification rollup — `pass` only when every required check actually ran and exited zero, `fail` on a non-zero required check, `unrun` when a required check was claimed but never ran, `na` when no command checks were required. The command exit status is authority over reviewer prose: a `fail` / `unrun` required check is incompatible with READY and shipping. Keep both tokens and their values verbatim (machine-checked, like the verdict). This is true in **both** the compact and `--report full` renderings — the sentinel footer is always the last thing emitted.
+The footer restates the report's decision so the human-readable report and the machine rollup cannot silently disagree: `udflow:delivery=` mirrors the Final Verdict (`held` unless the verdict is READY and you are shipping), `udflow:verify=` is the verification rollup — `pass` only when every required check actually ran and exited zero, `fail` on a non-zero required check, `unrun` when a required check was claimed but never ran, `na` when no command checks were required — and `udflow:panel=` states which review panel actually ran: `full`, or `substituted:` plus the comma-separated evidence-substituted reviewer names (`references/reviewer-selection.md`, *Evidence substitution*). The command exit status is authority over reviewer prose: a `fail` / `unrun` required check is incompatible with READY and shipping. Keep all three tokens and their values verbatim (machine-checked, like the verdict). This is true in **both** the compact and `--report full` renderings — the sentinel footer is always the last thing emitted.
 
 Cost honesty (no telemetry) — **every figure carries its basis**. Tag each figure `observed` (the per-agent number the harness surfaces for a finished subagent) or `estimate` (the orchestrator / main-thread figure, and anything derived from it); **never present an estimate as observed**. If no figure is surfaced for a subagent, write `not reported` — do not guess. Because the grand total includes the orchestrator figure, it is never pure `observed` — the `--report full` Total row tags it `observed + estimate`, and it must never be shown as plain `observed`. An estimate must **state its assumption**: figures are **new tokens** — the billable `/cost` total re-counts cached context every turn (~20–30× in tokens, but cache reads bill at ~a tenth of the input rate, so the dollar cost scales much closer to the new-token figure; don't over-scare) — and `~Cost` is a rough band, not a bill, so state the assumed per-model rate(s) and date, or give tokens only and write "× your plan's rate". In the compact report this collapses to the one-line cost summary (new tokens + tier, with its basis named); `--report full` expands it into the per-agent Cost table whose `Source` column carries each row's basis. The full table now itemizes **Input / Output / Cache-write / Cache-read** (they bill at different rates) alongside the New-tokens total, and each component carries its own `observed` / `estimate` / `not reported` basis — an unobserved per-subagent split is never shown as `observed`.
 

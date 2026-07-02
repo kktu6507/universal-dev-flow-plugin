@@ -130,7 +130,7 @@ reviewer を手動で選ぶ必要はありません。udflow は**リスク**に
 | `planner-creator` | 実際のコードに plan を紮根させ、方針を草案し、パネルを事前選定し、`design.md` を検出/提案する（既存 UI からの bootstrap も可能）（読み取り専用；plan 承認の材料であり、承認そのものを代替しない） | 高リスク／正確性が重要な場面の planning | inherit |
 | `implementer` | 最小限の安全な変更；自己承認は絶対にしない | plan 承認後 | inherit |
 | `spec-reviewer` | 要件／ビジネスルール／contract との整合性 | core（非瑣末） | inherit |
-| `test-reviewer` | テスト漏れ、弱い検証、エッジケース、regression | core（非瑣末） | inherit |
+| `test-reviewer` | テスト漏れ、弱い検証、エッジケース、regression | core（非瑣末）；低/中リスクではエビデンス代替可（fast lane） | inherit |
 | `code-reviewer` | ローカルな品質、保守性、フレームワークの使い方、効率性 | 非瑣末なコード変更 | inherit |
 | `security-reviewer` | auth/authz、入力処理、secret、trust boundary | セキュリティに関わるリスク | **opus** |
 | `architecture-reviewer` | 層構造、境界、依存方向、配置 | 構造上の懸念 | inherit |
@@ -209,7 +209,7 @@ trust model については [`SECURITY.md`](SECURITY.md)（英語）を、releas
 | 典型 | 3-5 reviewers + repair 1回 | ~2-7M | ~5-15分 |
 | 深掘り | `--deep`、repair 複数回 | >10M | ~20-40分 |
 
-コストを抑えたいときは `/udflow:run --lite`、最大限の精査が必要なときは `--deep`、per-agent の詳細な activity と cost が必要なときは `--report full` を使ってください。
+コストを抑えたいときは `/udflow:run --lite`、最大限の精査が必要なときは `--deep`、per-agent の詳細な activity と cost が必要なときは `--report full` を使ってください。小さな低/中リスクの変更では、自動の **fast lane** がさらに一歩進みます：実行エビデンスがすでに reviewer の問いに答えている場合（behavior-changing な基準すべてに red→green テストがあり、full required suite がグリーン）、`test-reviewer` はエビデンスで代替され、`udflow:panel=substituted:test-reviewer` として開示されます — 同じエビデンスでより少ない agents。高リスク / deep run には適用されません。
 
 ## ドキュメント
 

@@ -35,6 +35,14 @@ Severity vocabulary, scope discipline, and the base output contract are shared a
 - Be especially careful with implied behaviors around nulls, defaults, optional fields, statuses, transitions, and side effects.
 - Distinguish explicit requirements, implied-but-strong behavioral expectations, and low-risk implementation assumptions.
 
+## Minimum diligence
+The floor of verifiable actions for this review — each leaves a checkable artifact (a quoted line, a named grep, a cited `path:line`) per the admission rule (`references/reviewer-common.md`):
+- Quote the specific requirement / acceptance-criterion text you judged each fidelity finding against — the criterion is the anchor, not a paraphrase of it.
+- For every "criterion not demonstrably met", state the `Grep`/`Read` you ran that shows the implementing code is genuinely absent (the search pattern and what it returned).
+- Open both sides of at least one crossed contract the diff touches (producer/consumer, API shape/consumer type, caller/callee) and cite the two `path:line`s you compared.
+- Map each materially changed file back to a criterion or stated in-scope purpose; name any orphan explicitly, or state "none — all changed files map".
+- Quote the exact plan/packet sentence for anything you treated as intentionally deferred rather than missing.
+
 ## Non-negotiables
 - Do not accept "reasonable interpretation" when the implementation materially changes behavior.
 - Do not praise code quality when requirement fidelity is weak.

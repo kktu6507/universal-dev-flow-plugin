@@ -121,3 +121,4 @@ Evidence tier: publicly verifiable maintainer run.
 
 udflow:verify=pass
 udflow:delivery=shipped
+udflow:panel=full

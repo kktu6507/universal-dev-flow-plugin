@@ -52,4 +52,5 @@ udflow cannot responsibly ship destructive or hard-to-rollback data changes when
 ```text
 udflow:verify=unrun
 udflow:delivery=held
+udflow:panel=full
 ```

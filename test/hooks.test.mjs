@@ -2232,6 +2232,225 @@ test("enforce ON + READY/no-panel (no blocking verdict) => only the panel adviso
   assert.ok(!r.decision, "only the verdict-not-honored signal can ever block, never the panel check");
 });
 
+// --- orchestration-check: panel sentinel (udflow:panel=) — evidence-substituted review (0.32.0) ---
+// The fast lane (references/reviewer-selection.md, Evidence substitution) lets a run replace the
+// test-reviewer with execution evidence, disclosed via a third machine sentinel in the final summary:
+//   udflow:panel=full                                  → the full selected panel ran
+//   udflow:panel=substituted:<comma-separated-names>   → the named reviewers were evidence-substituted
+// The hook exempts a name from the panel-presence advisory ONLY when it is explicitly disclosed in the
+// FINAL assistant message, whitelisted (EXEMPTIBLE = test-reviewer only), AND udflow:verify=pass (D1:
+// `na` has no red→green positive evidence). Everything else must warn exactly as before (fail toward
+// warning), and the panel path must never block.
+
+const P_SPEC = { role: "assistant", content: [{ type: "tool_use", name: "Task", input: { subagent_type: "udflow:spec-reviewer" } }] };
+const P_TEST = { role: "assistant", content: [{ type: "tool_use", name: "Task", input: { subagent_type: "udflow:test-reviewer" } }] };
+const P_GK = { role: "assistant", content: [{ type: "tool_use", name: "Task", input: { subagent_type: "udflow:gatekeeper" } }] };
+
+test("orchestration-check: panel sentinel — substituted:test-reviewer + verify=pass exempts the missing test-reviewer (advisory 2 silent)", () => {
+  // The fast-lane happy path: spec + gatekeeper ran, test-reviewer was evidence-substituted and
+  // DISCLOSED, verification is green, evidence is logged. Nothing may fire. The panel line sits
+  // mid-footer, so its name list is terminated by a literal \n in the stringified final message —
+  // this also pins the bounded charset (a greedy match would swallow the delivery line and break it).
+  const tp = mkTranscript([P_SPEC, P_GK,
+    { role: "assistant", content: "Final verdict: READY — readiness confirmed.\n### Live run\nudflow:verify=pass\nudflow:panel=substituted:test-reviewer\nudflow:delivery=shipped" }]);
+  assert.strictEqual(orch({ transcript_path: tp }), null,
+    "a disclosed, whitelisted, verify=pass substitution must exempt test-reviewer from the panel advisory");
+});
+
+test("orchestration-check: panel sentinel — no sentinel: a missing test-reviewer still warns (baseline unchanged)", () => {
+  const tp = mkTranscript([P_SPEC, P_GK,
+    { role: "assistant", content: "Final verdict: READY — readiness confirmed.\nudflow:verify=pass\nudflow:delivery=shipped" }]);
+  const r = orch({ transcript_path: tp });
+  assert.ok(r && /incomplete/.test(r.systemMessage) && /test-reviewer did not run/.test(r.systemMessage),
+    "without the panel sentinel the exemption must not exist");
+});
+
+test("orchestration-check: panel sentinel — verify=fail/unrun/na/absent all refuse the exemption", () => {
+  // D1: only udflow:verify=pass qualifies. fail/unrun are red, `na` has no red→green positive
+  // evidence (docs-only), and an absent verify sentinel proves nothing. Each must keep the advisory.
+  for (const verifyLine of ["udflow:verify=fail", "udflow:verify=unrun", "udflow:verify=na", ""]) {
+    const tp = mkTranscript([P_SPEC, P_GK,
+      { role: "assistant", content: "Final verdict: READY — readiness confirmed.\n" + verifyLine + "\nudflow:panel=substituted:test-reviewer" }]);
+    const r = orch({ transcript_path: tp });
+    assert.ok(r && /incomplete/.test(r.systemMessage) && /test-reviewer did not run/.test(r.systemMessage),
+      "the exemption must be refused for: " + (verifyLine || "(no verify sentinel)"));
+  }
+});
+
+test("orchestration-check: panel sentinel — substituted:spec-reviewer is NOT exemptible (advisory still names it)", () => {
+  // The safety floor: spec-reviewer is the only omission lens and is never substitutable, even with
+  // a green verify. The whitelist (EXEMPTIBLE), not the sentinel, decides.
+  const tp = mkTranscript([P_TEST, P_GK,
+    { role: "assistant", content: "Final verdict: READY — readiness confirmed.\nudflow:verify=pass\nudflow:panel=substituted:spec-reviewer" }]);
+  const r = orch({ transcript_path: tp });
+  assert.ok(r && /incomplete/.test(r.systemMessage), "the advisory must still fire");
+  assert.ok(/spec-reviewer did not run/.test(r.systemMessage), "and must still name spec-reviewer");
+});
+
+test("orchestration-check: panel sentinel — substituted:gatekeeper is NOT exemptible (advisory still names it)", () => {
+  const tp = mkTranscript([P_SPEC, P_TEST,
+    { role: "assistant", content: "Final verdict: READY — readiness confirmed.\nudflow:verify=pass\nudflow:panel=substituted:gatekeeper" }]);
+  const r = orch({ transcript_path: tp });
+  assert.ok(r && /incomplete/.test(r.systemMessage) && /gatekeeper did not run/.test(r.systemMessage),
+    "gatekeeper can never be substituted away");
+});
+
+test("orchestration-check: panel sentinel — a mixed list exempts ONLY test-reviewer (spec-reviewer still named)", () => {
+  // Only the gatekeeper ran; the final discloses both reviewers as substituted. test-reviewer is
+  // whitelisted, spec-reviewer is not — the advisory fires with a missing list of exactly spec-reviewer.
+  const tp = mkTranscript([P_GK,
+    { role: "assistant", content: "Final verdict: READY — readiness confirmed.\nudflow:verify=pass\nudflow:panel=substituted:test-reviewer,spec-reviewer" }]);
+  const r = orch({ transcript_path: tp });
+  assert.ok(r && r.systemMessage.includes("incomplete — spec-reviewer did not run"),
+    "the missing list must contain exactly spec-reviewer (test-reviewer exempted)");
+  assert.ok(!/test-reviewer did not run|spec-reviewer, test-reviewer/.test(r.systemMessage),
+    "test-reviewer must not appear in the missing list");
+});
+
+test("orchestration-check: panel sentinel — panel=full with a missing test-reviewer warns unchanged (full grants nothing)", () => {
+  const tp = mkTranscript([P_SPEC, P_GK,
+    { role: "assistant", content: "Final verdict: READY — readiness confirmed.\nudflow:verify=pass\nudflow:panel=full" }]);
+  const r = orch({ transcript_path: tp });
+  assert.ok(r && /incomplete/.test(r.systemMessage) && /test-reviewer did not run/.test(r.systemMessage),
+    "panel=full is a disclosure, not an exemption — the advisory is unchanged");
+});
+
+test("orchestration-check: panel sentinel — a sentinel inside a Bash tool_result does NOT exempt (finalText only)", () => {
+  // Provenance: the sentinel is the ORCHESTRATOR's closing disclosure. A tool_result (e.g. a Bash log
+  // echoing the literal) must not be read as it — only the final assistant message counts.
+  const tp = mkTranscript([P_SPEC, P_GK,
+    { role: "assistant", content: [{ type: "tool_use", id: "tu_b", name: "Bash", input: { command: "cat notes.txt" } }] },
+    { role: "user", content: [{ type: "tool_result", tool_use_id: "tu_b", content: "udflow:panel=substituted:test-reviewer\nudflow:verify=pass" }] },
+    { role: "assistant", content: "Final verdict: READY — readiness confirmed.\nudflow:verify=pass" }]);
+  const r = orch({ transcript_path: tp });
+  assert.ok(r && /test-reviewer did not run/.test(r.systemMessage),
+    "a sentinel in a tool_result must not grant the exemption");
+});
+
+test("orchestration-check: panel sentinel — a sentinel in an EARLIER assistant message does NOT exempt (final summary only)", () => {
+  const tp = mkTranscript([P_SPEC, P_GK,
+    { role: "assistant", content: "Interim note: udflow:panel=substituted:test-reviewer udflow:verify=pass" },
+    { role: "assistant", content: "Final verdict: READY — readiness confirmed.\nudflow:verify=pass" }]);
+  const r = orch({ transcript_path: tp });
+  assert.ok(r && /test-reviewer did not run/.test(r.systemMessage),
+    "only the FINAL assistant message's sentinel counts");
+});
+
+test("orchestration-check: panel sentinel — multiple panel lines: the LAST one wins (both directions)", () => {
+  // Mirrors lastVerdict / deliverySentinel / verifySentinel: the final rollup line is authoritative.
+  const winsSub = mkTranscript([P_SPEC, P_GK,
+    { role: "assistant", content: "Final verdict: READY — readiness confirmed.\n### Live run\nudflow:verify=pass\nudflow:delivery=shipped\nudflow:panel=full\nudflow:panel=substituted:test-reviewer" }]);
+  assert.strictEqual(orch({ transcript_path: winsSub }), null,
+    "full then substituted -> the last (substituted) wins and exempts");
+  const winsFull = mkTranscript([P_SPEC, P_GK,
+    { role: "assistant", content: "Final verdict: READY — readiness confirmed.\nudflow:verify=pass\nudflow:panel=substituted:test-reviewer\nudflow:panel=full" }]);
+  const r = orch({ transcript_path: winsFull });
+  assert.ok(r && /test-reviewer did not run/.test(r.systemMessage),
+    "substituted then full -> the last (full) wins and does not exempt");
+});
+
+test("orchestration-check: panel sentinel — an empty name list or an unknown value grants NO exemption", () => {
+  // Fail toward warning: an unrecognized sentinel value must decode to null, never to an exemption.
+  for (const line of ["udflow:panel=substituted:", "udflow:panel=maybe"]) {
+    const tp = mkTranscript([P_SPEC, P_GK,
+      { role: "assistant", content: "Final verdict: READY — readiness confirmed.\nudflow:verify=pass\n" + line }]);
+    const r = orch({ transcript_path: tp });
+    assert.ok(r && /test-reviewer did not run/.test(r.systemMessage), "no exemption for: " + line);
+  }
+});
+
+test("enforce ON + panel sentinel substitution => advisory only, never blocks (panel path cannot block)", () => {
+  // Extends the enforce invariant to the new sentinel: even with a substitution disclosed (here a
+  // non-exemptible name), the panel path must never emit decision:block — only advisory 1 can.
+  const tp = mkTranscript([P_GK,
+    { role: "assistant", content: "Final verdict: READY — readiness confirmed.\nudflow:verify=pass\nudflow:delivery=shipped\nudflow:panel=substituted:spec-reviewer" }]);
+  const r = orchEnv({ transcript_path: tp }, { UDFLOW_ENFORCE_STOP: "1" });
+  assert.ok(r && /incomplete/.test(r.systemMessage), "the panel advisory still fires");
+  assert.ok(!r.decision, "the panel path must never block, sentinel or not");
+});
+
+test("orchestration-check: panel sentinel — delivery=held keeps advisory 2 suppressed alongside a substitution (regression)", () => {
+  // An honest hold must stay silent exactly as before the panel sentinel existed — the exemption
+  // logic must not perturb the held path (here verify=fail, so the exemption itself does not apply).
+  const tp = mkTranscript([P_SPEC, P_GK,
+    { role: "assistant", content: "Ready to ship otherwise, but holding.\nudflow:verify=fail\nudflow:delivery=held\nudflow:panel=substituted:test-reviewer" }]);
+  assert.strictEqual(orch({ transcript_path: tp }), null,
+    "held + substitution must stay silent (advisory 2 suppressed by the hold, advisory 3 by not delivering)");
+});
+
+// Advisory-blast-radius pins: the exemption's ONLY effect is removing an exempted name from
+// advisory 2's missing set — advisories 1/3/4 and the ENFORCE block must be byte-equivalent with or
+// without a granted substitution. These are regression pins on already-correct code (no red→green
+// possible); their power was demonstrated by mutation-kill instead: inserting
+// `if (exempted.size > 0 && unmet.length === 0) return process.exit(0);` right after the `unmet`
+// computation (the "granted exemption exits early" mutant) makes the first three fail.
+
+test("orchestration-check: panel sentinel — a granted exemption never silences advisory 1 (verdict-not-honored still fires)", () => {
+  // Valid substitution (whitelisted + verify=pass) AND an id-bound gatekeeper NOT READY AND shipping:
+  // advisory 1 outranks the exemption — the fast lane must never launder a blocking verdict.
+  const tp = mkTranscript([P_SPEC,
+    { role: "assistant", content: [{ type: "tool_use", id: "gk1", name: "Task", input: { subagent_type: "udflow:gatekeeper" } }] },
+    { role: "user", content: [{ type: "tool_result", tool_use_id: "gk1", content: "Final verdict: NOT READY — auth bypass unresolved." }] },
+    { role: "assistant", content: "Delivering now.\n### Live run\nudflow:verify=pass\nudflow:panel=substituted:test-reviewer\nudflow:delivery=shipped" }]);
+  const r = orch({ transcript_path: tp });
+  assert.ok(r && /gatekeeper's last verdict was 'NOT READY'/.test(r.systemMessage),
+    "advisory 1 must fire despite a valid substitution");
+});
+
+test("enforce ON + panel sentinel exemption granted => the ENFORCE block still fires (substitution cannot defeat it)", () => {
+  // Same transcript under UDFLOW_ENFORCE_STOP: the highest-confidence signal (id-bound blocking
+  // verdict + explicit delivery=shipped) must still hard-block — the panel sentinel buys no escape.
+  const tp = mkTranscript([P_SPEC,
+    { role: "assistant", content: [{ type: "tool_use", id: "gk1", name: "Task", input: { subagent_type: "udflow:gatekeeper" } }] },
+    { role: "user", content: [{ type: "tool_result", tool_use_id: "gk1", content: "Final verdict: NOT READY — auth bypass unresolved." }] },
+    { role: "assistant", content: "Delivering now.\n### Live run\nudflow:verify=pass\nudflow:panel=substituted:test-reviewer\nudflow:delivery=shipped" }]);
+  const r = orchEnv({ transcript_path: tp }, { UDFLOW_ENFORCE_STOP: "1" });
+  assert.ok(r && r.decision === "block", "the ENFORCE block must fire despite a valid substitution");
+});
+
+test("orchestration-check: panel sentinel — a granted exemption never silences advisory 4 (Live-run nudge still fires)", () => {
+  // Exemption-granted happy path (gatekeeper ran, id-bound READY, verify=pass, shipped) but the
+  // final report forgot its `### Live run` evidence block — the logging nudge must still fire.
+  const tp = mkTranscript([P_SPEC,
+    { role: "assistant", content: [{ type: "tool_use", id: "gk1", name: "Task", input: { subagent_type: "udflow:gatekeeper" } }] },
+    { role: "user", content: [{ type: "tool_result", tool_use_id: "gk1", content: "Final verdict: READY — readiness confirmed." }] },
+    { role: "assistant", content: "Final verdict: READY — readiness confirmed.\nudflow:verify=pass\nudflow:panel=substituted:test-reviewer\nudflow:delivery=shipped" }]);
+  const r = orch({ transcript_path: tp });
+  assert.ok(r && /Live run/.test(r.systemMessage), "advisory 4 must fire despite a granted exemption");
+});
+
+test("orchestration-check: panel sentinel — case/space/CRLF tolerant and udflow:-anchored (like the verify sentinel)", () => {
+  // Tolerant decode: mixed case + spaces around the separators + CRLF line endings still grant the
+  // exemption; a prefix-less "panel=" (no "udflow:") must NOT decode (fail toward warning).
+  const granted = mkTranscript([P_SPEC, P_GK,
+    { role: "assistant", content: "Final verdict: READY — readiness confirmed.\r\n### Live run\r\nudflow:verify=pass\r\nUdflow : Panel = Substituted: Test-Reviewer\r\nudflow:delivery=shipped" }]);
+  assert.strictEqual(orch({ transcript_path: granted }), null,
+    "a spacey mixed-case sentinel between CRLF line endings still grants the exemption");
+  const bare = mkTranscript([P_SPEC, P_GK,
+    { role: "assistant", content: "Final verdict: READY — readiness confirmed.\nudflow:verify=pass\npanel=substituted:test-reviewer" }]);
+  const r = orch({ transcript_path: bare });
+  assert.ok(r && /test-reviewer did not run/.test(r.systemMessage),
+    "'panel=' without the udflow: prefix must not decode as the sentinel");
+});
+
+test("orchestration-check: panel sentinel — a substituted name that actually RAN is a harmless no-op (silent)", () => {
+  // All three core reviewers ran; the final still discloses substituted:test-reviewer. Nothing is
+  // missing, so the exemption has nothing to do — the disclosure must not create any new advisory.
+  const tp = mkTranscript([P_SPEC, P_TEST, P_GK,
+    { role: "assistant", content: "Final verdict: READY — readiness confirmed.\n### Live run\nudflow:verify=pass\nudflow:panel=substituted:test-reviewer\nudflow:delivery=shipped" }]);
+  assert.strictEqual(orch({ transcript_path: tp }), null,
+    "a substitution disclosure for a reviewer that actually ran must stay silent");
+});
+
+test("orchestration-check: panel sentinel — the exemption works on the array-of-typed-blocks final shape (real transcript shape)", () => {
+  // The other exemption tests use string content; real Claude Code transcripts use content as an
+  // array of typed blocks. Pin the array path so a finalText-extraction change cannot regress it.
+  const tp = mkTranscript([P_SPEC, P_GK,
+    { role: "assistant", content: [{ type: "text", text: "Final verdict: READY — readiness confirmed.\n### Live run\nudflow:verify=pass\nudflow:panel=substituted:test-reviewer\nudflow:delivery=shipped" }] }]);
+  assert.strictEqual(orch({ transcript_path: tp }), null,
+    "the exemption must be granted on the array-block final shape too");
+});
+
 // --- load-failure-memory: retired-entry digest skip (item 7) ---
 
 test("load-failure-memory: digest skips entries whose title is marked (expired)/(superseded …)", () => {

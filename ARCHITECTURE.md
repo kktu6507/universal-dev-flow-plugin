@@ -27,7 +27,7 @@ task
   → Review Packet ──► selected reviewers (parallel, each in an ISOLATED context, review-only by policy)
   → gatekeeper (aggregates, re-rates by impact, checks each acceptance criterion)
   → READY / FIX REQUIRED / NOT READY  ──► repair loop (hard cap) ──► back to Verify
-  → Final report + sentinels (udflow:verify= / udflow:delivery=)  ──► orchestration-check.js (Stop) reads them
+  → Final report + sentinels (udflow:verify= / udflow:delivery= / udflow:panel=)  ──► orchestration-check.js (Stop) reads them
 ```
 
 Key invariant: **reviewers never share context.** Each gets a focused Review Packet, runs in
@@ -58,8 +58,10 @@ Code subagent isolation), not just by prose (`references/runtime-policy.md`).
 These are **verbatim, machine-checked, and intended to be stable** — the `5d`/`5f`
 `validate-structure.mjs` guards exist to stop a prose edit from silently dropping them:
 
-- **Sentinels**: `udflow:verify=pass|fail|unrun|na` and `udflow:delivery=held|shipped`
-  (read by `orchestration-check.js`).
+- **Sentinels**: `udflow:verify=pass|fail|unrun|na`, `udflow:delivery=held|shipped`, and
+  `udflow:panel=full|substituted:<comma-separated-names>` (all read by `orchestration-check.js`;
+  the panel sentinel discloses an evidence-substituted reviewer — `test-reviewer` only, and only
+  with `udflow:verify=pass`).
 - **Verdict literals**: `READY` / `FIX REQUIRED` / `NOT READY`.
 - **Severity literals**: `blocker` / `major` / `minor`.
 - **Opt-out keys**: `"udflow": { "planGate" | "destructiveGuard" | "preserveOnCompact": false }`;

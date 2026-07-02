@@ -53,9 +53,10 @@ Substantial final reports include machine-readable sentinels:
 ```text
 udflow:verify=pass
 udflow:delivery=shipped
+udflow:panel=full
 ```
 
-These mean verification passed and delivery is being made.
+These mean verification passed, delivery is being made, and the full selected review panel ran.
 
 ```text
 udflow:verify=unrun
@@ -63,6 +64,8 @@ udflow:delivery=held
 ```
 
 These mean required verification did not run, or delivery is intentionally held. The Stop hook reads these exact literals; keep them unchanged.
+
+The panel line may instead read `udflow:panel=substituted:test-reviewer` — the run replaced `test-reviewer` with its own execution evidence (every behavior-changing criterion red→green + full suite green; only valid alongside `udflow:verify=pass`, and never for `spec-reviewer` or `gatekeeper`).
 
 ## Evidence weight
 

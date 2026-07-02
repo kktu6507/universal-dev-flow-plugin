@@ -4,14 +4,14 @@ Select the smallest sufficient panel that preserves release quality. Expand only
 
 ## Core Reviewers
 
-Always include for non-trivial formal review:
+For non-trivial formal review:
 
-- `spec-reviewer`
-- `test-reviewer`
+- `spec-reviewer` — always runs, never substituted: it is the only omission lens ("what is missing vs the intent"), and execution evidence cannot answer that question.
+- `test-reviewer` — runs by default; on low/medium-risk work it may be **evidence-substituted** when the *Evidence substitution (fast lane)* conditions below hold (disclosed, escalatable).
 
 ## Conditional Reviewers
 
-Add `code-reviewer` when the task touches:
+Add `code-reviewer` when the task touches (except a qualifying tiny diff, which the *Evidence substitution* 1C clause below lets the `gatekeeper` review in-packet instead — disclosed):
 - non-trivial source-code changes
 - maintainability-sensitive refactors
 - framework or library usage
@@ -60,9 +60,20 @@ Use `gatekeeper` after selected reviewers finish.
 
 ## Lite path (cost floor)
 
-The Risk Matrix above auto-scales the panel to the task's risk — that *is* the default cost control. For a change the user knows is small, `--lite` (passed to `/udflow:run`) forces the **smallest sufficient panel** explicitly and skips deep mode: core `spec-reviewer` + `test-reviewer` only (plus `code-reviewer` when code changed), no other conditional reviewers, and skips the costly deep-mode **Tier 2** (adversarial verification / maximum effort). (Tier 1 deterministic enforcement costs ≈ the standard flow and only auto-engages on high-risk work — which `--lite` is not for.) It is the downward counterpart to `--deep` (the upward knob); the unflagged default stays risk-proportional.
+The Risk Matrix above auto-scales the panel to the task's risk — that *is* the default cost control. For a change the user knows is small, `--lite` (passed to `/udflow:run`) forces the **smallest sufficient panel** explicitly and skips deep mode: core `spec-reviewer` + `test-reviewer` only (plus `code-reviewer` when code changed), no other conditional reviewers, and skips the costly deep-mode **Tier 2** (adversarial verification / maximum effort). Within that floor the *Evidence substitution (fast lane)* below still applies: `--lite` sets the smallest panel, and the fast lane may additionally substitute `test-reviewer` out of it — only when its evidence conditions hold, disclosed as always. (Tier 1 deterministic enforcement costs ≈ the standard flow and only auto-engages on high-risk work — which `--lite` is not for.) It is the downward counterpart to `--deep` (the upward knob); the unflagged default stays risk-proportional.
 
 **Safety floor — `--lite` does not hide real risk.** When a genuine high-risk signal is present (auth/authz, secrets, schema/migration, destructive operations, or other Risk-Matrix High signals), keep the one directly-relevant safety reviewer (`security-reviewer` / `architecture-reviewer` / `operability-reviewer`) even under `--lite`, and disclose it (e.g. "kept `security-reviewer` despite `--lite` — auth touched; the rest ran lite"). `--lite` lowers cost for genuinely low-risk work; it is a **disclosed** recall/cost tradeoff, not a license to skip a discipline the risk demands. If the task is High risk overall, tell the user `--lite` is not appropriate here rather than silently dropping coverage. When the safety floor retains a reviewer on a high-risk signal, Tier-1 deterministic enforcement still applies to that minimal retained panel — `--lite` lowers breadth and cost, not enforcement.
+
+## Evidence substitution (fast lane)
+
+One step below `--lite`: when the run's own execution evidence has already answered a reviewer's question, that reviewer is not spawned — automatic, disclosed, escalatable. Eligibility is **evidence completeness**, never a mechanical risk score, and only `test-reviewer` is substitutable:
+
+- **Two conditions, both required:** (1) every behavior-changing acceptance criterion has a **demonstrated red→green test** (and at least one exists; a hollow always-green test does not count — `references/verification-gate.md`), and (2) the **full required suite is green** (`udflow:verify=pass`; `na` never qualifies — no required checks means no positive evidence). Full-suite green already implies the regression ratchet (no newly-failing test), so that is not a third condition.
+- **Exclusions:** never on High-risk or correctness-critical work, and never in deep mode — either tier, including work where Tier 1 auto-engages (`references/deep-mode.md`).
+- **The floor:** `spec-reviewer` is never substituted (the only omission lens — execution evidence cannot answer "what is missing vs the intent"); `gatekeeper` is never substituted (deterministic evidence is an input to its verdict, not the verdict).
+- **Disclosure:** state every substitution in the plan-gate cost line and the final report, and always emit the machine sentinel `udflow:panel=full|substituted:<comma-separated-names>` in the footer (unconditional — `full` when nothing was substituted; the Stop hook reads it).
+- **Escalation:** if `spec-reviewer` reports a blocker/major, or the `gatekeeper` judges a coverage gap, spawn the substituted reviewer before `READY` — a fast lane, not a waiver.
+- **1C — small-diff code review by the gatekeeper:** when a change is ~≤40 changed lines across ≤2 files with no new dependency and lint/typecheck/build green, `code-reviewer` may fold into the `gatekeeper`, which reviews the packet's complete diff directly and discloses that it did. Thresholds are deliberately coarse; on any boundary doubt, spawn `code-reviewer` as usual.
 
 ## Plan Grounding (high-risk, pre-approval)
 
@@ -90,12 +101,12 @@ Most agents inherit the session model. Two run on `opus` because they are the hi
 
 An internal cross-language blind benchmark indicates a consistent profile: the review is **precise** (near-zero false positives), but a **single** reviewer catches only a minority of subtle defects — language idioms (value/identity/receiver semantics, encoding, ownership/lifetimes, overflow), **omissions** ("what is missing vs the intent"), and spec/domain-dependent bugs. Recall improved materially only with **structure**, not with stronger wording to one reviewer:
 
-- For correctness-critical changes, do not rely on a lone reviewer — include the directly-relevant **multi-lens panel** (a defect one discipline rationalizes as "fine", another flags).
+- For correctness-critical changes, do not rely on a lone reviewer — include the directly-relevant **multi-lens panel** (a defect one discipline rationalizes as "fine", another flags). The *Evidence substitution* fast lane never applies here.
 - Give each reviewer the **requirement/intent**, not just the diff — omission and spec-dependent defects are invisible without it.
 - Use **Deep Mode** (adversarial verification) for the hardest changes.
 
-Breadth of lenses and intent context are what lift recall; precision stays high regardless. Do not try to raise recall by making a single reviewer "try harder" — that was measured to not help.
+Breadth of lenses and intent context are what lift recall; precision stays high regardless. Do not try to raise recall by making a single reviewer "try harder" — that was measured to not help. *Evidence substitution* (above) is consistent with this: it replaces a reviewer whose question the run's evidence has **already answered** (per-criterion red→green + a green required suite) — completed evidence, not a withdrawn lens; the two-lens rule for correctness-critical work is untouched.
 
 ## Deep Mode
 
-Deep mode (see `references/deep-mode.md`) does **not** change reviewer selection — the panel is still the smallest sufficient set chosen above. It has two tiers. **Tier 1** makes the selected panel run deterministically (a Workflow `parallel` barrier, with `gatekeeper` as a `pipeline` barrier after it) using the **same reviewers at the same reasoning effort** — so it **auto-engages on high-risk / correctness-critical work when the Workflow capability is present** (opt-out via `--no-deep`), because enforcement costs ≈ the standard flow. **Tier 2** adds adversarial verification of blocker/major findings, loop-until-dry repair (still under the Auto-fix loop's hard iteration cap), and maximum reasoning effort for `gatekeeper` / `security-reviewer` — this raises cost and stays **explicit opt-in** (`--deep`). Depth, not breadth, in both tiers.
+Deep mode (see `references/deep-mode.md`) does **not** change reviewer selection — the panel is still the smallest sufficient set chosen above. It has two tiers. **Tier 1** makes the selected panel run deterministically (a Workflow `parallel` barrier, with `gatekeeper` as a `pipeline` barrier after it) using the **same reviewers at the same reasoning effort** — so it **auto-engages on high-risk / correctness-critical work when the Workflow capability is present** (opt-out via `--no-deep`), because enforcement costs ≈ the standard flow. **Tier 2** adds adversarial verification of blocker/major findings, loop-until-dry repair (still under the Auto-fix loop's hard iteration cap), and maximum reasoning effort for `gatekeeper` / `security-reviewer` — this raises cost and stays **explicit opt-in** (`--deep`). Depth, not breadth, in both tiers — and the *Evidence substitution* fast lane never applies in deep mode (either tier, including Tier-1 auto-engaged work).

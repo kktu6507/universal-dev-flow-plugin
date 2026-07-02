@@ -130,7 +130,7 @@ You do not select reviewers manually; udflow assembles the panel by **risk** —
 | `planner-creator` | grounds the plan in real code, drafts the approach, pre-selects the panel, detects/recommends `design.md` (bootstrap from an existing UI) (read-only; feeds plan approval, never replaces it) | high-risk / correctness-critical planning | inherit |
 | `implementer` | smallest safe change; never self-certifies | after plan approval | inherit |
 | `spec-reviewer` | requirement / business-rule / contract fidelity | core (non-trivial) | inherit |
-| `test-reviewer` | missing tests, weak verification, edges, regressions | core (non-trivial) | inherit |
+| `test-reviewer` | missing tests, weak verification, edges, regressions | core (non-trivial); evidence-substitutable on low/medium risk (fast lane) | inherit |
 | `code-reviewer` | local quality, maintainability, framework use, efficiency | non-trivial code | inherit |
 | `security-reviewer` | auth/authz, input handling, secrets, trust boundaries | security-relevant risk | **opus** |
 | `architecture-reviewer` | layering, boundaries, dependency direction, placement | structural concerns | inherit |
@@ -209,7 +209,7 @@ Typical real-app runs cost more than a one-shot AI review because udflow plans, 
 | Typical | 3-5 reviewers + one repair pass | ~2-7M | ~5-15 minutes |
 | Deep | `--deep`, several repair loops | >10M | ~20-40 minutes |
 
-Use `/udflow:run --lite` for cheaper runs, `--deep` for maximum scrutiny, and `--report full` when you need detailed per-agent activity and cost.
+Use `/udflow:run --lite` for cheaper runs, `--deep` for maximum scrutiny, and `--report full` when you need detailed per-agent activity and cost. An automatic **fast lane** goes one step further on small low/medium-risk changes: when execution evidence already answers the reviewer's question (every behavior-changing criterion has a red→green test and the full required suite is green), `test-reviewer` is evidence-substituted and disclosed via `udflow:panel=substituted:test-reviewer` — fewer agents on the same evidence, never on high-risk / deep runs.
 
 ## Docs
 
