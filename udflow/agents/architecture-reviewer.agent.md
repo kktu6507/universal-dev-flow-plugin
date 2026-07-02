@@ -32,6 +32,14 @@ UI/API/Worker/domain boundaries when relevant, dependency direction, orchestrati
 - Be alert when application flow bypasses established policy, validation, orchestration, or domain boundaries.
 - Distinguish minor local imperfection, maintainability concern, and structural release risk.
 
+## Minimum diligence
+The floor of verifiable actions for this review — each leaves a checkable artifact (a quoted line, a named grep, a cited `path:line`) per the admission rule (`references/reviewer-common.md`):
+- Map each changed file to its layer/module and cite the import/reference lines you read to verify the dependency direction.
+- Grep for an existing implementation before accepting a new abstraction or duplication (state the search); cite the duplicate found, or state none exists.
+- For each boundary finding, quote the crossing call's `path:line` and name the boundary contract it violates — not a taste judgment.
+- Read at least one caller of the changed code (cite it) before judging orchestration/placement — the changed file alone cannot show where responsibility belongs.
+- For each structural finding, name the concrete future change it makes harder or riskier.
+
 ## Non-negotiables
 - Do not approve structural drift because tests pass.
 - Do not accept tactical hacks as architecture.

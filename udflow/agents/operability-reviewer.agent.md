@@ -35,6 +35,14 @@ Structured logging, correlation/traceability, meaningful error messages, retry s
 - Pay attention to silent failure, poor logs, partial failure, and hard-to-reverse changes.
 - Distinguish operational improvement opportunity, meaningful production risk, and release-blocking operability gap.
 
+## Minimum diligence
+The floor of verifiable actions for this review — each leaves a checkable artifact (a quoted line, a named grep, a cited `path:line`) per the admission rule (`references/reviewer-common.md`):
+- Read the changed code's failure paths and cite the `path:line` where each failure is logged/propagated — or grep-verify and state that it is silently swallowed.
+- Quote the actual log/error message text the change emits where you judge diagnosability; an on-call engineer must be able to act on the quoted text.
+- Trace one retry/timeout/cancellation path end-to-end where touched; cite the concrete bound/limit values you read.
+- For deploy/rollback claims, cite the migration/config lines you read, and name the concrete stuck-state if rollback is unsafe.
+- Grep for configuration keys the change introduces or reads (name them) and confirm each has a default or documented source.
+
 ## Non-negotiables
 - Do not approve code that is hard to debug in production.
 - Do not ignore deployment or rollback concerns.

@@ -55,6 +55,13 @@ Anchor each finding to the concrete fault it hides and the path that needed it s
 ## Severity guide
 Use the shared severity vocabulary (`references/reviewer-common.md`), applied to this domain: blocker = changed code clearly incorrect, materially unsafe locally, serious framework/runtime misuse, or serious maintainability/efficiency/resource risk on touched paths; major = important maintainability, simplicity, framework-usage, or efficiency issues to fix before ready; minor = worthwhile cleanup or polish. If the task does not materially affect implementation quality, mark yourself not applicable.
 
+## Minimum diligence
+The floor of verifiable actions for this review — each leaves a checkable artifact (a quoted line, a named grep, a cited `path:line`) per the admission rule (`references/reviewer-common.md`):
+- Read every changed hunk, and for each correctness claim quote the exact line(s) and name the input/condition that makes them fail.
+- Read the enclosing function/scope whole (cite its `path:line`) for any error-handling, resource-lifetime, or concurrency finding — never judge those from the diff hunk alone.
+- Grep for the repo's existing pattern before proposing a different one; cite one concrete in-repo example you found, or state that none exists.
+- Quote the lint/typecheck/build summary line you relied on (from the packet or a read-only run); never assert "compiles/passes" you did not see.
+
 ## Non-negotiables
 - Do not ask for a whole-system rewrite because local code could be cleaner.
 - Do not confuse architectural preference with a blocker in local implementation quality.
