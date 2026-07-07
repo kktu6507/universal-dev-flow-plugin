@@ -11,7 +11,7 @@ udflow is **orchestration owned by a skill, personas owned by agents, guards own
 hooks.** The `universal-dev-flow` skill (`udflow/skills/universal-dev-flow/SKILL.md`) owns
 the *flow*; it loads lazy reference contracts only when a step needs them. The work itself
 is checked by policy-constrained **reviewer subagents** plus an **implementer** and a **gatekeeper**.
-Five **Node hooks** run in every session as fail-open guards, independent of any udflow task.
+Six **Node hooks** run in every session as fail-open guards, independent of any udflow task.
 The only machine-coupled surface between the prose-driven workflow and the hooks is a small
 set of **verbatim literals** (see *Stable contract* below).
 
@@ -42,10 +42,10 @@ Code subagent isolation), not just by prose (`references/runtime-policy.md`).
   the rest inherit. Reviewers have no editor-specific tool grants, but their grant still includes
   `Bash` (`Read`/`Grep`/`Glob`/`Bash`), so review-only behavior is enforced by reviewer policy and
   context isolation rather than by a hard read-only capability boundary.
-- **5 hooks** (`udflow/hooks/*.js`, wired in `hooks.json`) — all fail-open, local-only, no
+- **6 hooks** (`udflow/hooks/*.js`, wired in `hooks.json`) — all fail-open, local-only, no
   network, Node built-ins only: `plan-gate` (PreToolUse), `destructive-guard` (PreToolUse),
-  `load-failure-memory` (SessionStart), `compact-fidelity` (SessionStart·compact),
-  `orchestration-check` (Stop).
+  `contract-guard` (PreToolUse), `load-failure-memory` (SessionStart),
+  `compact-fidelity` (SessionStart·compact), `orchestration-check` (Stop).
 - **13 references** (`udflow/skills/universal-dev-flow/references/*.md`) — lazy-loaded contracts
   for each step (Review Packet, reviewer-common, reviewer-selection, plan-grounding, design-spec,
   runtime-policy, verification-gate, final-report, external-capabilities, deep-mode,
@@ -64,7 +64,7 @@ These are **verbatim, machine-checked, and intended to be stable** — the `5d`/
   with `udflow:verify=pass`).
 - **Verdict literals**: `READY` / `FIX REQUIRED` / `NOT READY`.
 - **Severity literals**: `blocker` / `major` / `minor`.
-- **Opt-out keys**: `"udflow": { "planGate" | "destructiveGuard" | "preserveOnCompact": false }`;
+- **Opt-out keys**: `"udflow": { "planGate" | "destructiveGuard" | "contractGuard" | "preserveOnCompact": false }`;
   env `UDFLOW_HOOK_DEBUG`, `UDFLOW_ENFORCE_STOP`.
 - **Install identity**: plugin name `udflow`; install id `udflow@kktu`.
 

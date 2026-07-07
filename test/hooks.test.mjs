@@ -2718,3 +2718,400 @@ test("hooks.json no longer wires a PreCompact hook (CC rejects hookSpecificOutpu
   const hj = JSON.parse(fs.readFileSync(path.join(HOOKS, "hooks.json"), "utf8"));
   assert.ok(!hj.hooks.PreCompact, "PreCompact must not be wired (its hookSpecificOutput output is rejected by Claude Code)");
 });
+
+// --- contract-guard: content-based Write/Edit/MultiEdit tripwire on contract.md + design.md (new hook) ---
+// PreToolUse only ever sees tool_name/tool_input/cwd/permission_mode — this hook is content-based, not
+// actor-based (it cannot tell WHO is editing). It simulates the tool's proposed result locally (never
+// invokes the tool) and asks (never denies) only when the simulated diff would drop previously recorded
+// contract.md content or wholesale-delete a design.md section.
+
+const CGUARD = path.join(HOOKS, "contract-guard.js");
+function cguard(input, env) {
+  let e = env;
+  if (!e) { e = { ...process.env }; delete e.CLAUDE_PROJECT_DIR; } // hermetic: ignore ambient project opt-out
+  const out = runHook(CGUARD, input, e);
+  if (!out.trim()) return { decision: "ALLOW" };
+  const j = JSON.parse(out);
+  const hso = j.hookSpecificOutput || {};
+  return { decision: hso.permissionDecision === "ask" ? "ASK" : "ALLOW", reason: hso.permissionDecisionReason || "" };
+}
+// A fresh temp project dir, used both as CLAUDE_PROJECT_DIR and as the file's containing tree, so the
+// hook's root-anchored output/udflow/contract.md resolution has somewhere real to resolve against.
+function mkCGuardProject() {
+  return fs.mkdtempSync(path.join(os.tmpdir(), "udflow-cguard-"));
+}
+function contractPath(dir) { return path.join(dir, "output", "udflow", "contract.md"); }
+function writeContract(dir, markdown) {
+  fs.mkdirSync(path.join(dir, "output", "udflow"), { recursive: true });
+  fs.writeFileSync(contractPath(dir), markdown, "utf8");
+}
+function contractJson(overrides) {
+  return JSON.stringify({
+    udflowContract: 1,
+    risk: "high",
+    acceptanceCriteria: [{ id: "AC-1", text: "expired token refreshed once", behaviorChanging: true, verification: "test/auth.test.mjs::refreshes once" }],
+    allowedPaths: ["src/auth/**"],
+    forbiddenPaths: ["src/billing/**"],
+    mustNotChange: ["public signature of AuthService.request"],
+    ...overrides,
+  }, null, 2);
+}
+function contractMd(jsonOverrides) {
+  return "# Task contract\n\n```json\n" + contractJson(jsonOverrides) + "\n```\n\n## Requirement\n\nSome body text.\n";
+}
+
+test("contract-guard: pure-append to contract.md (new AC added, everything old intact) is allowed", () => {
+  const dir = mkCGuardProject();
+  writeContract(dir, contractMd());
+  const oldMd = contractMd();
+  const newMd = oldMd.replace(
+    '"mustNotChange": [\n    "public signature of AuthService.request"\n  ]',
+    '"mustNotChange": [\n    "public signature of AuthService.request"\n  ],\n  "extra": "note"'
+  );
+  const input = { tool_name: "Edit", cwd: dir, tool_input: { file_path: contractPath(dir), old_string: oldMd, new_string: newMd } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ALLOW", "a pure-append edit that keeps every old field must be allowed");
+});
+
+test("contract-guard: silently altering an existing AC's text/verification asks, naming the AC id", () => {
+  const dir = mkCGuardProject();
+  const oldMd = contractMd();
+  writeContract(dir, oldMd);
+  const newMd = contractMd({ acceptanceCriteria: [{ id: "AC-1", text: "token refreshed EVENTUALLY", behaviorChanging: true, verification: "test/auth.test.mjs::refreshes once" }] });
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: contractPath(dir), content: newMd } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ASK");
+  assert.match(r.reason, /AC-1/, "the ask must name the altered criterion's id");
+  assert.match(r.reason, /text would change/i);
+});
+
+test("contract-guard: a verification mapping silently altered on the same AC also asks", () => {
+  const dir = mkCGuardProject();
+  writeContract(dir, contractMd());
+  const newMd = contractMd({ acceptanceCriteria: [{ id: "AC-1", text: "expired token refreshed once", behaviorChanging: true, verification: "test/auth.test.mjs::DIFFERENT" }] });
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: contractPath(dir), content: newMd } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ASK");
+  assert.match(r.reason, /AC-1/);
+  assert.match(r.reason, /verification would change/i);
+});
+
+test("contract-guard: dropping an existing AC id entirely (not just editing it) asks, naming it as removed", () => {
+  const dir = mkCGuardProject();
+  writeContract(dir, contractMd());
+  const newMd = contractMd({ acceptanceCriteria: [] }); // AC-1 is gone entirely from the new content
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: contractPath(dir), content: newMd } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ASK");
+  assert.match(r.reason, /acceptance criterion "AC-1" would be removed/, "a dropped AC id must be named with the removal wording, not a field-change wording");
+});
+
+test("contract-guard: flipping behaviorChanging true->false on a retained AC id asks, naming that field specifically", () => {
+  const dir = mkCGuardProject();
+  writeContract(dir, contractMd());
+  const newMd = contractMd({ acceptanceCriteria: [{ id: "AC-1", text: "expired token refreshed once", behaviorChanging: false, verification: "test/auth.test.mjs::refreshes once" }] });
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: contractPath(dir), content: newMd } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ASK");
+  assert.match(r.reason, /AC-1/);
+  assert.match(r.reason, /behaviorChanging would change \(true -> false\)/i, "the ask must name the behaviorChanging field specifically, not just text/verification");
+});
+
+test("contract-guard: removing a mustNotChange entry asks", () => {
+  const dir = mkCGuardProject();
+  writeContract(dir, contractMd());
+  const newMd = contractMd({ mustNotChange: [] });
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: contractPath(dir), content: newMd } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ASK");
+  assert.match(r.reason, /mustNotChange entry "public signature of AuthService\.request" would be removed/);
+});
+
+test("contract-guard: removing a forbiddenPaths entry asks", () => {
+  const dir = mkCGuardProject();
+  writeContract(dir, contractMd());
+  const newMd = contractMd({ forbiddenPaths: [] });
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: contractPath(dir), content: newMd } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ASK");
+  assert.match(r.reason, /forbiddenPaths entry "src\/billing\/\*\*" would be removed/);
+});
+
+test("contract-guard: removing an allowedPaths entry asks", () => {
+  const dir = mkCGuardProject();
+  writeContract(dir, contractMd());
+  const newMd = contractMd({ allowedPaths: [] });
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: contractPath(dir), content: newMd } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ASK");
+  assert.match(r.reason, /allowedPaths entry "src\/auth\/\*\*" would be removed/);
+});
+
+test("contract-guard: risk downgraded high->low asks; risk increased medium->high is allowed", () => {
+  const dir = mkCGuardProject();
+  writeContract(dir, contractMd({ risk: "high" }));
+  const downgraded = contractMd({ risk: "low" });
+  let r = cguard({ tool_name: "Write", cwd: dir, tool_input: { file_path: contractPath(dir), content: downgraded } }, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ASK", "a risk downgrade must ask");
+  assert.match(r.reason, /risk would be downgraded \("high" -> "low"\)/);
+
+  writeContract(dir, contractMd({ risk: "medium" }));
+  const upgraded = contractMd({ risk: "high" });
+  r = cguard({ tool_name: "Write", cwd: dir, tool_input: { file_path: contractPath(dir), content: upgraded } }, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ALLOW", "a risk increase must never be flagged");
+});
+
+test("contract-guard M1: a non-canonical-cased risk downgrade (high->\"Low\") still asks (ordinal lookup is case/whitespace-normalized)", () => {
+  // Before the fix, RISK_ORDINAL["Low"] misses (the map only has lowercase keys), so newOrd is
+  // undefined, the "typeof newOrd === 'number'" guard fails, and the downgrade silently ALLOWS.
+  const dir = mkCGuardProject();
+  writeContract(dir, contractMd({ risk: "high" }));
+  const downgraded = contractMd({ risk: "Low" }); // non-canonical casing
+  const r = cguard({ tool_name: "Write", cwd: dir, tool_input: { file_path: contractPath(dir), content: downgraded } }, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ASK", "a downgrade must be caught regardless of the new value's casing");
+  assert.match(r.reason, /risk would be downgraded \("high" -> "Low"\)/, "the ask must quote the risk values exactly as written, unnormalized");
+});
+
+test("contract-guard: contract.md first-ever write (no prior file) always allows regardless of content", () => {
+  const dir = mkCGuardProject(); // no output/udflow/contract.md written at all
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: contractPath(dir), content: contractMd({ risk: "low", mustNotChange: [] }) } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ALLOW", "the sanctioned first-ever write (references/task-contract.md) must never be flagged");
+});
+
+test("contract-guard: contract.md whose prior content has no parseable JSON block also always allows", () => {
+  const dir = mkCGuardProject();
+  writeContract(dir, "# Task contract\n\nNo machine block yet, just prose.\n");
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: contractPath(dir), content: contractMd({ risk: "low" }) } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ALLOW", "an unparseable/absent OLD block means there is nothing to have lost");
+});
+
+test("contract-guard: an already-populated contract.md whose new content drops the JSON block entirely asks", () => {
+  // Distinct from the first-write case above: here the OLD content DID have a parseable block, so a
+  // wholesale loss in the new content is a real finding, not a fail-open case.
+  const dir = mkCGuardProject();
+  writeContract(dir, contractMd());
+  const newMd = "# Task contract\n\nSomehow the machine block got wiped in this rewrite.\n";
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: contractPath(dir), content: newMd } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ASK", "losing the JSON block on an already-populated contract must be flagged");
+  assert.match(r.reason, /json block would be lost entirely/i);
+});
+
+test("contract-guard: an Edit whose old_string does not match current content is allowed (cannot simulate)", () => {
+  const dir = mkCGuardProject();
+  writeContract(dir, contractMd());
+  const input = { tool_name: "Edit", cwd: dir, tool_input: { file_path: contractPath(dir), old_string: "this text is not in the file", new_string: "whatever" } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ALLOW", "an old_string mismatch must fail open, not guess");
+});
+
+test("contract-guard: a MultiEdit whose later step's old_string is not found fails open for the WHOLE call", () => {
+  const dir = mkCGuardProject();
+  const oldMd = contractMd();
+  writeContract(dir, oldMd);
+  const input = {
+    tool_name: "MultiEdit", cwd: dir,
+    tool_input: {
+      file_path: contractPath(dir),
+      edits: [
+        { old_string: '"mustNotChange": [\n    "public signature of AuthService.request"\n  ]', new_string: '"mustNotChange": []' }, // this step WOULD match and WOULD be a finding
+        { old_string: "this later step does not exist in the file", new_string: "x" }, // but this step never matches
+      ],
+    },
+  };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ALLOW", "any step failing to match must fail open for the entire MultiEdit, not partial-simulate");
+});
+
+// Two ACs sharing an identical `verification` string, verbatim in the raw JSON text.
+const SHARED_VERIFICATION_MD = "# Task contract\n\n```json\n" + JSON.stringify({
+  udflowContract: 1,
+  risk: "high",
+  acceptanceCriteria: [
+    { id: "AC-1", text: "first behavior", behaviorChanging: true, verification: "shared::check" },
+    { id: "AC-2", text: "second behavior", behaviorChanging: true, verification: "shared::check" },
+  ],
+  allowedPaths: ["src/**"],
+  forbiddenPaths: [],
+  mustNotChange: [],
+}, null, 2) + "\n```\n";
+
+test("contract-guard M2: an Edit whose old_string matches a value shared by two ACs only simulates the FIRST occurrence (real Edit semantics)", () => {
+  // Before the fix, current.split(old_string).join(new_string) rewrites EVERY occurrence of the raw
+  // text '"verification": "shared::check"' — both AC-1's (the intended, first) and AC-2's (untouched
+  // in the real tool, which replaces only the first match by default) — so diffContractJson would
+  // wrongly report AC-2's verification as "changed" too (a spurious ask on an untouched entry).
+  const dir = mkCGuardProject();
+  writeContract(dir, SHARED_VERIFICATION_MD);
+  const input = {
+    tool_name: "Edit", cwd: dir,
+    tool_input: {
+      file_path: contractPath(dir),
+      old_string: '"verification": "shared::check"',
+      new_string: '"verification": "shared::RENAMED"',
+    },
+  };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ASK", "AC-1's verification genuinely changed and must still be caught");
+  assert.match(r.reason, /acceptance criterion "AC-1" verification would change/, "AC-1 (the actually-edited entry) must be named");
+  assert.ok(!/acceptance criterion "AC-2"/.test(r.reason), "AC-2 (untouched by a real first-occurrence-only Edit) must NOT be flagged as changed");
+});
+
+test("contract-guard: an edit to some unrelated file never invokes any comparison (no-op)", () => {
+  const dir = mkCGuardProject();
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: path.join(dir, "src", "app.ts"), content: "console.log('hi')" } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ALLOW");
+});
+
+test("contract-guard: project opt-out udflow.contractGuard=false suppresses an otherwise-real finding", () => {
+  const dir = mkCGuardProject();
+  writeContract(dir, contractMd());
+  fs.mkdirSync(path.join(dir, ".claude"), { recursive: true });
+  fs.writeFileSync(path.join(dir, ".claude", "settings.json"), JSON.stringify({ udflow: { contractGuard: false } }), "utf8");
+  const newMd = contractMd({ mustNotChange: [] });
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: contractPath(dir), content: newMd } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ALLOW", "the opt-out must suppress an otherwise-real finding");
+});
+
+test("contract-guard: settings.local.json opt-out overrides settings.json (local-overrides-project precedence)", () => {
+  const dir = mkCGuardProject();
+  writeContract(dir, contractMd());
+  fs.mkdirSync(path.join(dir, ".claude"), { recursive: true });
+  fs.writeFileSync(path.join(dir, ".claude", "settings.json"), JSON.stringify({ udflow: { contractGuard: true } }), "utf8");
+  fs.writeFileSync(path.join(dir, ".claude", "settings.local.json"), JSON.stringify({ udflow: { contractGuard: false } }), "utf8");
+  const newMd = contractMd({ mustNotChange: [] });
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: contractPath(dir), content: newMd } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ALLOW", "the local override must take precedence over the project-level setting");
+});
+
+test("contract-guard: malformed project settings fail safe to keep asking (a broken file must not silently drop the guard)", () => {
+  // Mirrors destructive-guard's "malformed project settings fail safe" test pattern: a broken
+  // .claude/settings.json must not be read as an opt-out — the guard must still ASK on a real finding.
+  const dir = mkCGuardProject();
+  writeContract(dir, contractMd());
+  fs.mkdirSync(path.join(dir, ".claude"), { recursive: true });
+  fs.writeFileSync(path.join(dir, ".claude", "settings.json"), "{ not: valid json ", "utf8");
+  const newMd = contractMd({ mustNotChange: [] });
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: contractPath(dir), content: newMd } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ASK", "a broken settings file must not silently drop the guard on a matched finding");
+});
+
+test("contract-guard: oversized stdin fails open (allow)", () => {
+  const big = "x".repeat(6 * 1024 * 1024);
+  const input = JSON.stringify({ tool_name: "Write", tool_input: { file_path: "output/udflow/contract.md", content: big } });
+  const r = cp.spawnSync("node", [CGUARD], { input, maxBuffer: 64 * 1024 * 1024 });
+  assert.strictEqual((r.stdout || "").toString().includes('"ask"'), false, "over-cap stdin must fail open, not ask");
+});
+
+test("contract-guard: malformed stdin fails open (no ask, no crash)", () => {
+  const out = cp.execFileSync("node", [CGUARD], { input: "not json {{{" }).toString();
+  assert.strictEqual(out.trim(), "", "unparseable input -> fail open (allow), never crash");
+});
+
+test("contract-guard: an unreadable target file (e.g. a directory at that path) fails open", () => {
+  const dir = mkCGuardProject();
+  fs.mkdirSync(contractPath(dir), { recursive: true }); // a DIRECTORY at the contract.md path, not a file
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: contractPath(dir), content: contractMd() } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ALLOW", "an unreadable old path must be treated as no-old-content, never block");
+});
+
+// --- contract-guard: design.md whole-section-deletion tripwire (narrow, exact-heading-match only) ---
+
+const DESIGN_MD = [
+  "# Project Design",
+  "",
+  "## Visual Theme & Atmosphere",
+  "Warm, editorial.",
+  "",
+  "## Color Palette & Roles",
+  "primary: #123456",
+  "",
+  "## Do's and Don'ts",
+  "Never use pure black on white.",
+  "",
+].join("\n");
+
+test("design.md: a section body edited/expanded with the heading kept is allowed", () => {
+  const dir = mkCGuardProject();
+  const designPath = path.join(dir, "design.md");
+  fs.writeFileSync(designPath, DESIGN_MD, "utf8");
+  const expanded = DESIGN_MD.replace("primary: #123456", "primary: #123456\nsecondary: #abcdef\nsurface: #ffffff");
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: designPath, content: expanded } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ALLOW", "expanding a section body while keeping its heading must not be flagged");
+});
+
+test("design.md: a whole heading (## Do's and Don'ts) removed asks, naming that section", () => {
+  const dir = mkCGuardProject();
+  const designPath = path.join(dir, "design.md");
+  fs.writeFileSync(designPath, DESIGN_MD, "utf8");
+  const withoutSection = DESIGN_MD.replace("\n## Do's and Don'ts\nNever use pure black on white.\n", "\n");
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: designPath, content: withoutSection } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ASK");
+  assert.match(r.reason, /## Do's and Don'ts/, "the ask must name the removed section's heading");
+});
+
+test("design.md: a section reduced to an 'n/a' placeholder with the heading kept is allowed", () => {
+  const dir = mkCGuardProject();
+  const designPath = path.join(dir, "design.md");
+  fs.writeFileSync(designPath, DESIGN_MD, "utf8");
+  const reduced = DESIGN_MD.replace("primary: #123456", "n/a");
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: designPath, content: reduced } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ALLOW", "reducing a section body to the sanctioned 'n/a' placeholder must not be flagged (heading presence only, never body content)");
+});
+
+test("design.md: exact-normalized heading match only — '## Color' must not match inside '## Color Palette & Roles'", () => {
+  // If the guard used substring/fuzzy heading matching, removing "## Color Palette & Roles" and adding an
+  // unrelated "## Color" heading could be misread as "the old heading survived" (false negative). Exact
+  // normalized match must treat these as DIFFERENT headings, so the real deletion is still caught.
+  const dir = mkCGuardProject();
+  const designPath = path.join(dir, "design.md");
+  fs.writeFileSync(designPath, DESIGN_MD, "utf8");
+  const renamed = DESIGN_MD.replace("## Color Palette & Roles", "## Color");
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: designPath, content: renamed } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ASK");
+  assert.match(r.reason, /## Color Palette & Roles/, "the full original heading must be named as removed, not silently matched against '## Color'");
+});
+
+test("design.md: a design.md matched by basename at a non-root path is still guarded (not root-anchored)", () => {
+  // design-spec.md sanctions a documented non-root path for design.md — unlike contract.md, this hook
+  // matches by basename wherever the tool targets it, not anchored to the project root.
+  const dir = mkCGuardProject();
+  const nestedDir = path.join(dir, "docs", "nested");
+  fs.mkdirSync(nestedDir, { recursive: true });
+  const designPath = path.join(nestedDir, "design.md");
+  fs.writeFileSync(designPath, DESIGN_MD, "utf8");
+  const withoutSection = DESIGN_MD.replace("\n## Do's and Don'ts\nNever use pure black on white.\n", "\n");
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: designPath, content: withoutSection } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ASK", "a design.md at a non-root path must still be guarded by basename match");
+});
+
+test("design.md: first-ever write (no prior file) is allowed (nothing to have lost)", () => {
+  const dir = mkCGuardProject();
+  const designPath = path.join(dir, "design.md"); // never written before
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: designPath, content: DESIGN_MD } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ALLOW");
+});
+
+// --- contract-guard: wiring ---
+
+test("hooks.json wires contract-guard.js under PreToolUse with a matcher covering Write/Edit/MultiEdit", () => {
+  const hj = JSON.parse(fs.readFileSync(path.join(HOOKS, "hooks.json"), "utf8"));
+  const entry = (hj.hooks.PreToolUse || []).find((e) => (e.hooks || []).some((x) => /contract-guard\.js/.test(x.command || "")));
+  assert.ok(entry, "PreToolUse must invoke contract-guard.js");
+  for (const tool of ["Write", "Edit", "MultiEdit"]) {
+    assert.ok(new RegExp(`^(?:${entry.matcher})$`).test(tool), `${tool} must be covered by contract-guard.js's matcher`);
+  }
+});

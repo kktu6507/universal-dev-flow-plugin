@@ -12,6 +12,12 @@
         "hooks": [
           { "type": "command", "command": "node -e \"try{var r=process.env.CLAUDE_PLUGIN_ROOT||process.env.COPILOT_PLUGIN_ROOT||process.env.PLUGIN_ROOT;if(r)require(r+'/hooks/destructive-guard.js')}catch(e){process.exit(0)}\"" }
         ]
+      },
+      {
+        "matcher": "Write|Edit|MultiEdit",
+        "hooks": [
+          { "type": "command", "command": "node -e \"try{var r=process.env.CLAUDE_PLUGIN_ROOT||process.env.COPILOT_PLUGIN_ROOT||process.env.PLUGIN_ROOT;if(r)require(r+'/hooks/contract-guard.js')}catch(e){process.exit(0)}\"" }
+        ]
       }
     ],
     "SessionStart": [

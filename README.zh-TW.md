@@ -160,12 +160,13 @@ Verdicts 是 release-readiness decisions，不是絕對真理。請看 [`docs/ho
 
 ## Hooks 與安全模型
 
-只要 plugin 被啟用，五個零依賴 Node hooks 會在每個 session 執行。它們 local-only、fail-open，只使用 Node built-ins（`fs`、`os`、`path`、`crypto`）。
+只要 plugin 被啟用，六個零依賴 Node hooks 會在每個 session 執行。它們 local-only、fail-open，只使用 Node built-ins（`fs`、`os`、`path`、`crypto`）。
 
 | Hook 腳本 | 觸發事件 | 用途 |
 |---|---|---|
 | `plan-gate.js` | `PreToolUse` | 在 plan mode 中擋下 edit tools 與明顯 Bash writes。 |
 | `destructive-guard.js` | `PreToolUse` | 對 `rm -rf`、`git reset --hard`、`git push --force`、PowerShell `Remove-Item -Recurse` 等狹義不可復原 destructive commands 先詢問。 |
+| `contract-guard.js` | `PreToolUse` | 在 Write/Edit/MultiEdit 會移除/放寬既有 `output/udflow/contract.md` acceptance criterion、`mustNotChange` 項目、scope path，或調降 `risk`，或整段刪除 `design.md` section 之前先詢問。 |
 | `load-failure-memory.js` | `SessionStart` | 讀取專案 `ai/FAILURE_MEMORY.md` 或全域 `~/.claude/FAILURE_MEMORY.md`，並注入 nonce-fenced、untrusted digest。 |
 | `compact-fidelity.js` | `SessionStart` · `compact` | context compaction 後重新注入精簡 workflow-continuity reminder。 |
 | `orchestration-check.js` | `Stop` | delivery claim 與 missing panel、blocking verdict、failed/unrun verification、missing live-run evidence 矛盾時提示。 |

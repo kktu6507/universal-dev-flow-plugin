@@ -22,6 +22,7 @@ const HOOKS = JSON.parse(fs.readFileSync(path.join(PLUGIN, "hooks", "hooks.json"
 const WIRED = [
   { event: "PreToolUse", file: "plan-gate.js" },
   { event: "PreToolUse", file: "destructive-guard.js" },
+  { event: "PreToolUse", file: "contract-guard.js" },
   { event: "SessionStart", file: "load-failure-memory.js" },
   { event: "Stop", file: "orchestration-check.js" },
   { event: "SessionStart", file: "compact-fidelity.js" }, // relocated from PreCompact (CC rejects its hookSpecificOutput)

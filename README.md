@@ -160,12 +160,13 @@ Most valuable contribution: run udflow on real work and open a [Verified udflow 
 
 ## Hooks and safety model
 
-Five dependency-free Node hooks run in every enabled session. They are local-only, fail-open, and use only Node built-ins (`fs`, `os`, `path`, `crypto`).
+Six dependency-free Node hooks run in every enabled session. They are local-only, fail-open, and use only Node built-ins (`fs`, `os`, `path`, `crypto`).
 
 | Hook | Event | Purpose |
 |---|---|---|
 | `plan-gate.js` | `PreToolUse` | Denies edit tools and obvious Bash writes while in plan mode. |
 | `destructive-guard.js` | `PreToolUse` | Asks before narrow, unrecoverable destructive commands such as `rm -rf`, `git reset --hard`, `git push --force`, and PowerShell `Remove-Item -Recurse`. |
+| `contract-guard.js` | `PreToolUse` | Asks before a Write/Edit/MultiEdit would remove/loosen a previously recorded `output/udflow/contract.md` acceptance criterion, `mustNotChange` entry, or scope path, downgrade `risk`, or wholesale-delete a `design.md` section. |
 | `load-failure-memory.js` | `SessionStart` | Reads project `ai/FAILURE_MEMORY.md` or global `~/.claude/FAILURE_MEMORY.md` and injects a nonce-fenced, untrusted digest. |
 | `compact-fidelity.js` | `SessionStart` · `compact` | Re-injects a concise workflow-continuity reminder after compaction. |
 | `orchestration-check.js` | `Stop` | Advises when delivery claims contradict missing panel, blocking verdict, failed/unrun verification, or missing live-run evidence. |
