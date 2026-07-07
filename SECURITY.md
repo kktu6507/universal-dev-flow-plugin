@@ -14,7 +14,7 @@ effort response — this is a solo-maintained, pre-1.0 project (bus factor of on
 
 ## What the hooks can and cannot do
 
-The five Node hooks run in every enabled session and are constrained **by construction** (verify it
+The six Node hooks run in every enabled session and are constrained **by construction** (verify it
 yourself — they are short, dependency-free, readable scripts in `udflow/hooks/`):
 
 - **Local-only.** No network, no subprocess, no downloaded/eval'd code — Node built-ins
@@ -22,18 +22,22 @@ yourself — they are short, dependency-free, readable scripts in `udflow/hooks/
 - **Fail-open.** Any error, or no Node on PATH → the hook does nothing and exits 0. A hook can never
   break a session.
 - **Non-destructive.** They never change system/security settings, alter file permissions, or delete
-  anything. `destructive-guard` only returns `ask` (a prompt) on a narrow deny-list of unrecoverable
-  commands — it never denies and never deletes.
+  anything. `destructive-guard` and `contract-guard` only return `ask` (a prompt) — on, respectively, a
+  narrow deny-list of unrecoverable commands and a content-based diff showing a contract/design.md
+  weakening — never a `deny`, never a delete.
 - **Read scope.** Hooks read only bounded local files needed for their guardrails:
   `load-failure-memory` reads project `ai/FAILURE_MEMORY.md` or global
-  `~/.claude/FAILURE_MEMORY.md`; `plan-gate`, `destructive-guard`, and `compact-fidelity` read
-  project `.claude/settings*.json` for opt-outs; `orchestration-check` reads the transcript path
-  supplied by the hook event with a size cap. Reviewer subagents are separate from hooks: they have
-  no editor-specific tool grants, but their grant still includes `Bash` (`Read`/`Grep`/`Glob`/`Bash`),
-  so review-only behavior is a workflow/prompt discipline rather than a hard capability boundary.
+  `~/.claude/FAILURE_MEMORY.md`; `plan-gate`, `destructive-guard`, `contract-guard`, and
+  `compact-fidelity` read project `.claude/settings*.json` for opt-outs; `contract-guard` additionally
+  reads the current on-disk content of the one `output/udflow/contract.md` path and any file whose
+  basename is `design.md`, only to simulate the tool's proposed edit locally (the tool is never actually
+  invoked); `orchestration-check` reads the transcript path supplied by the hook event with a size cap.
+  Reviewer subagents are separate from hooks: they have no editor-specific tool grants, but their grant
+  still includes `Bash` (`Read`/`Grep`/`Glob`/`Bash`), so review-only behavior is a workflow/prompt
+  discipline rather than a hard capability boundary.
 
-Per-project opt-outs exist for each guarding hook (`planGate` / `destructiveGuard` / `preserveOnCompact`
-in `.claude/settings.json`), and the whole plugin ships **disabled** — you opt in.
+Per-project opt-outs exist for each guarding hook (`planGate` / `destructiveGuard` / `contractGuard` /
+`preserveOnCompact` in `.claude/settings.json`), and the whole plugin ships **disabled** — you opt in.
 
 ## Recommended safe install
 

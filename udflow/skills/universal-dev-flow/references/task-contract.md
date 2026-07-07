@@ -57,7 +57,9 @@ contract — do not duplicate, route the same content here.
 1. **Detect / draft** *(plan, read-only)* — assembled from the plan + `plan-grounding` outputs.
 2. **Bless** *(ExitPlanMode)* — approved as part of the plan; no separate approval step.
 3. **Write** *(post-approval implementation)* — the `implementer` writes `output/udflow/contract.md`
-   so plan mode stays read-only (`hooks/plan-gate.js` still applies).
+   so plan mode stays read-only (`hooks/plan-gate.js` still applies). `hooks/contract-guard.js` asks for
+   confirmation before a later Write/Edit/MultiEdit would remove or loosen a previously recorded acceptance
+   criterion, `mustNotChange` entry, scope path, or downgrade `risk`.
 4. **Consume** — the Review Packet points at it (`references/review-packet.md`); `contract-check.mjs`
    reads the machine block; the `gatekeeper` reads the checker's report.
 

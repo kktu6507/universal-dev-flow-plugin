@@ -7,6 +7,18 @@ job verifies the deterministic archive/checksum assets and fails closed on drift
 repair. You never tag by hand. This file is the **manual pre-release smoke** for the one thing CI
 cannot prove.
 
+## When to bump the version
+
+Bump `plugin.json` / `marketplace.json` (metadata + plugin entry) / `package.json` in lockstep,
+with a matching `CHANGELOG.md` entry, **only when the change is perceptible to a user running
+udflow** — a hook fires differently, a verdict/sentinel/severity literal changes, an agent's
+behavior or selection changes, a new capability exists, or a doc rewrite changes what a user is
+told to do. Do **not** bump for a change with no behavioral difference: a repo-owner/URL rename,
+a prose clarification that doesn't change guidance, internal doc-alignment, or fixing a typo.
+(2026-07-07 decision, superseding the earlier practice — several pre-2026-07 CHANGELOG entries bumped
+for an explicitly-stated "no hook/behavior change"; those stand as history, not a precedent to keep
+following.) When unsure whether a change is perceptible, ask rather than default to bumping.
+
 ## What CI already gates (automatic, on every PR + push)
 
 - `validate-structure.mjs` — manifests parse; `plugin.json` / `marketplace.json` / `package.json` /
@@ -15,7 +27,7 @@ cannot prove.
   must fire for); **CC output-contract conformance** (`5g`: a hook that emits `hookSpecificOutput` is
   wired only to events Claude Code actually accepts it on — the compact-fidelity/PreCompact bug class);
   distribution hygiene; text integrity; multilingual README parity (EN / zh-TW / ja).
-- `node --check` on all five hooks; `node --test` (behavioral hook tests).
+- `node --check` on all six hooks; `node --test` (behavioral hook tests).
 - `claude plugin validate` — **best-effort, non-blocking** (Linux-only; the Claude Code CLI may not
   run fully headless in CI).
 
@@ -73,9 +85,15 @@ In a throwaway/clean Claude Code profile, from a scratch project directory:
 4. **PreToolUse destructive guard** — outside plan mode, ask for a narrow unrecoverable command such
    as `git reset --hard` in a disposable project and confirm `destructive-guard.js` asks before it.
    Confirm a benign command is allowed.
-5. **Stop / orchestration-check** — end a session that asserts a `READY` verdict without running the
+5. **PreToolUse contract guard** — create a disposable `output/udflow/contract.md` fixture with a
+   populated JSON fenced block (an `acceptanceCriteria` entry and a `mustNotChange` entry), then ask
+   Claude to edit it in a way that removes the `mustNotChange` entry; confirm `contract-guard.js` **asks**
+   before the edit, naming the entry that would be lost. Confirm a pure-append edit (adding a new AC,
+   leaving everything else intact) is allowed with no prompt. Confirm `"udflow": { "contractGuard": false }`
+   in the project's `.claude/settings.json` suppresses the ask for the same removal.
+6. **Stop / orchestration-check** — end a session that asserts a `READY` verdict without running the
    panel; confirm the advisory `systemMessage` appears (and that an honest run stays silent).
-6. **Compaction fidelity (SessionStart·`compact`)** — with `udflow` enabled, trigger a compaction
+7. **Compaction fidelity (SessionStart·`compact`)** — with `udflow` enabled, trigger a compaction
    (`/compact`, or let auto-compaction fire on a long session). Confirm **both**: (a) `/compact` prints
    **no** `Hook JSON output validation failed` error — the hook emits the `SessionStart` shape Claude Code
    accepts, NOT a `PreCompact` `hookSpecificOutput` (which CC rejects); and (b) the preservation reminder
@@ -87,7 +105,7 @@ In a throwaway/clean Claude Code profile, from a scratch project directory:
    `.claude/settings.json`, nothing should appear. (Regression context: the hook was wired under
    `PreCompact` through 0.27.2, whose injected output Claude Code rejects with a validation error and never
    surfaces; 0.27.3 relocated the emit to the supported SessionStart·`compact` path.)
-7. **Skill activation** — describe a non-trivial engineering task in plain language and confirm the
+8. **Skill activation** — describe a non-trivial engineering task in plain language and confirm the
    `universal-dev-flow` skill engages (or `/udflow:run <task>` invokes it manually).
 
 If any step fails, do **not** rely on the release for that surface — fix and re-run. Note the result
