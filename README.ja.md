@@ -188,7 +188,14 @@ plugin が有効な間は、依存関係ゼロの Node hooks が6つ、すべて
 | `contractGuard` | `contract-guard.js` —— Write/Edit/MultiEdit が `output/udflow/contract.md` を弱める、または `design.md` の section を削除する前の確認 |
 | `preserveOnCompact` | `compact-fidelity.js` —— context compaction 後の workflow-continuity リマインダー |
 
-設定ファイルが壊れている、または読み込めない場合は「無効化されていない」として扱われます（fail-safe：guard はそのまま動作し続けます）。
+設定ファイルが壊れている、または読み込めない場合は「無効化されていない」として扱われます（fail-safe：guard はそのまま動作し続けます）。例——特定のプロジェクトで `contract-guard.js` を無効化する：
+
+```json
+// .claude/settings.json
+{
+  "udflow": { "contractGuard": false }
+}
+```
 
 **環境変数**——デフォルトは未設定（空）：
 
@@ -197,12 +204,26 @@ plugin が有効な間は、依存関係ゼロの Node hooks が6つ、すべて
 | `UDFLOW_ENFORCE_STOP` | 空でない値を設定すると、`orchestration-check.js` の Stop hook が verdict/evidence の矛盾時に警告するだけでなく、delivery を強制的にブロックするようになります |
 | `UDFLOW_HOOK_DEBUG` | `1` に設定すると、各 hook が debug trace を1行追加出力します（`/udflow:doctor` や手動のトラブルシューティングで使用） |
 
+```bash
+# bash/zsh
+UDFLOW_ENFORCE_STOP=1 claude
+```
+
+```powershell
+# PowerShell
+$env:UDFLOW_ENFORCE_STOP = "1"; claude
+```
+
 **タスク単位の機能**——そのタスクで明示的に有効化しない限りオフで、決してハード依存にはなりません：
 
 | 機能 | 有効化する方法 |
 |---|---|
 | Codex によるクロスモデルのセカンドオピニオン | タスク内でそう伝える（例：「repair loop が詰まったら Codex を使ってよい」）—— [`references/external-capabilities.md`](udflow/skills/universal-dev-flow/references/external-capabilities.md) 参照 |
 | レビュアーごとの MCP ツール | デフォルトでは `.mcp.json` は空です。サーバーを追加し（[`mcp.example.json`](udflow/mcp.example.json) 参照）、該当レビュアーの frontmatter 内の対応する `mcp__*` 行のコメントを解除してください |
+
+```text
+/udflow:run ログインのバグを直して。repair loop が詰まったら Codex を使ってよい。
+```
 
 **実行単位のフラグ**——`/udflow:run` への引数として渡します：
 
@@ -212,6 +233,12 @@ plugin が有効な間は、依存関係ゼロの Node hooks が6つ、すべて
 | `--no-deep` / `--shallow` | deep-mode Tier 1 の決定論的パネル実行（高リスク/correctness-critical な作業で本来自動的に有効化される）を無効化します |
 | `--lite` | 必要最小限のレビューパネルを強制し、Tier 2 をスキップしますが、高リスクのシグナルがある場合は関連する safety reviewer は維持し、その旨を開示します |
 | `--report full` | コンパクトなデフォルトの代わりに詳細な最終レポート（エージェントごとの活動、完全な token/cost 表）を出力します |
+
+```text
+/udflow:run --deep ネットワークタイムアウト時に一度だけバックオフ付きで再試行するよう、決済のリトライロジックをリファクタリングして。
+/udflow:run --lite エラーメッセージの文言にある typo を直して。
+/udflow:run --report full 公開 API に rate limiting を追加して。
+```
 
 ## 互換性
 

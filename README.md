@@ -188,7 +188,14 @@ Everything below is optional. udflow's default behavior needs no configuration a
 | `contractGuard` | `contract-guard.js` — the ask before a Write/Edit/MultiEdit would weaken `output/udflow/contract.md` or delete a `design.md` section |
 | `preserveOnCompact` | `compact-fidelity.js` — the post-compaction workflow-continuity reminder |
 
-A malformed or unreadable settings file is treated as "not disabled" (fail-safe: the guard keeps running).
+A malformed or unreadable settings file is treated as "not disabled" (fail-safe: the guard keeps running). Example — disable `contract-guard.js` for one project:
+
+```json
+// .claude/settings.json
+{
+  "udflow": { "contractGuard": false }
+}
+```
 
 **Environment variables** — unset (empty) by default:
 
@@ -197,12 +204,26 @@ A malformed or unreadable settings file is treated as "not disabled" (fail-safe:
 | `UDFLOW_ENFORCE_STOP` | any non-empty value makes the `orchestration-check.js` Stop hook hard-block delivery on a verdict/evidence mismatch, instead of only advising |
 | `UDFLOW_HOOK_DEBUG` | `1` makes every hook append a one-line debug trace (used by [`/udflow:doctor`](#quick-start) and manual troubleshooting) |
 
+```bash
+# bash/zsh
+UDFLOW_ENFORCE_STOP=1 claude
+```
+
+```powershell
+# PowerShell
+$env:UDFLOW_ENFORCE_STOP = "1"; claude
+```
+
 **Per-task capabilities** — off unless explicitly enabled for that task, never a hard dependency:
 
 | Capability | How to enable |
 |---|---|
 | Codex cross-model second opinion | say so in the task (e.g. "use Codex if the repair loop gets stuck") — see [`references/external-capabilities.md`](udflow/skills/universal-dev-flow/references/external-capabilities.md) |
 | MCP tools per reviewer | ships with an empty `.mcp.json`; add a server (see [`mcp.example.json`](udflow/mcp.example.json)) and uncomment the matching `mcp__*` line in that reviewer's frontmatter |
+
+```text
+/udflow:run Fix the login bug. Use Codex if the repair loop gets stuck.
+```
 
 **Per-run flags** — pass as arguments to `/udflow:run`:
 
@@ -212,6 +233,12 @@ A malformed or unreadable settings file is treated as "not disabled" (fail-safe:
 | `--no-deep` / `--shallow` | opts out of deep-mode Tier 1's deterministic panel enforcement, which otherwise auto-engages on high-risk/correctness-critical work |
 | `--lite` | forces the smallest sufficient review panel and skips Tier 2, keeping a directly-relevant safety reviewer when a high-risk signal is present |
 | `--report full` | the detailed end-of-run report (per-agent activity, full token/cost table) instead of the compact default |
+
+```text
+/udflow:run --deep Refactor the payment retry logic so a network timeout retries once with backoff.
+/udflow:run --lite Fix the typo in the error message copy.
+/udflow:run --report full Add rate limiting to the public API.
+```
 
 ## Compatibility
 

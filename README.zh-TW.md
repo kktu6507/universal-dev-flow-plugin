@@ -188,7 +188,14 @@ Verdicts 是 release-readiness decisions，不是絕對真理。請看 [`docs/ho
 | `contractGuard` | `contract-guard.js`——Write/Edit/MultiEdit 會弱化 `output/udflow/contract.md` 或刪除 `design.md` section 之前的詢問 |
 | `preserveOnCompact` | `compact-fidelity.js`——context compaction 後的 workflow-continuity 提醒 |
 
-設定檔格式錯誤或讀不到，會視為「未停用」（fail-safe：guard 照常運作）。
+設定檔格式錯誤或讀不到，會視為「未停用」（fail-safe：guard 照常運作）。範例——針對單一專案停用 `contract-guard.js`：
+
+```json
+// .claude/settings.json
+{
+  "udflow": { "contractGuard": false }
+}
+```
 
 **環境變數**——預設未設定（空）：
 
@@ -197,12 +204,26 @@ Verdicts 是 release-readiness decisions，不是絕對真理。請看 [`docs/ho
 | `UDFLOW_ENFORCE_STOP` | 設成任何非空值，會讓 `orchestration-check.js` 這個 Stop hook 在 verdict/evidence 矛盾時直接硬擋 delivery，而不只是提示 |
 | `UDFLOW_HOOK_DEBUG` | 設成 `1` 會讓每個 hook 都多印一行 debug trace（`/udflow:doctor` 與手動排除故障會用到） |
 
+```bash
+# bash/zsh
+UDFLOW_ENFORCE_STOP=1 claude
+```
+
+```powershell
+# PowerShell
+$env:UDFLOW_ENFORCE_STOP = "1"; claude
+```
+
 **單次任務能力**——除非該次任務明確啟用，否則預設關閉，永遠不是硬性依賴：
 
 | 能力 | 如何啟用 |
 |---|---|
 | Codex 跨模型第二意見 | 在任務裡明講（例如「修復迴圈卡住時可以用 Codex」）——見 [`references/external-capabilities.md`](udflow/skills/universal-dev-flow/references/external-capabilities.md) |
 | 每位審查員的 MCP 工具 | 預設 `.mcp.json` 是空的；加一個 server（見 [`mcp.example.json`](udflow/mcp.example.json)），並取消該審查員 frontmatter 裡對應 `mcp__*` 那行的註解 |
+
+```text
+/udflow:run 修好登入的 bug。修復迴圈卡住時可以用 Codex。
+```
 
 **單次執行旗標**——當作參數傳給 `/udflow:run`：
 
@@ -212,6 +233,12 @@ Verdicts 是 release-readiness decisions，不是絕對真理。請看 [`docs/ho
 | `--no-deep` / `--shallow` | 關閉 deep-mode Tier 1 的確定性小組執行機制（原本在高風險/correctness-critical 工作上會自動啟用） |
 | `--lite` | 強制用最小夠用的審查小組，跳過 Tier 2，但高風險訊號存在時仍保留對應的安全審查員並揭露 |
 | `--report full` | 交付報告用詳細版（各 agent 活動、完整 token/cost 表）取代精簡預設版 |
+
+```text
+/udflow:run --deep 重構付款重試邏輯，讓網路逾時能重試一次並帶 backoff。
+/udflow:run --lite 修正錯誤訊息文案裡的 typo。
+/udflow:run --report full 幫公開 API 加上 rate limiting。
+```
 
 ## 相容性
 
