@@ -171,7 +171,47 @@ plugin が有効な間は、依存関係ゼロの Node hooks が6つ、すべて
 | `compact-fidelity.js` | `SessionStart` · `compact` | context compaction の直後に、簡潔な workflow-continuity のリマインダーを再注入する。 |
 | `orchestration-check.js` | `Stop` | delivery の主張が、missing panel、blocking verdict、failed/unrun verification、missing live-run evidence と矛盾している場合に警告する。 |
 
+確認や制限を行う各 hook は、プロジェクト単位に opt-out できます——完全なリストは下記の「設定リファレンス」を参照してください。
+
 これらの hooks は、ファイルの削除、システム設定の変更、権限の変更、subprocess の実行、コードのダウンロード、コードや transcript の送信を一切行いません。あくまで guardrail であり、sandbox ではありません。詳細は [`SECURITY.md`](SECURITY.md) と [`ARCHITECTURE.md`](ARCHITECTURE.md) を参照してください。
+
+## 設定リファレンス
+
+以下はすべてオプションです。udflow のデフォルト動作には設定は一切不要です。
+
+**永続的な設定**——`.claude/settings.json` または `.claude/settings.local.json`（local が優先）、すべて `"udflow": { ... }` の下に置きます。それぞれ**デフォルトで有効**で、`false` に設定するとそのプロジェクトで opt-out できます：
+
+| Key | 無効化される対象 |
+|---|---|
+| `planGate` | `plan-gate.js` —— plan mode 中に強制される編集ブロック |
+| `destructiveGuard` | `destructive-guard.js` —— 狭く絞った復元不能な destructive command 実行前の確認 |
+| `contractGuard` | `contract-guard.js` —— Write/Edit/MultiEdit が `output/udflow/contract.md` を弱める、または `design.md` の section を削除する前の確認 |
+| `preserveOnCompact` | `compact-fidelity.js` —— context compaction 後の workflow-continuity リマインダー |
+
+設定ファイルが壊れている、または読み込めない場合は「無効化されていない」として扱われます（fail-safe：guard はそのまま動作し続けます）。
+
+**環境変数**——デフォルトは未設定（空）：
+
+| 変数 | 設定した場合の効果 |
+|---|---|
+| `UDFLOW_ENFORCE_STOP` | 空でない値を設定すると、`orchestration-check.js` の Stop hook が verdict/evidence の矛盾時に警告するだけでなく、delivery を強制的にブロックするようになります |
+| `UDFLOW_HOOK_DEBUG` | `1` に設定すると、各 hook が debug trace を1行追加出力します（`/udflow:doctor` や手動のトラブルシューティングで使用） |
+
+**タスク単位の機能**——そのタスクで明示的に有効化しない限りオフで、決してハード依存にはなりません：
+
+| 機能 | 有効化する方法 |
+|---|---|
+| Codex によるクロスモデルのセカンドオピニオン | タスク内でそう伝える（例：「repair loop が詰まったら Codex を使ってよい」）—— [`references/external-capabilities.md`](udflow/skills/universal-dev-flow/references/external-capabilities.md) 参照 |
+| レビュアーごとの MCP ツール | デフォルトでは `.mcp.json` は空です。サーバーを追加し（[`mcp.example.json`](udflow/mcp.example.json) 参照）、該当レビュアーの frontmatter 内の対応する `mcp__*` 行のコメントを解除してください |
+
+**実行単位のフラグ**——`/udflow:run` への引数として渡します：
+
+| フラグ | 効果 |
+|---|---|
+| `--deep`（または `deep:` / `ultra:` プレフィックス） | deep-mode Tier 2 を有効化：発見事項の adversarial verification と `gatekeeper`/`security-reviewer` の最大推論強度——コストは上がり、自動的には有効化されません |
+| `--no-deep` / `--shallow` | deep-mode Tier 1 の決定論的パネル実行（高リスク/correctness-critical な作業で本来自動的に有効化される）を無効化します |
+| `--lite` | 必要最小限のレビューパネルを強制し、Tier 2 をスキップしますが、高リスクのシグナルがある場合は関連する safety reviewer は維持し、その旨を開示します |
+| `--report full` | コンパクトなデフォルトの代わりに詳細な最終レポート（エージェントごとの活動、完全な token/cost 表）を出力します |
 
 ## 互換性
 

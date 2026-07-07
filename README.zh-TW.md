@@ -171,7 +171,47 @@ Verdicts 是 release-readiness decisions，不是絕對真理。請看 [`docs/ho
 | `compact-fidelity.js` | `SessionStart` · `compact` | context compaction 後重新注入精簡 workflow-continuity reminder。 |
 | `orchestration-check.js` | `Stop` | delivery claim 與 missing panel、blocking verdict、failed/unrun verification、missing live-run evidence 矛盾時提示。 |
 
+每個會詢問或限制的 hook，都可以針對單一專案 opt out——完整清單見下方「設定參考」一節。
+
 這些 hooks 不會刪檔、不會改系統設定、不會改權限、不會開 subprocess、不會下載 code，也不會傳送 code/transcript。它們是 guardrails，不是 sandbox。詳見 [`SECURITY.md`](SECURITY.md) 與 [`ARCHITECTURE.md`](ARCHITECTURE.md)。
+
+## 設定參考
+
+以下皆為選填，udflow 的預設行為不需要任何設定。
+
+**持久化設定**——`.claude/settings.json` 或 `.claude/settings.local.json`（local 優先），都放在 `"udflow": { ... }` 底下。每一項**預設開啟**；設成 `false` 可針對該專案 opt out：
+
+| Key | 停用的東西 |
+|---|---|
+| `planGate` | `plan-gate.js`——plan mode 期間強制的編輯攔阻 |
+| `destructiveGuard` | `destructive-guard.js`——執行狹義不可復原 destructive commands 前的詢問 |
+| `contractGuard` | `contract-guard.js`——Write/Edit/MultiEdit 會弱化 `output/udflow/contract.md` 或刪除 `design.md` section 之前的詢問 |
+| `preserveOnCompact` | `compact-fidelity.js`——context compaction 後的 workflow-continuity 提醒 |
+
+設定檔格式錯誤或讀不到，會視為「未停用」（fail-safe：guard 照常運作）。
+
+**環境變數**——預設未設定（空）：
+
+| 變數 | 設定後的效果 |
+|---|---|
+| `UDFLOW_ENFORCE_STOP` | 設成任何非空值，會讓 `orchestration-check.js` 這個 Stop hook 在 verdict/evidence 矛盾時直接硬擋 delivery，而不只是提示 |
+| `UDFLOW_HOOK_DEBUG` | 設成 `1` 會讓每個 hook 都多印一行 debug trace（`/udflow:doctor` 與手動排除故障會用到） |
+
+**單次任務能力**——除非該次任務明確啟用，否則預設關閉，永遠不是硬性依賴：
+
+| 能力 | 如何啟用 |
+|---|---|
+| Codex 跨模型第二意見 | 在任務裡明講（例如「修復迴圈卡住時可以用 Codex」）——見 [`references/external-capabilities.md`](udflow/skills/universal-dev-flow/references/external-capabilities.md) |
+| 每位審查員的 MCP 工具 | 預設 `.mcp.json` 是空的；加一個 server（見 [`mcp.example.json`](udflow/mcp.example.json)），並取消該審查員 frontmatter 裡對應 `mcp__*` 那行的註解 |
+
+**單次執行旗標**——當作參數傳給 `/udflow:run`：
+
+| 旗標 | 效果 |
+|---|---|
+| `--deep`（或 `deep:` / `ultra:` 前綴） | 啟用 deep-mode Tier 2：對發現的問題做對抗式驗證，`gatekeeper`/`security-reviewer` 用最大推理力度——會提高成本，永遠不會自動啟用 |
+| `--no-deep` / `--shallow` | 關閉 deep-mode Tier 1 的確定性小組執行機制（原本在高風險/correctness-critical 工作上會自動啟用） |
+| `--lite` | 強制用最小夠用的審查小組，跳過 Tier 2，但高風險訊號存在時仍保留對應的安全審查員並揭露 |
+| `--report full` | 交付報告用詳細版（各 agent 活動、完整 token/cost 表）取代精簡預設版 |
 
 ## 相容性
 

@@ -171,7 +171,47 @@ Six dependency-free Node hooks run in every enabled session. They are local-only
 | `compact-fidelity.js` | `SessionStart` · `compact` | Re-injects a concise workflow-continuity reminder after compaction. |
 | `orchestration-check.js` | `Stop` | Advises when delivery claims contradict missing panel, blocking verdict, failed/unrun verification, or missing live-run evidence. |
 
+Each hook that can prompt or restrict has a per-project opt-out — see [Configuration reference](#configuration-reference) below.
+
 These hooks never delete files, change system settings, alter permissions, run subprocesses, download code, or transmit code/transcripts. They are guardrails, not a sandbox. See [`SECURITY.md`](SECURITY.md) and [`ARCHITECTURE.md`](ARCHITECTURE.md).
+
+## Configuration reference
+
+Everything below is optional. udflow's default behavior needs no configuration at all.
+
+**Persistent settings** — `.claude/settings.json` or `.claude/settings.local.json` (local takes precedence), all under an `"udflow": { ... }` object. Each is **on by default**; set to `false` to opt out for that project:
+
+| Key | Disables |
+|---|---|
+| `planGate` | `plan-gate.js` — the edit-block enforced while in plan mode |
+| `destructiveGuard` | `destructive-guard.js` — the ask before narrow, unrecoverable destructive commands |
+| `contractGuard` | `contract-guard.js` — the ask before a Write/Edit/MultiEdit would weaken `output/udflow/contract.md` or delete a `design.md` section |
+| `preserveOnCompact` | `compact-fidelity.js` — the post-compaction workflow-continuity reminder |
+
+A malformed or unreadable settings file is treated as "not disabled" (fail-safe: the guard keeps running).
+
+**Environment variables** — unset (empty) by default:
+
+| Variable | Effect when set |
+|---|---|
+| `UDFLOW_ENFORCE_STOP` | any non-empty value makes the `orchestration-check.js` Stop hook hard-block delivery on a verdict/evidence mismatch, instead of only advising |
+| `UDFLOW_HOOK_DEBUG` | `1` makes every hook append a one-line debug trace (used by [`/udflow:doctor`](#quick-start) and manual troubleshooting) |
+
+**Per-task capabilities** — off unless explicitly enabled for that task, never a hard dependency:
+
+| Capability | How to enable |
+|---|---|
+| Codex cross-model second opinion | say so in the task (e.g. "use Codex if the repair loop gets stuck") — see [`references/external-capabilities.md`](udflow/skills/universal-dev-flow/references/external-capabilities.md) |
+| MCP tools per reviewer | ships with an empty `.mcp.json`; add a server (see [`mcp.example.json`](udflow/mcp.example.json)) and uncomment the matching `mcp__*` line in that reviewer's frontmatter |
+
+**Per-run flags** — pass as arguments to `/udflow:run`:
+
+| Flag | Effect |
+|---|---|
+| `--deep` (or a `deep:` / `ultra:` prefix) | opts into deep-mode Tier 2: adversarial verification of findings + maximum reasoning effort for `gatekeeper`/`security-reviewer` — raises cost, never auto-engaged |
+| `--no-deep` / `--shallow` | opts out of deep-mode Tier 1's deterministic panel enforcement, which otherwise auto-engages on high-risk/correctness-critical work |
+| `--lite` | forces the smallest sufficient review panel and skips Tier 2, keeping a directly-relevant safety reviewer when a high-risk signal is present |
+| `--report full` | the detailed end-of-run report (per-agent activity, full token/cost table) instead of the compact default |
 
 ## Compatibility
 
