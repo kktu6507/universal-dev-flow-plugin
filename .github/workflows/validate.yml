@@ -64,7 +64,7 @@ jobs:
         continue-on-error: true
         shell: bash
         run: |
-          npm install -g @anthropic-ai/claude-code || exit 0
+          npm install -g @anthropic-ai/claude-code || exit 0 # zizmor: ignore[adhoc-packages] best-effort, non-gating install of Anthropic's official CLI for the validator; pinning would defeat validating against the CURRENT CLI, and this job runs with persist-credentials:false and no release access
           # Validate BOTH the marketplace (repo root) and the shipped plugin (./udflow).
           # The plugin manifest is in udflow/.claude-plugin/plugin.json, so validating
           # only the root would never check the plugin itself.
@@ -97,7 +97,7 @@ jobs:
       # for an intentional repair of missing/mismatched release archive assets.
       UDFLOW_REPAIR_PUBLISHED_RELEASE_ASSETS: ${{ vars.UDFLOW_REPAIR_PUBLISHED_RELEASE_ASSETS == 'true' && 'true' || 'false' }}
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0 # zizmor: ignore[artipacked] the release job's publish-release.mjs runs `git push origin <tag>` to push the (optionally signed) release tag, so this checkout must keep the token; the tree is never uploaded as an artifact
         with:
           fetch-depth: 0   # need existing tags to detect whether this version is already released
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
