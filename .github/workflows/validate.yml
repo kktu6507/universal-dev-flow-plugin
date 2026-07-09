@@ -64,7 +64,7 @@ jobs:
         continue-on-error: true
         shell: bash
         run: |
-          npm install -g @anthropic-ai/claude-code || exit 0 # zizmor: ignore[adhoc-packages] best-effort, non-gating install of Anthropic's official CLI for the validator; pinning would defeat validating against the CURRENT CLI, and this job runs with persist-credentials:false and no release access
+          npm install -g @anthropic-ai/claude-code || exit 0   # adhoc-packages exception is in .github/zizmor.yml (a run-block finding can't take an inline zizmor comment)
           # Validate BOTH the marketplace (repo root) and the shipped plugin (./udflow).
           # The plugin manifest is in udflow/.claude-plugin/plugin.json, so validating
           # only the root would never check the plugin itself.
