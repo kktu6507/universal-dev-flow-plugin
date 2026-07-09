@@ -34,9 +34,22 @@ const STOPWORDS = new Set([
 // Lowercase, split on any non-alphanumeric run (so paths, dotted names, and slash-separated tags all
 // shatter into comparable tokens), drop stopwords and length-1 noise. Returns a Set for cheap overlap.
 export function tokenize(str) {
+  const s = String(str == null ? "" : str).toLowerCase();
   const out = new Set();
-  for (const t of String(str == null ? "" : str).toLowerCase().split(/[^a-z0-9]+/)) {
+  for (const t of s.split(/[^a-z0-9]+/)) {
     if (t.length >= 2 && !STOPWORDS.has(t)) out.add(t);
+  }
+  // CJK: the ASCII split above drops CJK entirely, so a Chinese/Japanese task signature would
+  // tokenize to nothing. Emit character bigrams per CJK run (a lone CJK char -> that unigram),
+  // added straight to the Set (the ASCII length/stopword filter is ASCII-oriented). Symmetric by
+  // construction: query and entry content both pass through here. Pure-ASCII input has no CJK run,
+  // so this adds nothing and existing ASCII behavior + the eval/failure-memory oracle are unchanged.
+  const cjkRuns = s.match(/[぀-ヿ㐀-䶿一-鿿]+/g);
+  if (cjkRuns) {
+    for (const run of cjkRuns) {
+      if (run.length === 1) { out.add(run); continue; }
+      for (let i = 0; i + 1 < run.length; i++) out.add(run.slice(i, i + 2));
+    }
   }
   return out;
 }
@@ -171,6 +184,11 @@ export function defaultLedgerPath(memoryFile) {
   return path.join(path.dirname(memoryFile), ".failure-memory-usage.jsonl");
 }
 
+// The ledger key is the entry title truncated to a bounded length so a pathological title can't
+// bloat a ledger line. failure-consolidate.mjs MUST look up with this same key (import this helper),
+// else a long-titled entry's hits never match and it is wrongly flagged as an expire candidate.
+export function ledgerKey(title) { return String(title).slice(0, 300); }
+
 // One ledger line per surfaced entry: the entry key (title), the firing timestamp, a truncated query, and
 // an optional session id. Lines are short (well under the atomic-append boundary) so concurrent planning
 // retrievals can append without interleaving. A "hit" means the entry was RELEVANT to a real task
@@ -180,7 +198,7 @@ export function buildLedgerLines(matches, meta = {}) {
   const q = String(meta.query || "").replace(/\s+/g, " ").trim().slice(0, 200);
   const sid = meta.session ? String(meta.session).slice(0, 64) : undefined;
   return (matches || []).map((m) => {
-    const rec = { ts, key: String(m.entry.title).slice(0, 300), q };
+    const rec = { ts, key: ledgerKey(m.entry.title), q };
     if (sid) rec.sid = sid;
     return JSON.stringify(rec);
   });

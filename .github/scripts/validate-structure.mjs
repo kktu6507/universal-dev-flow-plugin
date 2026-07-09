@@ -189,7 +189,7 @@ if (fs.existsSync(path.join(root, finalReportRel))) {
 // covering the other contract-bearing files. Substring match is sufficient: these tokens are immutable, so
 // presence anywhere in the owning file is the invariant.
 const CONTRACT_INVARIANTS = {
-  [`${PLUGIN}/agents/gatekeeper.agent.md`]: ["READY", "FIX REQUIRED", "NOT READY"],
+  [`${PLUGIN}/agents/gatekeeper.agent.md`]: ["READY", "FIX REQUIRED", "NOT READY", "Extended-Safe", "Residual", "never auto-applied"],
   [`${PLUGIN}/skills/universal-dev-flow/references/reviewer-common.md`]: ["blocker", "major", "minor"],
   [`${PLUGIN}/skills/universal-dev-flow/references/reviewer-selection.md`]: ["spec-reviewer", "test-reviewer"],
   // The `### Live run` evidence-block header is tooling-read: orchestration-check.js (advisory 4) detects

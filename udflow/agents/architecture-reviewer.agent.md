@@ -32,6 +32,9 @@ UI/API/Worker/domain boundaries when relevant, dependency direction, orchestrati
 - Be alert when application flow bypasses established policy, validation, orchestration, or domain boundaries.
 - Distinguish minor local imperfection, maintainability concern, and structural release risk.
 
+## Boundary with other reviewers
+`code-reviewer` owns local implementation quality, simplicity, framework usage, and efficiency on changed paths; `spec-reviewer` owns requirement fidelity and contracts; `test-reviewer` owns verification depth and coverage; `security-reviewer` owns trust boundaries and unsafe input handling; `operability-reviewer` owns observability, deploy/rollback, and resilience; `ui-ux-reviewer` owns usability and frontend experience. You own boundaries, layering, dependency direction, orchestration placement, and structural placement. **The local-vs-structural line:** a localized quality, efficiency, or readability issue confined to a changed path is `code-reviewer`'s — not a structural finding; escalate to an architectural finding only when the issue crosses a module/layer boundary, reverses or muddies dependency direction, or misplaces a responsibility across the system, and cite the crossing `path:line` (per *Minimum diligence*).
+
 ## Minimum diligence
 The floor of verifiable actions for this review — each leaves a checkable artifact (a quoted line, a named grep, a cited `path:line`) per the admission rule (`references/reviewer-common.md`):
 - Map each changed file to its layer/module and cite the import/reference lines you read to verify the dependency direction.

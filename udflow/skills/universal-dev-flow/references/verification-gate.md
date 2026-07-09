@@ -46,6 +46,8 @@ A fix can turn a previously-green test red. When test ids are parseable from the
 
 **It only ever adds safety; it never false-positives on ambiguity.** If individual test ids cannot be parsed from the output (an opaque runner, a summary-only count, an unparseable format), the baseline stays **empty** and the ratchet makes **no claim** — it does not guess a regression from a changed pass-count. The command exit status (above) remains the authority in that case; the ratchet is a strictly additive, name-the-regressions layer on top, not a replacement for it.
 
+**It also needs a captured pre-change baseline.** The intersection is against the ids that passed *before* the change; udflow does not mandate a separate baseline-capture step, so when no pre-change baseline was recorded the ratchet makes no claim — it is opportunistic and best-effort, firing only when pre-change ids were available (an added-safety layer, not an always-on gate). Making it operative would require emitting parseable test ids and capturing that baseline; that machinery is deliberately not built. The command exit status remains the authority.
+
 ## Browser Evidence
 
 For the live-drive protocol (how to actually drive a real browser) and the `--deep` + UI requirement, see `references/browser-evidence.md`.

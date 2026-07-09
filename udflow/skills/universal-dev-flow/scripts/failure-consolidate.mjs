@@ -9,7 +9,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { parseEntries, resolveMemoryFile, defaultLedgerPath } from "./failure-retrieve.mjs";
+import { parseEntries, resolveMemoryFile, defaultLedgerPath, ledgerKey } from "./failure-retrieve.mjs";
 
 const DAY_MS = 86400000;
 const DEFAULT_STALE_DAYS = 60;
@@ -73,7 +73,7 @@ export function consolidationReport(entries, records, opts = {}) {
   const expireCandidates = [];
   for (const e of live) {
     if (e.retired) continue;
-    const hd = hitDays(e.title);
+    const hd = hitDays(ledgerKey(e.title));
     if (hd > 0) { active.push({ key: e.title, hitDays: hd }); continue; }
     const age = entryAgeDays(e.date, now);
     if (sufficientHistory && age != null && age >= staleDays) {

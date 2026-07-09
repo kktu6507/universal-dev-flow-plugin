@@ -10,7 +10,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildLedgerLines, retrieve, defaultLedgerPath } from "../udflow/skills/universal-dev-flow/scripts/failure-retrieve.mjs";
+import { buildLedgerLines, retrieve, defaultLedgerPath, ledgerKey } from "../udflow/skills/universal-dev-flow/scripts/failure-retrieve.mjs";
 import { readLedger, consolidationReport, formatReport } from "../udflow/skills/universal-dev-flow/scripts/failure-consolidate.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -117,6 +117,26 @@ test("a too-new entry is never an expire candidate even with long history and no
   const records = [{ ts: NOW - 90 * DAY, key: "old-history" }];
   const rep = consolidationReport(parseEntries(fresh), records, { now: NOW, staleDays: 60 });
   assert.deepStrictEqual(rep.expireCandidates, [], "an entry younger than the window must not be flagged");
+});
+
+test("A5: an old long-titled entry with a recent hit logged under the truncated key stays active (not expired)", () => {
+  // The ledger key is ledgerKey(title) = title.slice(0,300) (a shared single source of truth). If
+  // consolidate looked up hits by the FULL title, a >300-char title's hits would never match and the
+  // old entry would be wrongly flagged for expiry. Build a dated, old entry with a >300-char title, log
+  // a recent hit under the truncated key, and assert it is active (hitDays > 0) and NOT an expire candidate.
+  const longTitleText = "stale lesson " + "padding ".repeat(45); // > 300 chars total
+  const mem = `# FM\n\n### 2026-01-01 — ${longTitleText}\n- **Prevention rule**: r.\n- **Tags**: node.\n`;
+  const ents = parseEntries(mem);
+  assert.ok(ents[0].title.length > 300, "the title must exceed the 300-char key bound for this test to bite");
+  const records = [
+    { ts: NOW - 90 * DAY, key: "seed-old-history" },   // establishes >=60d ledger span (sufficient history)
+    { ts: NOW - 2 * DAY, key: ledgerKey(ents[0].title) }, // a recent hit, logged under the TRUNCATED key
+  ];
+  const rep = consolidationReport(ents, records, { now: NOW, staleDays: 60 });
+  assert.strictEqual(rep.staleClaim, "ok");
+  assert.ok(rep.active.some((a) => a.key === ents[0].title && a.hitDays > 0), "the long-titled entry is active");
+  assert.ok(!rep.expireCandidates.some((c) => c.key === ents[0].title),
+    "a hit under the truncated key must keep the entry OUT of expireCandidates");
 });
 
 test("formatReport states it is advisory-only and never modifies the file", () => {

@@ -1179,6 +1179,20 @@ test("validate-structure: reverting the --report full cost table to a single Tok
   } finally { fs.rmSync(tree, { recursive: true, force: true }); }
 });
 
+test("validate-structure: A6 dropping a guarded Fix-Class phrase from gatekeeper.agent.md FAILS (5f guard)", () => {
+  const tree = copyRepoTree();
+  try {
+    // A6: the gatekeeper's Fix-Class safety rule (Extended-Safe / Residual; a Residual fix is "never
+    // auto-applied") is a load-bearing contract. Removing the "never auto-applied" phrase must trip the
+    // §5f contract-invariant guard so a prose edit can't silently gut the never-auto-ship rule.
+    const gk = path.join(tree, "udflow", "agents", "gatekeeper.agent.md");
+    fs.writeFileSync(gk, fs.readFileSync(gk, "utf8").split("never auto-applied").join("XXX"), "utf8");
+    const { code, out } = runValidator(tree);
+    assert.notStrictEqual(code, 0, "dropping a guarded Fix-Class phrase must fail the build");
+    assert.match(out, /never auto-applied/, "the failure must name the dropped Fix-Class literal");
+  } finally { fs.rmSync(tree, { recursive: true, force: true }); }
+});
+
 function sha256File(filePath) {
   return crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
 }
@@ -2546,6 +2560,33 @@ test("destructive-guard: separated-flag fail-open preserved (malformed stdin sti
   assert.strictEqual(out.trim(), "", "unparseable input -> fail open (allow), never crash");
 });
 
+test("destructive-guard F1: bounded separated-flag patterns still ASK on realistic forms (correctness preserved)", () => {
+  // The {0,200} inter-flag bound (added to stop O(n^2) ReDoS backtracking) narrows the two separated-flag
+  // patterns but must not drop any realistic recursive+force delete — a real one carries both flags within a
+  // couple hundred chars, so every separated form (incl. one with ~100 chars between the flags) still asks.
+  for (const command of [
+    "rm -r -f x",
+    "rm -f -r x",
+    "rm --recursive --force x",
+    `rm -r ${"a ".repeat(50)} -f`,      // ~100 chars between the two flags — comfortably within the 200 bound
+  ]) {
+    assert.strictEqual(dguard({ tool_name: "Bash", permission_mode: "default", tool_input: { command } }), "ASK", `should ask: ${command.slice(0, 40)}`);
+  }
+});
+
+test("destructive-guard F1: a pathological rm input returns a decision quickly (linear, not quadratic ReDoS)", () => {
+  // Pre-fix each separated-flag pattern had two unbounded [^;&|]* runs, so many whitespace/newline-separated
+  // `rm ` anchors drove O(n^2) backtracking (~15s+ at this size — the synchronous regex ran to completion
+  // before the 5s stdin watchdog could fire). The {0,200} bound makes it linear: the hook now returns a
+  // decision well under this GENEROUS wall-clock bound. Large margin (node startup + a ~300KB parse) avoids CI flakiness.
+  const command = "rm f\n".repeat(60000); // ~300KB of newline-separated `rm ` anchors, none carrying a flag
+  const t0 = Date.now();
+  const decision = dguard({ tool_name: "Bash", permission_mode: "default", tool_input: { command } });
+  const elapsed = Date.now() - t0;
+  assert.strictEqual(decision, "ALLOW", "`rm f` carries no recursive+force flags, so the guard must not ask");
+  assert.ok(elapsed < 3000, `bounded pattern must return quickly (linear); took ${elapsed}ms`);
+});
+
 test("destructive-guard: PowerShell-native destructive forms (Windows/Copilot) ASK", () => {
   // On Windows the model rewrites POSIX into cmdlets, so `rm -rf` runs as `Remove-Item -Recurse -Force`.
   for (const command of [
@@ -2579,6 +2620,22 @@ test("destructive-guard: git push --force-fast (a non-flag) does NOT false-ask, 
   assert.strictEqual(dguard({ tool_name: "Bash", permission_mode: "default", tool_input: { command: "git push --force-fast origin main" } }), "ALLOW", "a non-existent --force-<suffix> flag must not false-ask");
   assert.strictEqual(dguard({ tool_name: "Bash", permission_mode: "default", tool_input: { command: "git push --force" } }), "ASK", "real --force still asks");
   assert.strictEqual(dguard({ tool_name: "Bash", permission_mode: "default", tool_input: { command: "git push --force-with-lease" } }), "ASK", "real --force-with-lease still asks");
+});
+
+test("destructive-guard A4: a parenthesized subshell running a destructive command ASKS; a benign paren does NOT", () => {
+  // A4: the POSIX-pattern leading anchor now includes '(' so a subshell like `(rm -rf /tmp/x)` is caught
+  // (previously the '(' before `rm` blocked the start/space/separator anchor and it slipped). Char-class
+  // addition only: a '(' immediately before a destructive keyword IS a subshell running it, so asking is
+  // correct — while a paren with NO destructive keyword must still not ask (guard against over-broadening).
+  assert.strictEqual(dguard({ tool_name: "Bash", permission_mode: "default", tool_input: { command: "(rm -rf /tmp/x)" } }), "ASK", "a parenthesized subshell rm -rf must ask");
+  assert.strictEqual(dguard({ tool_name: "Bash", permission_mode: "default", tool_input: { command: "(cd build && make)" } }), "ALLOW", "a subshell with no destructive keyword must not ask");
+});
+
+test("destructive-guard A4: the '(' subshell anchor fires beyond rm (non-rm destructive commands ASK)", () => {
+  // The '(' leading anchor is shared by every POSIX pattern, not just rm — prove it catches a non-rm
+  // destructive keyword inside a subshell too, so the anchor's coverage is not silently rm-only.
+  assert.strictEqual(dguard({ tool_name: "Bash", permission_mode: "default", tool_input: { command: "(git reset --hard)" } }), "ASK", "a subshell git reset --hard must ask");
+  assert.strictEqual(dguard({ tool_name: "Bash", permission_mode: "default", tool_input: { command: "(mkfs.ext4 /dev/sda1)" } }), "ASK", "a subshell mkfs must ask");
 });
 
 test("enforce ON: FIX REQUIRED + delivery=shipped also blocks (the verdict set, not just NOT READY)", () => {
@@ -2815,6 +2872,28 @@ test("contract-guard: flipping behaviorChanging true->false on a retained AC id 
   assert.strictEqual(r.decision, "ASK");
   assert.match(r.reason, /AC-1/);
   assert.match(r.reason, /behaviorChanging would change \(true -> false\)/i, "the ask must name the behaviorChanging field specifically, not just text/verification");
+});
+
+test("contract-guard A3: dropping an id-LESS acceptance criterion (matched by text) asks, naming it as removed", () => {
+  // task-contract.md does not require an `id`. An id-less AC still records a promise, so a REMOVAL must be
+  // caught — matched by exact text and flagged when that text no longer appears in any new AC.
+  const dir = mkCGuardProject();
+  writeContract(dir, contractMd({ acceptanceCriteria: [{ text: "id-less alpha" }, { text: "id-less beta" }] }));
+  const newMd = contractMd({ acceptanceCriteria: [{ text: "id-less alpha" }] }); // beta dropped entirely
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: contractPath(dir), content: newMd } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ASK");
+  assert.match(r.reason, /acceptance criterion "id-less beta" would be removed/, "an id-less removal must be named by its text");
+});
+
+test("contract-guard A3: a benign reorder of id-less ACs (same texts, different order) does NOT ask", () => {
+  // Matching by content (not position) => a pure reorder that preserves every text is not a removal.
+  const dir = mkCGuardProject();
+  writeContract(dir, contractMd({ acceptanceCriteria: [{ text: "id-less alpha" }, { text: "id-less beta" }] }));
+  const reordered = contractMd({ acceptanceCriteria: [{ text: "id-less beta" }, { text: "id-less alpha" }] });
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: contractPath(dir), content: reordered } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ALLOW", "reordering id-less ACs while keeping every text must not ask");
 });
 
 test("contract-guard: removing a mustNotChange entry asks", () => {
@@ -3103,6 +3182,19 @@ test("design.md: first-ever write (no prior file) is allowed (nothing to have lo
   const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: designPath, content: DESIGN_MD } };
   const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
   assert.strictEqual(r.decision, "ALLOW");
+});
+
+test("design.md A2: a whole section removed from a differently-cased basename (Design.md) still asks", () => {
+  // isDesignMdPath folds case, so a tool targeting "Design.md" (or DESIGN.MD) is guarded exactly like
+  // "design.md" — a case-only spelling must not slip a whole-section deletion past the tripwire.
+  const dir = mkCGuardProject();
+  const designPath = path.join(dir, "Design.md"); // differing case, matched by lower-cased basename
+  fs.writeFileSync(designPath, DESIGN_MD, "utf8");
+  const withoutSection = DESIGN_MD.replace("\n## Do's and Don'ts\nNever use pure black on white.\n", "\n");
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: designPath, content: withoutSection } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ASK", "a case-variant Design.md must be guarded like design.md");
+  assert.match(r.reason, /## Do's and Don'ts/, "the ask must name the removed section");
 });
 
 // --- contract-guard: wiring ---

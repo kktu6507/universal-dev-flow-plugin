@@ -43,10 +43,10 @@ function bashLooksDestructive(command) {
   const unquoted = cmd.replace(/'[^']*'|"[^"]*"/g, " ");
   const destructivePatterns = [
     // git history/worktree obliterators
-    /(?:^|[\s;&|])git\s+reset\s+(?:[^;&|]*\s)?--hard\b/i,                                  // discards commits + working tree
-    /(?:^|[\s;&|])git\s+push\s+(?:[^;&|]*\s)?(?:--force(?![\w-])|--force-with-lease=?|-f\b)/i, // rewrites remote history (--force(?![\w-]) so a non-flag like --force-fast doesn't false-ask, while --force-with-lease still matches its own branch)
+    /(?:^|[\s;&|(])git\s+reset\s+(?:[^;&|]*\s)?--hard\b/i,                                  // discards commits + working tree
+    /(?:^|[\s;&|(])git\s+push\s+(?:[^;&|]*\s)?(?:--force(?![\w-])|--force-with-lease=?|-f\b)/i, // rewrites remote history (--force(?![\w-]) so a non-flag like --force-fast doesn't false-ask, while --force-with-lease still matches its own branch)
     // filesystem obliterators
-    /(?:^|[\s;&|])rm\s+(?:-[A-Za-z]*\s+)*-[A-Za-z]*r[A-Za-z]*f|(?:^|[\s;&|])rm\s+(?:-[A-Za-z]*\s+)*-[A-Za-z]*f[A-Za-z]*r/i, // rm -rf / -fr (combined flags)
+    /(?:^|[\s;&|(])rm\s+(?:-[A-Za-z]*\s+)*-[A-Za-z]*r[A-Za-z]*f|(?:^|[\s;&|(])rm\s+(?:-[A-Za-z]*\s+)*-[A-Za-z]*f[A-Za-z]*r/i, // rm -rf / -fr (combined flags)
     // rm with SEPARATED recursive + force flags in any order/spacing — `rm -r -f`, `rm -f -r`, `rm --recursive --force`,
     // `rm -f --recursive`, etc. Requires BOTH a recursive flag (-r / -R / --recursive) AND a force flag (-f / --force) to be
     // present after `rm` (separated by any non-separator run of args/flags, but not crossing a ;|& chain boundary), so a
@@ -55,11 +55,16 @@ function bashLooksDestructive(command) {
     // Accepted over-asks (ask-only, harmless — an extra confirmation, never a missed delete; refining them would need a
     // tokenizer the pragmatism axiom rejects for a fail-open guard): `rm -- -r -f` (after `--` those tokens are filenames,
     // not flags) and a newline-joined `rm -r …\n… -f` (a newline is not in the ;|& chain-boundary set) both ASK.
-    /(?:^|[\s;&|])rm\s+(?:[^;&|]*\s)?(?:-[A-Za-z]*r[A-Za-z]*\b|--recursive\b)[^;&|]*\s(?:-[A-Za-z]*f[A-Za-z]*\b|--force\b)/i, // recursive flag THEN force flag
-    /(?:^|[\s;&|])rm\s+(?:[^;&|]*\s)?(?:-[A-Za-z]*f[A-Za-z]*\b|--force\b)[^;&|]*\s(?:-[A-Za-z]*r[A-Za-z]*\b|--recursive\b)/i, // force flag THEN recursive flag
-    /(?:^|[\s;&|])find\s[^;&|]*\s-delete\b/i,                                              // bulk delete by find
-    /(?:^|[\s;&|])dd\s(?=[^;&|]*\bof=)(?![^;&|]*\bof=(?:\/dev\/null\b|NUL\b))/i,            // dd of=<real device/file> (exempt /dev/null, NUL; reused verbatim from plan-gate — a malformed double-of= with /dev/null anywhere is exempted, but last-of= wins so it'd write /dev/null anyway)
-    /(?:^|[\s;&|])(?:mkfs(?:\.\w+)?|shred)\b/i,                                            // format / unrecoverable wipe
+    // The two inter-flag runs are LENGTH-BOUNDED (`[^;&|]{0,200}`, not `*`): a real recursive+force delete carries
+    // both flags within a couple hundred chars, so the bound keeps every realistic separated form matched (ASK)
+    // while capping per-anchor backtracking to O(1). With an unbounded `*` here, many whitespace/newline-separated
+    // `rm ` anchors drove O(n²) backtracking (a ReDoS the synchronous regex completes before the 5s stdin watchdog
+    // can fire); the extreme-tail miss (>200 chars between the two flags) is acceptable for this ask-only, fail-open guard.
+    /(?:^|[\s;&|(])rm\s+(?:[^;&|]{0,200}\s)?(?:-[A-Za-z]*r[A-Za-z]*\b|--recursive\b)[^;&|]{0,200}\s(?:-[A-Za-z]*f[A-Za-z]*\b|--force\b)/i, // recursive flag THEN force flag ({0,200} bound caps ReDoS backtracking)
+    /(?:^|[\s;&|(])rm\s+(?:[^;&|]{0,200}\s)?(?:-[A-Za-z]*f[A-Za-z]*\b|--force\b)[^;&|]{0,200}\s(?:-[A-Za-z]*r[A-Za-z]*\b|--recursive\b)/i, // force flag THEN recursive flag ({0,200} bound caps ReDoS backtracking)
+    /(?:^|[\s;&|(])find\s[^;&|]*\s-delete\b/i,                                              // bulk delete by find
+    /(?:^|[\s;&|(])dd\s(?=[^;&|]*\bof=)(?![^;&|]*\bof=(?:\/dev\/null\b|NUL\b))/i,            // dd of=<real device/file> (exempt /dev/null, NUL; reused verbatim from plan-gate — a malformed double-of= with /dev/null anywhere is exempted, but last-of= wins so it'd write /dev/null anyway)
+    /(?:^|[\s;&|(])(?:mkfs(?:\.\w+)?|shred)\b/i,                                            // format / unrecoverable wipe
     // PowerShell-native forms (Windows / Copilot CLI): the model rewrites POSIX into cmdlets, so a
     // `rm -rf` request runs as `Remove-Item -Recurse -Force` and the POSIX patterns above never match.
     // Match the cmdlet/alias + a -Recurse-ish flag (PS allows prefix abbreviation, and -r* is unambiguous

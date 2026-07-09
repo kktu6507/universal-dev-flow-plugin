@@ -3,7 +3,78 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [0.33.0] - 2026-07-07
+## [0.34.0] - 2026-07-09
+
+An audit-driven hardening release in three batches: five verified defect fixes + one ReDoS bound in the
+deterministic (non-LLM) layer, four precision-first review-workflow refinements, and repository infrastructure.
+The first two batches were produced **through udflow itself** (dogfood), each ending in a `gatekeeper` `READY`;
+the second batch ran `--deep` (adversarial verification). A git-history check (`git log --all --pickaxe`) first
+confirmed every item was an original gap, not a previously-removed feature.
+
+### Fixed — deterministic layer (batch 1)
+- **`failure-retrieve.mjs` `tokenize()` now retrieves pure-CJK task signatures.** `split(/[^a-z0-9]+/)` dropped
+  every non-ASCII character, so a purely Chinese/Japanese task signature tokenized to nothing and `retrieve()`
+  returned `[]` — the zh-TW/ja audience the project ships docs for got zero failure-memory retrieval. The ASCII
+  path is unchanged; a CJK **character-bigram** pass is added (Hiragana/Katakana, CJK Ext-A, CJK Unified),
+  symmetric across query and entry. Pure-ASCII input is byte-identical, so the `eval/failure-memory/` oracle is untouched.
+- **`contract-guard.js` now matches `design.md` case-insensitively.** `isDesignMdPath` compared the basename
+  case-sensitively while its sibling `isTaskContractPath` already lowercased — so on a case-insensitive filesystem
+  (Windows / macOS, 2 of 3 CI OSes) a write to `Design.md` was the same physical file yet slipped the guard.
+- **`contract-guard.js` now protects an acceptance criterion that lacks an `id`.** id-less ACs (a documented,
+  reachable case — `contract-check.mjs` already handles them via an `(unnamed)` fallback) were silently skipped;
+  they are now matched by exact `text`, so a removed id-less criterion is detected. Reorder does not false-ask.
+- **`destructive-guard.js` catches parenthesized POSIX subshell forms.** Every POSIX pattern anchored on
+  `(?:^|[\s;&|])`, excluding `(`; the PowerShell patterns already included it. `(rm -rf /x)` and `$(rm -rf /x)`
+  now ask. Character-class addition only — no over-broadening (verified: benign parens like `(cd build && make)`,
+  `arr=(rm cp mv)`, `$((count*2))` still allow).
+- **`destructive-guard.js` ReDoS bound (found by the `--deep` security review).** The two separated-flag `rm`
+  patterns held two unbounded `[^;&|]*` runs each, giving O(n²) backtracking on input with many whitespace/newline-
+  separated `rm ` anchors — a synchronous regex the 5s stdin watchdog cannot interrupt (`"rm f\n".repeat(40000)` =
+  200KB → ~7000ms). Bounded to `[^;&|]{0,200}` (→ ~30ms, linear); every realistic separated `rm -r … -f` still asks,
+  a >200-char inter-flag gap is a disclosed accepted miss. Pre-existing (not introduced by the subshell fix), fixed while on the line.
+- **Ledger-key consistency (`failure-retrieve.mjs` ↔ `failure-consolidate.mjs`).** The writer truncated the ledger
+  key to 300 chars while the reader looked it up by the full title, so a >300-char-title entry retrieved recently
+  was falsely reported as an expire candidate — the module violating its own "never make an unjustified staleness
+  claim" promise. A shared exported `ledgerKey()` now keys both sides.
+
+### Added — CI guard (batch 1)
+- **`validate-structure.mjs` now guards the Fix-Class safety literals.** `CONTRACT_INVARIANTS` for
+  `gatekeeper.agent.md` gains `"Extended-Safe"`, `"Residual"`, `"never auto-applied"` (each verified unique to the
+  Fix-Class section; bare `"Safe"` deliberately not guarded), with a negative test — so a prose edit can no longer
+  silently drop the "a Residual fix is never auto-applied" rule. Batch 1 added ~15 hook/script tests (`node --test`: 330 tests, 326 pass, 0 fail, 4 platform-skipped).
+
+### Changed — review workflow (batch 2, `--deep`)
+- **B3 — un-measurable acceptance criteria are flagged.** `plan-grounding.md` Stage B contract-readiness now checks
+  **per-criterion** measurability (an observable pass/fail — a test, command, or observable state), not just
+  "at least one observable AC"; `planner-creator.agent.md` surfaces a `not measurable` flag anchored to the criterion.
+  Soft, high-risk-only, precision-guarded (never a terse-but-checkable criterion). Targets the documented #1 weakness (intent).
+- **B4 — `architecture-reviewer.agent.md` gains a `## Boundary with other reviewers` section**, mirroring
+  `code-reviewer`'s, making the local-quality-(code-reviewer)-vs-structural-(architecture-reviewer) line explicit.
+- **B2 — `spec-reviewer.agent.md` gains a bounded `## Exported-API / contract-break lens`** (removed/renamed exported
+  symbol, changed signature/return/error contract, changed serialization/wire/config shape, breaking input/output
+  narrowing), gated on public-surface changes and grep-verify-before-asserting — a sharpening of its existing
+  "API or behavior contracts must match the intended design" standard, modeled on `code-reviewer`'s silent-failure lens.
+- **C2 — the regression ratchet is honestly downgraded.** `gatekeeper.agent.md` and `verification-gate.md` now state
+  the ratchet needs a **captured pre-change baseline** (a recorded set of pre-change passing test ids), which udflow
+  does not mandate as a separate step — so absent that capture it makes **no** claim and is an opportunistic,
+  best-effort safety layer, not an always-on gate (the command exit status stays the authority). This also honestly
+  documents the deliberately-unbuilt half (parseable test-id emission + baseline capture). Consistent with
+  `reviewer-selection.md`'s "full-suite green already implies the ratchet" (that rests on green-suite ⇒ ∅ intersection).
+
+### Repository infrastructure (not part of the shipped `udflow/` tree)
+- `.github/PULL_REQUEST_TEMPLATE.md`; `.github/ISSUE_TEMPLATE/config.yml` (`blank_issues_enabled: false` + a private
+  security-report contact link) with a new `.github/ISSUE_TEMPLATE/bug-report.yml` so the tracker stays curated
+  without blocking defect reports; `.github/dependabot.yml` scanning the `github-actions` ecosystem only (the repo
+  has zero runtime/dev dependencies — the only version surface is the pinned Action SHAs).
+
+### Notes
+- **No existing machine literal changed** — verdicts / severities / sentinels / opt-out keys are byte-identical; the
+  A6 change only *adds* three Fix-Class phrases to the CI guard. Hook count (6) and agent count (10) are unchanged, so
+  README ×3 / `ARCHITECTURE.md` / `SECURITY.md` need no surface edit. Version bumped 0.33.0 → 0.34.0 across
+  `plugin.json`, `package.json`, and `marketplace.json` (metadata + plugin entry). `node --test` (330) +
+  `validate-structure` green.
+
+
 
 ### Added
 - **`contract-guard.js` — a sixth PreToolUse hook guarding the two contract-level artifacts a run depends on against silent weakening by a Write/Edit/MultiEdit.** Content-based, NOT actor-based: like every other hook, it only ever sees `tool_name`/`tool_input`/`cwd`/`permission_mode`, never who or what agent is driving the call — this is stated precisely in the hook's own header comment. For `output/udflow/contract.md` (root-anchored path): a strict field-level diff over the first ` ```json ` block — every old `acceptanceCriteria[]` id must keep its `text`/`behaviorChanging`/`verification`, every old `mustNotChange[]` / `allowedPaths[]` / `forbiddenPaths[]` entry must survive verbatim, and `risk` may never be silently downgraded (an increase, e.g. medium→high, is never flagged). The file's first-ever write (no prior file, or a prior file with no parseable JSON block) is **always** allowed unconditionally — the sanctioned case `references/task-contract.md` documents. For `design.md` (matched by basename anywhere, not root-anchored, since `design-spec.md` sanctions a non-root path): a narrow whole-section-deletion tripwire — only a `## ` heading present in the old content with zero exact-normalized match in the new content is flagged; a normal section-body edit, expansion, or reduction to an "n/a" placeholder is never flagged. Any finding emits `permissionDecision: "ask"` (never `"deny"`) naming exactly what would be lost; a project may opt out via `"udflow": { "contractGuard": false }` in `.claude/settings.json` (local overrides project, same fail-safe precedence as `destructiveGuard`/`planGate`). Deliberately does not parse Bash-based rewrites of either file (an accepted, documented gap, same posture as `destructive-guard.js`'s own misses) and adds no external dependency. `references/task-contract.md` and `references/design-spec.md` each gain a one-sentence cross-reference.

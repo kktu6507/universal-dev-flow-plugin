@@ -9,7 +9,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  tokenize, parseEntries, scoreEntry, retrieve, formatRetrieval,
+  tokenize, parseEntries, scoreEntry, retrieve, formatRetrieval, buildLedgerLines, ledgerKey,
 } from "../udflow/skills/universal-dev-flow/scripts/failure-retrieve.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -120,6 +120,41 @@ test("retrieve breaks a score tie by recency then recurrence", () => {
   assert.match(got[0].entry.title, /newer shared lesson/, "newer entry wins the tie");
 });
 
+// --- CJK retrieval round-trip (A1) ---
+
+test("retrieve surfaces a Chinese entry for a related CJK query and not for an unrelated one", () => {
+  // Before A1 the ASCII-only split dropped CJK entirely, so a Chinese title/tags/query tokenized to
+  // nothing and the lesson was unreachable. Character-bigram tokenization makes it retrievable while
+  // staying symmetric (query and entry both pass through the same tokenize()).
+  const mem = `# FM
+
+### 2026-07-01 — 登入逾時問題
+- **Prevention rule**: 增加重試機制。
+- **Tags**: 登入, 逾時.
+`;
+  const got = retrieve(mem, "登入逾時", { top: 5 });
+  assert.ok(got.length >= 1, "a related CJK query must surface the CJK entry");
+  assert.match(got[0].entry.title, /登入逾時問題/, "the CJK entry ranks #1 for its own signature");
+  // Precision: an unrelated CJK query shares no bigram with the entry, so it must not surface it.
+  assert.ok(!retrieve(mem, "資料庫連線", { top: 5 }).some((m) => /登入逾時問題/.test(m.entry.title)),
+    "an unrelated CJK query must NOT surface the entry (no false recall)");
+});
+
+test("retrieve surfaces a MIXED Chinese+ASCII entry for a mixed query (A1: CJK pass composes with the ASCII pass)", () => {
+  // Real lessons often mix an ASCII framework name with Chinese prose. tokenize() runs the ASCII word split
+  // and the CJK bigram pass over the SAME string, so a mixed query must retrieve a mixed entry — proving the
+  // two passes compose (neither shadows the other) rather than one dropping the other's tokens.
+  const mem = `# FM
+
+### 2026-07-05 — React 元件 render 錯誤問題
+- **Prevention rule**: 檢查 props 後再 render。
+- **Tags**: react, 元件.
+`;
+  const got = retrieve(mem, "React 元件 render", { top: 5 });
+  assert.ok(got.length >= 1, "a mixed CJK+ASCII query must surface the mixed entry");
+  assert.match(got[0].entry.title, /React 元件 render 錯誤問題/, "the mixed entry ranks #1 for its own signature");
+});
+
 // --- unit: formatRetrieval ---
 
 test("formatRetrieval labels matches as untrusted reference data and embeds the full entries", () => {
@@ -133,6 +168,21 @@ test("formatRetrieval emits a single no-claim line when nothing matched", () => 
   const out = formatRetrieval([], { file: "ai/FAILURE_MEMORY.md" });
   assert.match(out, /no matching failure-memory entries/i);
   assert.ok(!/###/.test(out), "no entry bodies in a no-match report");
+});
+
+// --- recording side: ledger key truncation (A5) ---
+
+test("buildLedgerLines records a >300-char title under a key truncated to exactly 300 chars (A5 writer side)", () => {
+  // The reader (failure-consolidate.mjs) looks up hits by ledgerKey(title) = title.slice(0, 300). Pin the
+  // WRITER side of that shared contract: a pathological long title is recorded under the same 300-char key,
+  // so a long-titled entry's hits still match on read (else it is wrongly flagged an expire candidate).
+  const longTitle = "2026-07-09 — " + "x".repeat(400); // > 300 chars
+  const mem = `# FM\n\n### ${longTitle}\n- **Tags**: node.\n`;
+  const matches = retrieve(mem, "node", { top: 1 });
+  assert.ok(matches.length >= 1, "the long-titled entry must be retrievable to record a hit");
+  const key = JSON.parse(buildLedgerLines(matches, { query: "node", now: 1000 })[0]).key;
+  assert.strictEqual(key.length, 300, "the recorded ledger key is truncated to exactly 300 chars");
+  assert.strictEqual(key, ledgerKey(matches[0].entry.title), "and equals ledgerKey(title) — one shared source of truth");
 });
 
 // --- the committed eval (eval/failure-memory) ---
