@@ -28,6 +28,8 @@ following.) When unsure whether a change is perceptible, ask rather than default
   wired only to events Claude Code actually accepts it on — the compact-fidelity/PreCompact bug class);
   distribution hygiene; text integrity; multilingual README parity (EN / zh-TW / ja).
 - `node --check` on all six hooks; `node --test` (behavioral hook tests).
+- `zizmor` (separate `zizmor.yml`, version-pinned CLI) — static security analysis of the workflow
+  files themselves: unpinned action refs, template injection, over-broad `permissions:`.
 - `claude plugin validate` — **best-effort, non-blocking** (Linux-only; the Claude Code CLI may not
   run fully headless in CI).
 
@@ -36,8 +38,12 @@ Claude Code session actually loads and fires the plugin after install — that n
 auth, which is why `claude plugin validate` is best-effort. Do the check below by hand before (or
 right after) a release that touches hooks, the skill, `hooks.json`, or the manifests.
 
-The release job also publishes a source archive of the shipped `udflow/` plugin tree and a SHA-256 file.
-Verify it with the command that matches your platform:
+The release job also publishes a source archive of the shipped `udflow/` plugin tree and a SHA-256 file,
+and attaches a signed **SLSA build-provenance attestation** to that archive (via `actions/attest-build-provenance`,
+after publish, `continue-on-error` so it never blocks a release). A consumer proves *origin* — that the archive
+was built by this repo's CI at the release commit — with `gh attestation verify udflow-vX.Y.Z-plugin.tar.gz
+--repo kktu6507/universal-dev-flow-plugin`, complementing the checksum below (which proves only integrity).
+Verify the checksum with the command that matches your platform:
 
 Linux / GNU coreutils:
 ```bash

@@ -57,8 +57,9 @@ before enabling.
 ## Supply chain & integrity (current posture)
 
 udflow is distributed as **source**: `marketplace add` clones the repo. Releases support opt-in signed
-tags and publish a checksum-bearing archive of the shipped plugin tree when the release workflow runs.
-Build provenance / SLSA remains future work. Reduce trust risk by:
+tags, publish a checksum-bearing archive of the shipped plugin tree, and attach a signed **SLSA build-
+provenance attestation** to that archive (so a consumer can prove it came from this repo's CI at the
+release commit) when the release workflow runs. Reduce trust risk by:
 
 - **Pin what you install.** Prefer a **tagged release** or a specific commit SHA over a moving branch.
   The official community-marketplace listing (when live) pins a reviewed commit SHA — the strongest
@@ -67,8 +68,10 @@ Build provenance / SLSA remains future work. Reduce trust risk by:
   the shipped plugin's `hooks/` directory (repo path: `udflow/hooks/`); the whole plugin is small
   enough to read before enabling. There is no compiled artifact and no third-party runtime
   dependency to trust.
-- **Verify release material.** Use `git verify-tag vX.Y.Z` for signed tags when available, and compare
-  the release archive against its `.sha256` file when assets are present.
+- **Verify release material.** Use `git verify-tag vX.Y.Z` for signed tags when available, compare
+  the release archive against its `.sha256` file, and verify its build provenance when assets are present:
+  `gh attestation verify udflow-vX.Y.Z-plugin.tar.gz --repo kktu6507/universal-dev-flow-plugin` — this
+  proves the archive was built by this repo's CI (origin), which the checksum alone (integrity) cannot.
 - **Run [`/udflow:doctor`](udflow/skills/doctor/SKILL.md)** after install to confirm the hooks behave
   as documented (fires + fails open) in your environment.
 
@@ -93,4 +96,13 @@ failure-memory file — with no project or global failure-memory file present th
   `RELEASING.md`.
 - **Release checksums — wired.** The release job publishes `udflow-vX.Y.Z-plugin.tar.gz` plus
   `udflow-vX.Y.Z-plugin.tar.gz.sha256` for the shipped `udflow/` tree.
-- **Build provenance** — consider SLSA provenance for releases (future).
+- **Build provenance — wired (SLSA Build L2).** The release job
+  ([`.github/workflows/validate.yml`](.github/workflows/validate.yml)) attaches a signed provenance
+  attestation to the release archive via [`actions/attest-build-provenance`](https://github.com/actions/attest-build-provenance)
+  (pinned by SHA). It proves *origin* — that the archive was built by this repo's CI at the release commit —
+  which the checksum (integrity only) cannot. Verify:
+  `gh attestation verify udflow-vX.Y.Z-plugin.tar.gz --repo kktu6507/universal-dev-flow-plugin`.
+  Additive and gated like tag signing: a provenance hiccup never blocks a release.
+- **Workflow static analysis — wired.** [`zizmor`](https://github.com/zizmorcore/zizmor) scans the CI
+  workflows on every PR/push (a version-pinned CLI, no third-party Action added) for unpinned action refs,
+  template injection, and over-broad permissions — hardening the CI that ships the auto-executing hooks.
