@@ -3,6 +3,51 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.35.0] - 2026-07-10
+
+Reviewer/gatekeeper **reliability sharpening** — apply the evidence-backed de-correlation levers from a
+2026-07-10 external-research pass (CRITIC / Kamoi: LLM self-correction works only with *external* feedback;
+Huang 2024: unaided self-review degrades; the multi-agent-debate martingale). The theme validates udflow's
+existing instincts, so these **sharpen** existing rules rather than add mass. Dogfooded through
+`udflow --deep` to a gatekeeper `READY`; the deep panel caught a real drift bug (below).
+
+### Changed — review-agent prose
+- **Tool-grounded blocker gate** (`agents/gatekeeper.agent.md`, *Validate each BLOCKER*): the confirming
+  "one independent check" must now yield an **observable artifact** — a command's exit status, a now-red
+  test, or a quoted line from the actual file — **not a re-reasoned restatement** of the finding (a same-model
+  re-read that only re-asserts the claim shares its blind spot). A blocker supported only by "the model read
+  it again and still thinks so" stays **downranked — never deleted: it is still surfaced to you**; a blocker
+  whose named input was actually run and observed to fail is fully confirmed and unaffected.
+- **Chain-of-Verification "factored" option** (`references/deep-mode.md`, Tier-2 adversarial verification):
+  prefer rephrasing a finding into a neutral, context-free sub-question answered **blind to the claim** ("in
+  `<file>`, what happens when `<condition>`?") and comparing the independent answer — a verifier that never
+  sees the claim can't inherit its framing. Complements (does not replace) the majority refutation verifiers;
+  falls back to direct refutation when a finding can't be cleanly factored.
+- **Rubric-anchored severity** (`references/reviewer-common.md` + its verbatim mirror in
+  `references/review-packet.md`): grade a finding's severity against the **written requirement / acceptance
+  criteria / `design.md` (or the implied contract) as the fixed reference**, not against how plausible it
+  merely *looks* — while a finding that violates a stated criterion, or that demonstrably crashes / leaks /
+  corrupts / returns a wrong result, stays `major` regardless.
+
+### Added — CI guard (root-cause, found by the `--deep` panel)
+- The deep-mode architecture reviewer found (and adversarial verification confirmed) that the severity-rubric
+  rule had been added to `reviewer-common.md` (the source of truth) but **not mirrored** into the
+  `review-packet.md` "Shared reviewer contract" block — **the only copy a spawned reviewer actually
+  receives** — so it was inert for its audience and the two files silently diverged. Fixed the instance (the
+  mirror) **and the class:** `.github/scripts/validate-structure.mjs` 5k `RIGOR_ANCHORS` now pins
+  `"as the fixed reference"`, so CI machine-enforces the reviewer-common ↔ review-packet dual write for this
+  rule going forward (same "guard load-bearing prose, don't rely on luck" pattern as the 0.34.0 Fix-Class guard).
+
+### Notes
+- **Considered and deliberately NOT adopted:** the pr-agent "self-reflection *elimination* pass" (re-score all
+  findings, DELETE the un-re-derivable ones) — redundant with udflow's existing downrank-unverified +
+  per-blocker validation, and a *deletion* pass contradicts udflow's "downrank, never delete; human-in-the-loop"
+  core. C1 captures the useful core (make weak blockers prove themselves) without a suppression mechanism.
+- **No machine literal changed** — verdicts / severities / sentinels / opt-out keys / Fix-Class phrases are
+  byte-identical; the 5k change only *adds* an anchor. Hook (6) and agent (10) counts unchanged. Version bumped
+  0.34.0 → 0.35.0 across `plugin.json`, `package.json`, `marketplace.json` (reviewer/gatekeeper behavior is
+  user-perceptible). `node --test` (330: 326 pass / 0 fail / 4 platform-skipped) + `validate-structure` green.
+
 ## [0.34.0] - 2026-07-09
 
 An audit-driven hardening release in three batches: five verified defect fixes + one ReDoS bound in the
