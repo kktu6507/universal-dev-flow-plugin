@@ -44,7 +44,7 @@ function isTaskContractPath(targetPath, input) {
 // documented non-root path for design.md, so this deliberately does NOT root-anchor (unlike contract.md).
 function isDesignMdPath(targetPath) {
   if (!targetPath) return false;
-  try { return path.basename(String(targetPath)) === "design.md"; } catch (e) { return false; }
+  try { return path.basename(String(targetPath)).toLowerCase() === "design.md"; } catch (e) { return false; }
 }
 
 // Read the current on-disk content of a target. Absence / unreadable is NOT an error here — it just
@@ -116,7 +116,16 @@ function diffContractJson(oldC, newC) {
   const oldACs = Array.isArray(oldC.acceptanceCriteria) ? oldC.acceptanceCriteria : [];
   const newACs = Array.isArray(newC.acceptanceCriteria) ? newC.acceptanceCriteria : [];
   for (const a of oldACs) {
-    if (!a || typeof a.id === "undefined") continue;
+    if (!a) continue;
+    if (typeof a.id === "undefined") {
+      // id-less AC: no id to pair old<->new for a field-level diff, but a REMOVAL must still be caught.
+      // Match by exact text; flag when the text no longer appears in any new AC. Skip only when there is
+      // no text either (nothing identifiable to protect). Matching by content (not position) => no
+      // false-ask on reorder. `id` is not required per references/task-contract.md.
+      if (typeof a.text === "undefined") continue;
+      if (!newACs.some((b) => b && b.text === a.text)) reasons.push(`acceptance criterion "${a.text}" would be removed or its text changed`);
+      continue;
+    }
     const match = newACs.find((b) => b && b.id === a.id);
     if (!match) { reasons.push(`acceptance criterion "${a.id}" would be removed`); continue; }
     if (match.text !== a.text) reasons.push(`acceptance criterion "${a.id}" text would change ("${a.text}" -> "${match.text}")`);
