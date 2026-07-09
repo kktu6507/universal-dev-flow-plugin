@@ -25,6 +25,8 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          persist-credentials: false   # this job only reads code + runs tests; no git push needs the token
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
         with:
           node-version: "20"
@@ -62,7 +64,7 @@ jobs:
         continue-on-error: true
         shell: bash
         run: |
-          npm install -g @anthropic-ai/claude-code || exit 0
+          npm install -g @anthropic-ai/claude-code || exit 0   # adhoc-packages exception is in .github/zizmor.yml (a run-block finding can't take an inline zizmor comment)
           # Validate BOTH the marketplace (repo root) and the shipped plugin (./udflow).
           # The plugin manifest is in udflow/.claude-plugin/plugin.json, so validating
           # only the root would never check the plugin itself.
@@ -84,7 +86,9 @@ jobs:
       cancel-in-progress: false
     runs-on: ubuntu-latest
     permissions:
-      contents: write   # push the tag and create the release (overrides the read-only default)
+      contents: write       # push the tag and create the release (overrides the read-only default)
+      id-token: write       # mint the short-lived OIDC token attest-build-provenance signs with
+      attestations: write   # write the SLSA build-provenance attestation for the release archive
     env:
       # Tag signing is OPT-IN + gated: with the UDFLOW_SIGN_PRIVATE_KEY secret set, release tags are GPG-signed
       # (GitHub "Verified"); without it the flow is unchanged (unsigned annotated tag). See SECURITY.md.
@@ -93,7 +97,7 @@ jobs:
       # for an intentional repair of missing/mismatched release archive assets.
       UDFLOW_REPAIR_PUBLISHED_RELEASE_ASSETS: ${{ vars.UDFLOW_REPAIR_PUBLISHED_RELEASE_ASSETS == 'true' && 'true' || 'false' }}
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0 # zizmor: ignore[artipacked] the release job's publish-release.mjs runs `git push origin <tag>` to push the (optionally signed) release tag, so this checkout must keep the token; the tree is never uploaded as an artifact
         with:
           fetch-depth: 0   # need existing tags to detect whether this version is already released
       - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
@@ -118,3 +122,27 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: node .github/scripts/publish-release.mjs
+
+      # SLSA build provenance: attest the PUBLISHED archive so a consumer can prove it came from THIS
+      # repo's CI at THIS commit (`gh attestation verify`). We download the just-published asset and
+      # attest it by content — this deliberately does NOT touch publish-release.mjs (the deterministic
+      # archive is already out), and re-attesting the same deterministic bytes on a no-version-bump push
+      # is idempotent/harmless (verification finds a matching attestation regardless of count). Both steps
+      # are continue-on-error: like GPG tag signing, a provenance hiccup must NEVER fail an
+      # already-published release — provenance is strictly additive.
+      - name: Download the published release archive (for attestation)
+        id: download_archive
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./udflow/.claude-plugin/plugin.json').version")"
+          mkdir -p _attest
+          gh release download "v${version}" --pattern '*-plugin.tar.gz' --dir _attest --clobber
+      - name: Attest build provenance for the release archive
+        if: steps.download_archive.outcome == 'success'
+        continue-on-error: true
+        uses: actions/attest-build-provenance@0f67c3f4856b2e3261c31976d6725780e5e4c373 # v4.1.1
+        with:
+          subject-path: _attest/*-plugin.tar.gz
