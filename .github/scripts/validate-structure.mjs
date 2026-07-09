@@ -351,12 +351,13 @@ if (fs.existsSync(path.join(root, packetRel))) {
 }
 
 // 5k. Rigor-contract dual-write guard — the claims-evidence discipline (admission rule, evidence
-// grading, self-refutation, two-channel output) lives in BOTH references/reviewer-common.md (the
-// source of truth) and the review-packet.md "Shared reviewer contract" verbatim block (the ONLY copy
-// a spawned reviewer ever receives — review-packet.md's sync mandate). A drift that drops one side
-// silently guts the contract for every reviewer while CI stays green. Narrow literal-presence
-// anchors only, no wording constraints — same philosophy as 5f/5j.
-const RIGOR_ANCHORS = ["Admission to the findings index", "Evidence grading", "refute your strongest finding", /[Tt]wo channels/];
+// grading, self-refutation, severity-rubric anchoring, two-channel output) lives in BOTH
+// references/reviewer-common.md (the source of truth) and the review-packet.md "Shared reviewer
+// contract" verbatim block (the ONLY copy a spawned reviewer ever receives — review-packet.md's sync
+// mandate). A drift that drops one side silently guts the contract for every reviewer while CI stays
+// green. Narrow literal-presence anchors only, no wording constraints — same philosophy as 5f/5j.
+// ("as the fixed reference" pins the severity-rubric rule (C3), added after it drifted into one file.)
+const RIGOR_ANCHORS = ["Admission to the findings index", "Evidence grading", "refute your strongest finding", "as the fixed reference", /[Tt]wo channels/];
 for (const rel of [
   `${PLUGIN}/skills/universal-dev-flow/references/reviewer-common.md`,
   `${PLUGIN}/skills/universal-dev-flow/references/review-packet.md`,
