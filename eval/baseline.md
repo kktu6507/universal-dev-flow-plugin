@@ -2,11 +2,18 @@
 
 Last run of the `eval/fixtures/` suite (method: `README.md`).
 
-- **Date:** 2026-06-28
-- **Reviewer under test:** `udflow:code-reviewer` on `claude-opus-4-8` — blind (shown only intent + code).
-- **Independent judge:** a separate agent on `claude-opus-4-8` (separate context + prompt). Same model
-  *family* — same-model judging is a known caveat (`ARCHITECTURE.md`, *Honest limits*); acceptable for a
+- **Date:** 2026-07-10 (Workflow run `wf_46b49fed-910` — 21 agents, 0 errors, per the committed
+  [`fixture-eval.workflow.js`](fixture-eval.workflow.js) protocol).
+- **Reviewer under test:** `udflow:code-reviewer` on `claude-fable-5` (the session model via
+  `model: inherit`) — blind (shown only intent + code).
+- **Independent judge:** a separate agent, also on `claude-fable-5` (separate context + prompt). Same
+  model — same-model judging is a known caveat (`ARCHITECTURE.md`, *Honest limits*); acceptable for a
   suite that measures **change over time**, not absolute truth.
+- **Provenance history:** the prior record (2026-06-28, `claude-opus-4-8`) scored the same 5/5 + 2/2 —
+  the scores held across BOTH the 0.32.0→0.38.0 reviewer-prompt changes AND the opus-4-8 → fable-5
+  model change: no regression on this suite. (2026-07-10 detail: every `hit` fixture was flagged with
+  the exact ground-truth defect as a blocker; `07`'s only remark was an explicitly-cosmetic minor note —
+  allowed for a `clean` control.)
 
 ## Scores
 
@@ -40,6 +47,7 @@ A same-input run — each fixture reviewed **K=5** times (blind), 2026-06-28, `c
 fixtures are *deliberately clear-cut*, so this measures the **best-case** stability — genuinely
 ambiguous/subtle cases vary more (see `ARCHITECTURE.md`, *Verdict stability*). The verdict's deterministic
 anchors (test exit status, acceptance criteria) are what to lean on; the judgment layer is advisory.
+(Dated historical record — the K=5 stability pass was **not** re-run on 2026-07-10.)
 
 ## How to re-run
 

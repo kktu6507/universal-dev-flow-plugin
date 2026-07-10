@@ -176,6 +176,14 @@ against so drift is visible:
 
 - **Last live-smoked:** Claude Code — the compaction-fidelity `SessionStart·compact` path verified via a
   real `/compact` (2026-06-28); GitHub Copilot CLI **1.0.65** — hooks + skills load-verified.
+- **2026-07-10 — in-session partial verification (NOT the full smoke):** Claude Code **2.1.206** /
+  Windows 11 — the `universal-dev-flow` skill engaged for a real task (step 8's equivalent), and
+  `plan-gate.js` live-fired during a real plan-mode phase via its `~/.claude/plans/` write-exemption path
+  (the plan-mode deny path was not triggered live; it is covered behaviorally by the test suite), with the
+  suite green including the newly-added `contract-guard` syntax check. The full 8-step clean-profile
+  **Manual activation smoke was NOT run** and remains an open pre-/post-release action for the maintainer —
+  0.34.0 added the `contract-guard` hook without a recorded smoke; this line makes that gap visible instead
+  of silent.
 - **When Claude Code changes a hook-output contract** (a new/removed event, or a changed accepted shape):
   update `HSO_ACCEPT_EVENTS` / the `WIRING` table in `.github/scripts/validate-structure.mjs`, re-run this
   smoke, and update the line above.
