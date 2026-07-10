@@ -1,6 +1,8 @@
 // Shared infrastructure for the per-subject hook/CI test files (split 2026-07-10 from the former
-// test/hooks.test.mjs monolith; helper bodies are byte-preserved moves). NOT a test file: the name
-// carries no ".test." infix, so `node --test` never treats it as one.
+// test/hooks.test.mjs monolith; helper bodies are byte-preserved moves). Note: bare `node --test`
+// discovers EVERY .mjs under test/, so this file runs as one contentless always-passing entry in
+// the suite totals (it defines no test()); the ".test."-less name is for human clarity, not runner
+// semantics. Accepted: excluding it would need quoted globs (Node ≥21 only; CI floor is 20).
 import cp from "node:child_process";
 import crypto from "node:crypto";
 import fs from "node:fs";

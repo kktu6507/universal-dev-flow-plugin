@@ -18,6 +18,16 @@ test("hooks.json wires the Stop hook to orchestration-check.js", () => {
 
 // --- orchestration-check Stop hook (finding D) ---
 
+test("orchestration-check: oversized stdin fails open (no advisory, no crash)", () => {
+  // Mirrors the sibling hooks' over-cap stdin tests: the MAX_STDIN cap (added 0.40.0 to match
+  // the other five hooks) must make an over-cap Stop event a silent no-op, never a crash.
+  const big = "x".repeat(6 * 1024 * 1024);
+  const input = JSON.stringify({ transcript_path: "does-not-exist.jsonl", pad: big });
+  const r = cp.spawnSync("node", [ORCH], { input, maxBuffer: 64 * 1024 * 1024 });
+  assert.strictEqual(r.status, 0, "over-cap stdin must exit 0 (fail open)");
+  assert.strictEqual((r.stdout || "").toString().trim(), "", "over-cap stdin must emit no advisory output");
+});
+
 test("orchestration-check fails open (silent) on an over-cap transcript (>32MB)", () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "udflow-bigtx-"));
   const p = path.join(dir, "transcript.jsonl");
@@ -751,14 +761,16 @@ test("orchestration-check: panel sentinel — non-exemptible names are never exe
   // even with a green verify — the whitelist (EXEMPTIBLE), not the sentinel, decides. A mixed list
   // exempts ONLY the whitelisted test-reviewer. One table-driven test, three rows, preserving each
   // original row's distinct assertion messages.
+  // rowNames carry the full pre-split test names verbatim (incl. the section prefix), so
+  // name-keyed tooling (--test-name-pattern, CI history) keeps continuity across the split.
   for (const row of [
-    { rowName: "substituted:spec-reviewer is NOT exemptible (advisory still names it)",
+    { rowName: "orchestration-check: panel sentinel — substituted:spec-reviewer is NOT exemptible (advisory still names it)",
       ran: [P_TEST, P_GK], sentinel: "udflow:panel=substituted:spec-reviewer",
       stillNamed: /spec-reviewer did not run/, stillNamedMsg: "and must still name spec-reviewer" },
-    { rowName: "substituted:gatekeeper is NOT exemptible (advisory still names it)",
+    { rowName: "orchestration-check: panel sentinel — substituted:gatekeeper is NOT exemptible (advisory still names it)",
       ran: [P_SPEC, P_TEST], sentinel: "udflow:panel=substituted:gatekeeper",
       stillNamed: /gatekeeper did not run/, stillNamedMsg: "gatekeeper can never be substituted away" },
-    { rowName: "a mixed list exempts ONLY test-reviewer (spec-reviewer still named)",
+    { rowName: "orchestration-check: panel sentinel — a mixed list exempts ONLY test-reviewer (spec-reviewer still named)",
       ran: [P_GK], sentinel: "udflow:panel=substituted:test-reviewer,spec-reviewer",
       stillNamed: /incomplete — spec-reviewer did not run/,
       stillNamedMsg: "the missing list must contain exactly spec-reviewer (test-reviewer exempted)",
