@@ -19,6 +19,11 @@ a prose clarification that doesn't change guidance, internal doc-alignment, or f
 for an explicitly-stated "no hook/behavior change"; those stand as history, not a precedent to keep
 following.) When unsure whether a change is perceptible, ask rather than default to bumping.
 
+Going forward (2026-07-10), new `CHANGELOG.md` entries use Keep-a-Changelog grouped bullets
+(Added / Changed / Fixed / Removed), not long narratives — long design rationale belongs in commit
+messages and PR descriptions. Entries up to and including 0.29.0 are archived in
+[`docs/changelogs/CHANGELOG-0.x.md`](docs/changelogs/CHANGELOG-0.x.md).
+
 ## What CI already gates (automatic, on every PR + push)
 
 - `validate-structure.mjs` — manifests parse; `plugin.json` / `marketplace.json` / `package.json` /
