@@ -25,6 +25,7 @@ Follow `Detect → Use → Else-Disclose` (see `references/external-capabilities
   - the edge/boundary handling that **already exists** (so the plan does not redo what is covered);
   - the real contracts, types, and data shapes touched;
   - adjacent code that constrains the change (invariants, locks, transaction boundaries);
+  - the **callers/callees of the touched symbols** — a lean `Grep`-level coupling scan (not a full call-graph) — so the plan does not miss coupled code that must change too (a top omission source);
   - the unknowns the scout could **not** confirm (state them honestly; do not guess);
   - for UI / design-system / interaction scope, whether a `design.md` design contract exists and applies (`references/design-spec.md`) — and, when one is needed but absent, a recommendation to establish one (the scout detects and recommends; it does not author it).
 - **Anti-hallucination**: a claim about the code is usable only with concrete `file:line` evidence; mark anything unverified as unverified and do not fold it into the contract (the same evidence discipline as `references/reviewer-common.md`).
