@@ -41,6 +41,7 @@ const REQUIRED = ["spec-reviewer", "test-reviewer", "gatekeeper"];
 // so a sentinel naming them changes nothing — the floor holds even against a persuasive final summary.
 const EXEMPTIBLE = new Set(["test-reviewer"]);
 const MAX_TRANSCRIPT = 32 * 1024 * 1024; // cap the synchronous transcript read; fail-open (skip) above it
+const MAX_STDIN = 5 * 1024 * 1024; // cap stdin buffering (bytes) — the Stop event JSON, not the transcript (capped separately above)
 
 // Opt-in HARD enforcement (default OFF). When UDFLOW_ENFORCE_STOP is truthy, the single highest-
 // confidence, fully sentinel-based signal — a real id-bound gatekeeper blocking verdict AND an explicit
@@ -49,6 +50,7 @@ const MAX_TRANSCRIPT = 32 * 1024 * 1024; // cap the synchronous transcript read;
 // model always controls a one-token escape (emit udflow:delivery=held). Trap-risk + disengage: README.
 const ENFORCE = /^(1|true|yes|on)$/i.test(String(process.env.UDFLOW_ENFORCE_STOP || ""));
 
+// debug() kept in sync with plan-gate.js / destructive-guard.js / contract-guard.js / load-failure-memory.js / compact-fidelity.js (documented copy — see P3 garden hash guard)
 function debug(msg) {
   if (!process.env.UDFLOW_HOOK_DEBUG) return;
   try { fs.appendFileSync(path.join(os.tmpdir(), "udflow-hook.log"), "[orchestration-check] " + msg + "\n"); } catch (e) {}
@@ -191,11 +193,17 @@ function panelSentinel(text) {
   return names.length ? { mode: "substituted", names } : null;
 }
 
+// stdin reader kept in sync with plan-gate.js / destructive-guard.js / contract-guard.js / load-failure-memory.js / compact-fidelity.js (documented copy — see P3 garden hash guard)
 let raw = "";
+let rawBytes = 0;
 process.stdin.setEncoding("utf8");
 process.stdin.on("error", () => process.exit(0));
 const _wd = setTimeout(() => process.exit(0), 5000); _wd.unref();
-process.stdin.on("data", (c) => { raw += c; });
+process.stdin.on("data", (c) => {
+  raw += c;
+  rawBytes += Buffer.byteLength(c, "utf8");
+  if (rawBytes > MAX_STDIN) { debug("stdin over cap; skipping"); try { process.stdin.pause(); } catch (e) {} process.exit(0); }
+});
 process.stdin.on("end", () => {
   try {
     const input = JSON.parse(raw || "{}");
@@ -299,7 +307,6 @@ process.stdin.on("end", () => {
       }
     }
     const verdict = lastVerdict(verdictParts.join("\n"));
-    const finalReportsBlock = /\b(NOT READY|FIX REQUIRED)\b/.test(finalText);
     const finalClaimsComplete = claimsComplete(finalText);
     const finalShipReady = claimsShipReady(finalText);
     const finalHoldsDelivery = holdsDelivery(finalText);
@@ -328,7 +335,7 @@ process.stdin.on("end", () => {
         : []
     );
     const unmet = missing.filter((n) => !exempted.has(n));
-    debug("verdict=" + verdict + " claimsComplete=" + finalClaimsComplete + " reportsBlock=" + finalReportsBlock +
+    debug("verdict=" + verdict + " claimsComplete=" + finalClaimsComplete + " reportsBlock=" + /\b(NOT READY|FIX REQUIRED)\b/.test(finalText) +
       " shipReady=" + finalShipReady + " holds=" + finalHoldsDelivery + " sentinel=" + finalDelivery +
       " verify=" + finalVerify + " panel=" + (finalPanel ? finalPanel.mode + (finalPanel.names.length ? ":" + finalPanel.names.join(",") : "") : null) +
       " delivers=" + sessionDelivers + " ran=[" + [...ran].join(",") + "] unmet=[" + unmet.join(",") + "]");

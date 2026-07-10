@@ -5,17 +5,17 @@ Loaded only when a task has **browser-visible UI changes** and verification need
 ## When it applies (two levels)
 
 - **Standard mode (best-effort).** For any local browser-visible UI change, capture browser evidence if a browser capability is present; if not, record the exact blocker and fallback (unchanged from `references/verification-gate.md`). Absence is a documented gap, not a hard stop.
-- **Tier-2 `--deep` + UI in scope (required).** When deep mode (`references/deep-mode.md`) is engaged and the change touches UI, actually driving the browser is a **required** verification step: real navigation + interaction + a screenshot of each changed state. If the web app is not already running, udflow first **brings it up** per `references/app-launch.md` (delegate to `/run` → `preview_start` → documented run command; auto-launch + disclose + tear down only what it started). If no live browser capability is available — or the app cannot be launched — this becomes a **disclosed verification gap** the `gatekeeper` weighs; it does not silently pass. Never a hard dependency: absence is disclosed, never an error.
+- **Tier-2 `--deep` + UI in scope (required).** When deep mode (`references/deep-mode.md`) is engaged and the change touches UI, actually driving the browser is a **required** verification step: real navigation + interaction + a screenshot of each changed state. If the web app is not already running, udflow first **brings it up** per `references/app-launch.md` (delegates to `/run`; discloses; tears down only what it started). If no live browser capability is available — or the app cannot be launched — this becomes a **disclosed verification gap** the `gatekeeper` weighs; it does not silently pass. Never a hard dependency: absence is disclosed, never an error.
 
 ## Detect → Use → Else-Disclose
 
 Follow the protocol in `references/external-capabilities.md`.
 
 1. **Detect** a live browser capability, in preference order:
-   - **Claude in Chrome extension** — `mcp__Claude_in_Chrome__*` (navigate; find / read_page / get_page_text; computer / form_input for interaction; read_console_messages; read_network_requests; screenshot). Preferred for a web app on the user's real Chrome.
-   - **Claude Preview** — `mcp__Claude_Preview__*` (preview_start / preview_navigate / preview_screenshot) when a built dev-server preview is the right surface.
+   - **Chrome-extension server** (e.g. `mcp__claude-in-chrome__*`) — navigate; find / read_page / get_page_text; computer / form_input for interaction; read_console_messages; read_network_requests; screenshot. Preferred for a web app on the user's real Chrome.
+   - **A server exposing `preview_start`** (e.g. `mcp__Claude_Browser__*` — preview_start / preview_navigate / preview_screenshot) when a built dev-server preview is the right surface.
    - **Playwright MCP** — `mcp__playwright__*` when a reviewer/host has it wired (headless automation).
-2. **Use** the first available: first ensure the app is reachable — attach if it is already running, else (in `--deep`) bring it up per `references/app-launch.md` — then navigate to the changed route/screen, exercise the changed state(s), capture a screenshot, and read console + network for errors.
+2. **Use** the first available: first ensure the app is reachable (attach, else in `--deep` bring it up per `references/app-launch.md`) — then navigate to the changed route/screen, exercise the changed state(s), capture a screenshot, and read console + network for errors.
 3. **Else** (none connected): do not claim a live check ran. Record the exact blocker, do the best local fallback (e.g. a component/render test), and disclose the gap + remaining uncertainty. In `--deep` + UI this is the disclosed gap above. If the Chrome extension is installed but cannot drive (no connected tab, permission/tier error), disclose it as **detected-but-could-not-execute, with the reason** (per `references/external-capabilities.md`), not as "not installed".
 
 ## Who drives it (reviewer independence + token economy)
@@ -60,4 +60,4 @@ Driving a **real, authenticated** browser is a sensitive capability — treat it
 - This drives a real authenticated browser and stores screenshots — treat the session reads and the captured images as **sensitive** (see *Data sensitivity* above); never paste sensitive evidence into a public report.
 - Reviewers stay read-only and isolated; only the main thread drives the browser.
 - Vision cost stays in `--deep` / `--report full`; the compact path is text-only.
-- Language: user-facing text follows the user's language; identifiers, MCP tool names, paths, and the machine-checked tokens stay verbatim (see `SKILL.md`, Language And Text Integrity).
+- Language: per `SKILL.md` *Language And Text Integrity* — user-facing text follows the user's language; technical contracts verbatim.

@@ -288,6 +288,7 @@ trust model については [`SECURITY.md`](SECURITY.md)（英語）を、releas
 - [`docs/how-to-read-verdicts.md`](docs/how-to-read-verdicts.md)（英語）- `READY` / `FIX REQUIRED` / `NOT READY` の意味。
 - [`docs/compatibility.md`](docs/compatibility.md)（英語）- tested runtime と conformance smoke checklist。
 - [`docs/advanced/external-capabilities.md`](docs/advanced/external-capabilities.md)（英語）- optional な MCP、Codex、browser、design capabilities。
+- [`udflow/examples/FAILURE_MEMORY.sample.md`](udflow/examples/FAILURE_MEMORY.sample.md)（英語）- 記入済みの failure-memory サンプル（entry template + retire markers）。
 - [`EVIDENCE.md`](EVIDENCE.md)（英語）- real-world と benchmark の evidence log。
 - [`ARCHITECTURE.md`](ARCHITECTURE.md)（英語）- component map、stable contract、limits。
 - [`SECURITY.md`](SECURITY.md)（英語）- trust model、安全なインストール、vulnerability reporting。

@@ -11,6 +11,7 @@ const fs = require("fs");
 
 const MAX_STDIN = 5 * 1024 * 1024; // cap to avoid unbounded buffering of a large tool_input (bytes)
 
+// debug() kept in sync with destructive-guard.js / contract-guard.js / load-failure-memory.js / compact-fidelity.js / orchestration-check.js (documented copy — see P3 garden hash guard)
 function debug(msg) {
   if (!process.env.UDFLOW_HOOK_DEBUG) return;
   try { fs.appendFileSync(path.join(os.tmpdir(), "udflow-hook.log"), "[plan-gate] " + msg + "\n"); } catch (e) {}
@@ -69,6 +70,7 @@ function bashLooksLikePlanWrite(command) {
   // Drop quoted spans first so a literal ">" inside quotes doesn't count. Kept simple and
   // non-recursive so a multi-MB hostile string can't overflow the regex stack; a stray
   // apostrophe in an unquoted word can still mis-pair (an accepted, tested miss).
+  // quote-stripper regex kept in sync with destructive-guard.js (documented copy — see P3 garden hash guard)
   const unquoted = cmd.replace(/'[^']*'|"[^"]*"/g, " ");
   const obviousWritePatterns = [
     // redirect to a file (>, >>, &>) after start/space/separator; exempt fd-dups (2>&1),
@@ -100,6 +102,7 @@ function bashLooksLikePlanWrite(command) {
 // project dir from CLAUDE_PROJECT_DIR, falling back to the event's cwd. FAIL-SAFE toward the
 // safety net: a missing file, parse error, oversized config, or any read error counts as
 // "not disabled" (keep enforcing), so a broken settings file can never silently drop the gate.
+// settings-flag reader (DisabledForProject + readFlag pair) kept in sync with destructive-guard.js / contract-guard.js / compact-fidelity.js (documented copy — see P3 garden hash guard)
 function planGateDisabledForProject(input) {
   try {
     const root = process.env.CLAUDE_PROJECT_DIR || (input && input.cwd) || "";
@@ -127,6 +130,7 @@ function readPlanGateFlag(file) {
   } catch (e) { return undefined; }
 }
 
+// stdin reader kept in sync with destructive-guard.js / contract-guard.js / load-failure-memory.js / compact-fidelity.js / orchestration-check.js (documented copy — see P3 garden hash guard)
 let raw = "";
 let rawBytes = 0;
 process.stdin.setEncoding("utf8");

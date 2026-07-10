@@ -44,6 +44,8 @@ npm test
 
 The tests exercise the Claude Code hook scripts (`udflow/hooks/*.js`) as CLI programs and preserve the **fail-open** and **plan-gate** behavior. `node .github/scripts/validate-structure.mjs` runs the structure / distribution-hygiene checks.
 
+**Testing notes:** snapshot testing via node:test `t.assert.snapshot` was evaluated 2026-07-10 and deferred — it is flag-free only on Node ≥ 23.4 while CI pins Node 20; revisit when the CI floor moves (audit fixlist P2-29 `[d]`).
+
 ## Pull requests
 
 1. Keep the change scoped.

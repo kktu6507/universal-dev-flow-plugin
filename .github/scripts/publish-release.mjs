@@ -71,7 +71,7 @@ function tryRun(runner, cmd, args, options) {
   }
 }
 
-export function classifyReleaseViewFailure(error) {
+function classifyReleaseViewFailure(error) {
   const text = errorDetails(error);
   if (/not found|could not resolve to a Release|HTTP 404/i.test(text)) return "not-found";
   return "fatal";

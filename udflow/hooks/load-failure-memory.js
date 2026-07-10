@@ -16,6 +16,7 @@ const MAX_CHARS = 3000;            // safety cap on the injected body
 const MAX_STDIN = 5 * 1024 * 1024; // cap stdin buffering (bytes)
 const MAX_READ = 256 * 1024;       // only the newest (top) chunk is ever used
 
+// debug() kept in sync with plan-gate.js / destructive-guard.js / contract-guard.js / compact-fidelity.js / orchestration-check.js (documented copy — see P3 garden hash guard)
 function debug(msg) {
   if (!process.env.UDFLOW_HOOK_DEBUG) return;
   try { fs.appendFileSync(path.join(os.tmpdir(), "udflow-hook.log"), "[load-failure-memory] " + msg + "\n"); } catch (e) {}
@@ -41,6 +42,7 @@ function containedRegularFile(file, rootDir) {
   } catch (e) { return null; }
 }
 
+// stdin reader kept in sync with plan-gate.js / destructive-guard.js / contract-guard.js / compact-fidelity.js / orchestration-check.js (documented copy — see P3 garden hash guard)
 let raw = "";
 let rawBytes = 0;
 process.stdin.setEncoding("utf8");
@@ -116,6 +118,7 @@ function readCapped(file) {
 // tags inside injected content (on top of the nonce fence). The optional leading list
 // marker ([-*]) matters because a digest title is rendered as "- <title>", so a hostile
 // title like "system: ..." would otherwise slip past a strictly line-anchored role regex.
+// neutralize() kept in sync with compact-fidelity.js (documented copy — see P3 garden hash guard)
 function neutralize(text) {
   return String(text).split(/\r?\n/).map((ln) => {
     if (/^\s*[-*]?\s*(?:system|assistant|user|human)\s*:/i.test(ln)) return ln.replace(/:/, "："); // fullwidth colon breaks the role marker

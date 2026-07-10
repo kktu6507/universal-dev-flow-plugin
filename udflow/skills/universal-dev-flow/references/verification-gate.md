@@ -103,7 +103,7 @@ To make this retrieval **deterministic instead of a best-effort grep**, run the 
 node ${CLAUDE_PLUGIN_ROOT}/skills/universal-dev-flow/scripts/failure-retrieve.mjs --query "src/auth/login.ts node jsdom ci-test" [--file <path>] [--top 5]
 ```
 
-It parses the same `### ` entries, scores each by tag/title/body overlap with the signature (a tag hit outweighs a title hit outweighs a body hit), drops retired (`expired`/`superseded`) and placeholder entries, and returns the top matches' verbatim markdown. Fail-open: an absent/unstructured file or no sufficiently-relevant match yields a no-claim line and exit 0 — it is a ranking aid, **not** a gate, and never replaces reading the file when judgment calls for it. The retrieval recall/precision is regression-guarded by the committed `eval/failure-memory/` oracle (`test/failure-retrieve.test.mjs`).
+It parses the same `### ` entries, scores each by tag/title/body overlap with the signature (a tag hit outweighs a title hit outweighs a body hit), drops retired (`expired`/`superseded`) and placeholder entries, and returns the top matches' verbatim markdown. Fail-open: an absent/unstructured file or no sufficiently-relevant match yields a no-claim line and exit 0 — it is a ranking aid, **not** a gate, and never replaces reading the file when judgment calls for it. The retrieval recall/precision is regression-guarded in the source repo's committed oracle + tests (https://github.com/kktu6507/universal-dev-flow-plugin/tree/master/eval/failure-memory).
 
 **Single writer:** the failure-memory file is shared mutable state and reviewers run in parallel, so only one actor writes it — the **main thread**, after the verdict, from the `gatekeeper`'s decision. Reviewers and the implementer only *propose* entries; the `gatekeeper` rules on them and proposes the exact final entry text, but does not write the file either (it holds no editor tools). This avoids lost-update / interleaved-write corruption (the "reread global first" step below is a lockless read-modify-write and is only safe with a single writer).
 
@@ -146,7 +146,7 @@ Consolidate as part of the write step when you notice overlap; do not let the fi
 To make consolidation **data-driven instead of by-feel**, the retrieval helper records usage and a second helper aggregates it:
 
 - During planning, run `scripts/failure-retrieve.mjs` with **`--log`** so each entry it surfaces for a real task signature is appended to a sibling **append-only** ledger (`.failure-memory-usage.jsonl`, next to the memory file — **never** inside it; recording a hit must not touch the single-writer `FAILURE_MEMORY.md`). A "hit" means the entry was *relevant to real work*.
-- At the consolidation step, run `scripts/failure-consolidate.mjs` for a deterministic prune advisory: it lists **retired** entries (delete on the next write) and **expire candidates** — dated entries old enough and never matched within the window. It is honest by construction: an empty ledger or insufficient history makes **no** staleness claim (it never says "expire everything" from missing data), and undated or too-new entries are never flagged.
+- At the consolidation step, run `node ${CLAUDE_PLUGIN_ROOT}/skills/universal-dev-flow/scripts/failure-consolidate.mjs` for a deterministic prune advisory: it lists **retired** entries (delete on the next write) and **expire candidates** — dated entries old enough and never matched within the window. It is honest by construction: an empty ledger or insufficient history makes **no** staleness claim (it never says "expire everything" from missing data), and undated or too-new entries are never flagged.
 - The advisory is **evidence, not an action**: the `gatekeeper` decides what to actually merge/retire/delete, and the main thread (the single writer) applies those edits verbatim after the verdict. The ledger is local runtime telemetry — gitignore it; deleting it just resets the counts.
 
 ## Failure Memory Entry Template
@@ -171,7 +171,7 @@ Reusable failure lessons. Newest first. Keep entries concise and prevention-orie
 - **Recurrence**: note and increment if this lesson recurs (e.g. "seen again 2026-06-19").
 ```
 
-When appending to an existing file, reuse its headings exactly; do not introduce a competing schema. Mark recurrences on the existing entry instead of creating a duplicate.
+When appending to an existing file, reuse its headings exactly; do not introduce a competing schema. Mark recurrences on the existing entry instead of creating a duplicate. A filled-in example (including the retire markers) lives at `examples/FAILURE_MEMORY.sample.md` in the shipped plugin.
 
 ## Artifact Hygiene
 

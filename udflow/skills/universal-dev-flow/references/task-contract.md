@@ -67,5 +67,4 @@ contract — do not duplicate, route the same content here.
 
 - **Never a hard dependency.** No contract ⇒ checker makes no claim, gatekeeper uses prose judgment.
 - **Gitignored, never committed** into the consuming repo.
-- **Language.** Body follows the user's language; identifiers, paths, JSON keys, and the
-  machine-checked tokens stay verbatim (`SKILL.md`, Language And Text Integrity).
+- **Language.** Per `SKILL.md` *Language And Text Integrity* — user-facing text follows the user's language; technical contracts verbatim.

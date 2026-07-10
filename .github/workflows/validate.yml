@@ -55,7 +55,8 @@ jobs:
       - name: Run hook tests
         shell: bash
         run: |
-          test -f test/hooks.test.mjs   # guard: never let "0 tests found" pass as green
+          # guard: never let "0 tests found" pass as green
+          for f in test/helpers.mjs test/plan-gate-guards.test.mjs test/orchestration-check.test.mjs test/session-memory-hooks.test.mjs test/release-publisher.test.mjs test/validate-structure.test.mjs; do test -f "$f"; done
           node --test
 
       # Best-effort: the official validator. Linux-only and non-blocking because it

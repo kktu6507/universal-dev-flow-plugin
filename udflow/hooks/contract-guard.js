@@ -20,6 +20,7 @@ const fs = require("fs");
 
 const MAX_STDIN = 5 * 1024 * 1024; // cap to avoid unbounded buffering of a large tool_input (bytes)
 
+// debug() kept in sync with plan-gate.js / destructive-guard.js / load-failure-memory.js / compact-fidelity.js / orchestration-check.js (documented copy — see P3 garden hash guard)
 function debug(msg) {
   if (!process.env.UDFLOW_HOOK_DEBUG) return;
   try { fs.appendFileSync(path.join(os.tmpdir(), "udflow-hook.log"), "[contract-guard] " + msg + "\n"); } catch (e) {}
@@ -193,6 +194,7 @@ function diffDesignHeadings(oldContent, newContent) {
 // "udflow": { "contractGuard": false } in .claude/settings.json (or settings.local.json, which takes
 // precedence). Mirrors plan-gate.js's / destructive-guard.js's opt-out exactly, including the FAIL-SAFE:
 // a missing file, parse error, oversized config, or any read error counts as "not disabled" (keep asking).
+// settings-flag reader (DisabledForProject + readFlag pair) kept in sync with plan-gate.js / destructive-guard.js / compact-fidelity.js (documented copy — see P3 garden hash guard)
 function contractGuardDisabledForProject(input) {
   try {
     const root = process.env.CLAUDE_PROJECT_DIR || (input && input.cwd) || "";
@@ -220,6 +222,7 @@ function readGuardFlag(file) {
   } catch (e) { return undefined; }
 }
 
+// stdin reader kept in sync with plan-gate.js / destructive-guard.js / load-failure-memory.js / compact-fidelity.js / orchestration-check.js (documented copy — see P3 garden hash guard)
 let raw = "";
 let rawBytes = 0;
 process.stdin.setEncoding("utf8");

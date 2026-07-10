@@ -16,6 +16,7 @@ const fs = require("fs");
 
 const MAX_STDIN = 5 * 1024 * 1024; // cap to avoid unbounded buffering of a large tool_input (bytes)
 
+// debug() kept in sync with plan-gate.js / contract-guard.js / load-failure-memory.js / compact-fidelity.js / orchestration-check.js (documented copy — see P3 garden hash guard)
 function debug(msg) {
   if (!process.env.UDFLOW_HOOK_DEBUG) return;
   try { fs.appendFileSync(path.join(os.tmpdir(), "udflow-hook.log"), "[destructive-guard] " + msg + "\n"); } catch (e) {}
@@ -40,6 +41,7 @@ function bashLooksDestructive(command) {
   // Kept simple/non-recursive so a multi-MB hostile string can't overflow the regex stack. A stray
   // word-internal apostrophe can mis-pair and blank an unquoted span (e.g. "won't … rm -rf … it's"),
   // an accepted, documented miss identical to plan-gate's — this is a best-effort net, not a shell parser.
+  // quote-stripper regex kept in sync with plan-gate.js (documented copy — see P3 garden hash guard)
   const unquoted = cmd.replace(/'[^']*'|"[^"]*"/g, " ");
   const destructivePatterns = [
     // git history/worktree obliterators
@@ -82,6 +84,7 @@ function bashLooksDestructive(command) {
 // precedence). Mirrors plan-gate.js's planGateDisabledForProject exactly, including the FAIL-SAFE:
 // a missing file, parse error, oversized config, or any read error counts as "not disabled" (keep
 // asking), so a broken settings file can never silently drop the safety net.
+// settings-flag reader (DisabledForProject + readFlag pair) kept in sync with plan-gate.js / contract-guard.js / compact-fidelity.js (documented copy — see P3 garden hash guard)
 function destructiveGuardDisabledForProject(input) {
   try {
     const root = process.env.CLAUDE_PROJECT_DIR || (input && input.cwd) || "";
@@ -109,6 +112,7 @@ function readGuardFlag(file) {
   } catch (e) { return undefined; }
 }
 
+// stdin reader kept in sync with plan-gate.js / contract-guard.js / load-failure-memory.js / compact-fidelity.js / orchestration-check.js (documented copy — see P3 garden hash guard)
 let raw = "";
 let rawBytes = 0;
 process.stdin.setEncoding("utf8");

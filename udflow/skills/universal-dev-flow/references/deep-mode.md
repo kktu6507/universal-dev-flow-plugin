@@ -1,15 +1,10 @@
----
-name: deep-mode
-description: Optional deterministic review/repair. Tier-1 enforcement (panel/gatekeeper as a Workflow) may auto-engage on high-risk work when a Workflow capability is present; Tier-2 deeper verification (adversarial checks, max effort) stays explicit opt-in.
----
-
 # Deep Mode (ultracode / Workflow leverage)
 
 Deep mode makes the review/repair core **deterministic** instead of model-followed prose: the selected reviewer panel, the gatekeeper barrier, and the repair loop are expressed as a Workflow so they actually run. It follows udflow's Detect → Use → Else-Disclose protocol and never becomes a hard dependency. A skill cannot enable ultracode (it is a harness mode); deep mode only detects the signal and adapts.
 
 Deep mode raises **depth, not breadth.** The reviewer *selection* is unchanged — still the smallest sufficient set from `reviewer-selection.md`. It never adds reviewers. Conversely, the *evidence-substitution fast lane* (`reviewer-selection.md`) never applies to deep-mode work — either tier, including work where Tier 1 auto-engages: deep signals exactly the risk class where substituting a reviewer is not allowed.
 
-The downward cost knob is separate: `--lite` (see `reviewer-selection.md`, *Lite path*) lowers **breadth** — it forces the smallest panel and skips deep mode for small, low-risk changes, the counterpart to `--deep` raising depth. Deep manages the depth ceiling; lite manages the breadth floor (with a safety floor that keeps a needed safety reviewer and discloses it). Both are opt-in and orchestrator-followed.
+The downward cost knob is separate: `--lite` (see `reviewer-selection.md`, *Lite path*) lowers **breadth** — it forces the smallest panel and skips the costlier deep-mode **Tier 2** for small, low-risk changes, the counterpart to `--deep` raising depth. Deep manages the depth ceiling; lite manages the breadth floor (with a safety floor that keeps a needed safety reviewer and discloses it). Both are opt-in and orchestrator-followed.
 
 ## Two tiers (enforcement is cheap; extra effort is not)
 
@@ -45,7 +40,7 @@ When the Workflow capability is available:
 3. **Adversarial verification** — for each blocker/major finding, fan out 2–3 independent verifiers and keep only findings supported by a majority. This is the fuller form of the lean, always-on rule that the `gatekeeper` runs in **every** mode (`agents/gatekeeper.agent.md`, *Auto-fix loop rules*: validate each blocker with **one** independent check, and tag each applied fix Safe / Extended-Safe / **Residual**); Tier 2 deepens that single check into a multi-verifier majority, it does not replace it. Prefer the **factored** form when a finding can be cleanly rephrased: instead of handing each verifier the *claim* ("is X a real bug?"), turn it into a neutral, context-free sub-question answered **blind to the claim** ("in `<file>`, what happens when `<condition>`?") and compare the independent answer against the claim — a verifier that never sees the claim cannot inherit its framing (Chain-of-Verification). Fall back to direct refutation when a finding can't be cleanly factored. This complements the refutation verifiers; it does not replace them.
 4. **Loop-until-dry repair** — implement → verify → review repeats until a round produces no new blocker/major (still subject to the Auto-fix loop's hard iteration cap and Stuck Summary).
 5. **Effort** — run `gatekeeper` and `security-reviewer` at maximum reasoning effort; low-risk leaf reviewers use the default. Their larger output is the most likely to overflow a schema-validated call, so honor the Tier-1 fallback (item 1) — native two-channel prose, never a dropped reviewer.
-6. **App launch** — when verification needs a live process (a web app for browser evidence, or a backend/API server for integration checks) that is **not already running**, bring it up per `references/app-launch.md` (Detect → Use → Else-Disclose): attach if already up; else delegate to the built-in `/run` skill (then `mcp__Claude_Preview__*` `preview_start`, then a documented repo run command), auto-launching without a second prompt (`--deep` is the opt-in) but **disclosing** that it launched; tear down only what udflow started. An app that cannot be launched is a disclosed gap the gatekeeper weighs — never an error.
+6. **App launch** — when verification needs a live process (a web app for browser evidence, or a backend/API server for integration checks) that is **not already running**, bring it up per `references/app-launch.md` (delegates to `/run`; discloses; tears down only what it started). An app that cannot be launched is a disclosed gap the gatekeeper weighs — never an error.
 7. **Live browser evidence** — when UI is in scope, drive the real browser (`references/browser-evidence.md`) as a *required* verification step (Detect → Use → Else-Disclose), after the app is reachable (item 6); an unavailable browser capability is a disclosed gap the gatekeeper weighs. This adds vision-token cost, consistent with Tier 2 being the cost-raising, opt-in tier.
 
 ## Else (no Workflow capability, or opted out)
