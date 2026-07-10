@@ -307,6 +307,7 @@ test("Bash tripwire: obvious working-tree writes are denied in plan mode", () =>
     "truncate -s0 f",                // truncate, no space
     "dd if=/dev/zero of=out.bin bs=1 count=1", // dd writing via of=
     "(dd if=/dev/zero of=out.bin bs=1 count=1)", // dd via of= inside a subshell — `(` is an anchor too
+    "((dd if=/dev/zero of=out.bin bs=1 count=1))", // nested subshell — the inner `(` still anchors (single-char class, no paren balancing)
     "ln -s ../secret link",          // symlink creation
     "ln target.txt hardlink.txt",    // hard link creation
     "ls; ln -sf a b",                // ln after a chain separator
@@ -336,6 +337,7 @@ test("Bash tripwire: read-only / benign commands are allowed in plan mode", () =
     "perl -pe 's/a/b/' app.txt",    // perl -pe (no -i) writes to stdout, not the file
     "dd if=/dev/zero of=/dev/null bs=1 count=1", // of=/dev/null excluded
     "(dd if=/dev/zero of=/dev/null bs=1 count=1)", // of=/dev/null exemption holds inside a subshell too
+    "(dd if=/dev/zero of=NUL bs=1 count=1)", // of=NUL exemption holds inside a subshell too (Windows null device)
     "dd if=disk.img bs=1M | sha256sum", // dd without of= writes stdout, not a file
     "cat truncate.md",              // 'truncate' as an argument, not the command
     "grep -n println src/app.rs",   // 'ln' inside a word is not the ln command
@@ -1004,6 +1006,7 @@ test("validate-structure: passes on a clean copy of the repo (control)", () => {
   const tree = copyRepoTree();
   try {
     assert.ok(!fs.existsSync(path.join(tree, "output")), "copyRepoTree must not drag run-scratch output/ into the temp tree");
+    assert.ok(!fs.existsSync(path.join(tree, ".claude")), "copyRepoTree must not drag machine-private .claude/ into the temp tree");
     assert.strictEqual(runValidator(tree).code, 0, "the validator must pass on an unmodified copy");
   } finally { fs.rmSync(tree, { recursive: true, force: true }); }
 });
@@ -2158,6 +2161,7 @@ test("destructive-guard: ALLOWS benign / recoverable / quoted commands (narrow d
     "rm -r dir",                       // -r without -f
     "find . -name '*.tmp'",            // no -delete
     "dd if=disk.img of=/dev/null bs=1M",  // of=/dev/null exempt
+    "(dd if=disk.img of=/dev/null bs=1M)", // of=/dev/null exemption holds inside a subshell too
     "echo \"rm -rf /\"",               // quoted literal, not a real command
     "git log --oneline -20",
   ]) {
