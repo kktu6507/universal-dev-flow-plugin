@@ -61,6 +61,8 @@ jobs:
 
       # Best-effort: the official validator. Linux-only and non-blocking because it
       # requires the Claude Code CLI, which may not run fully headless in CI.
+      # --strict (treat warnings as errors) locally-verified 2026-07-10 on CLI 2.1.206: passes on
+      # both . and ./udflow, including the plugin.json $schema key.
       - name: claude plugin validate (best-effort)
         if: runner.os == 'Linux'
         continue-on-error: true
@@ -70,8 +72,8 @@ jobs:
           # Validate BOTH the marketplace (repo root) and the shipped plugin (./udflow).
           # The plugin manifest is in udflow/.claude-plugin/plugin.json, so validating
           # only the root would never check the plugin itself.
-          claude plugin validate . || echo "marketplace validate could not run headless; the checks above are the gate."
-          claude plugin validate ./udflow || echo "plugin validate could not run headless; the checks above are the gate."
+          claude plugin validate --strict . || echo "marketplace validate could not run headless; the checks above are the gate."
+          claude plugin validate --strict ./udflow || echo "plugin validate could not run headless; the checks above are the gate."
 
   # Auto-publish the release once Validate passes: the plugin manifest version is the
   # source of truth. If no matching tag/release exists, cut the annotated tag + GitHub

@@ -1,0 +1,28 @@
+# typos (crate-ci/typos) configuration — consumed by .github/workflows/typos.yml.
+# NOTE the filename: typos also reads `_typos.toml`, but this repo's validate-structure §6
+# scanScratch guard treats leading-underscore files as uncommittable scratch, so the equally
+# supported `typos.toml` name is used instead.
+
+[files]
+# The CJK READMEs mix scripts and romanized terms (a false-positive surface with no EN dictionary
+# value), and the pre-0.30 changelog archive is frozen history that is never edited.
+extend-exclude = ["README.zh-TW.md", "README.ja.md", "docs/changelogs/"]
+
+[default.extend-words]
+# Project terms, accepted as-is (identity mapping = "this word is valid"). Conservative seed:
+# typos only flags dictionary-known misspellings, so most coined terms never trip it anyway.
+udflow = "udflow"
+kktu = "kktu"
+subagent = "subagent"
+subagents = "subagents"
+gitignored = "gitignored"
+ratchet = "ratchet"
+
+# First-run baseline (PR #89, 2026-07-11): every hit was verified intentional — zero real
+# typos. Each token below is whitelisted with its reason; remove an entry only after
+# confirming no remaining intentional use.
+unparseable = "unparseable" # legitimate variant spelling (vs "unparsable"), used consistently in prose AND in test-assertion strings that must not drift
+mis = "mis"                 # hyphenated prefix tokens: "mis-pair(s)", "mis-simulate", "mis-executing" (typos tokenizes at the hyphen)
+releas = "releas"           # regex stem in orchestration-check.js: releas(?:e|ing) — machine content, never edit
+OT = "OT"                   # uppercase-run token from "OTPs" (one-time passwords) in browser-evidence.md
+fo = "fo"                   # PowerShell abbreviated -fo (Force) flag inside a destructive-guard deny-list TEST FIXTURE command
