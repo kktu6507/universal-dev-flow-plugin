@@ -3,6 +3,43 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.36.0] - 2026-07-10
+
+Phase 2 of the improvement roadmap: a **Review-Packet diff packer** — the highest-value borrow from the
+2026-07-10 external research (qodo-ai/pr-agent's deterministic PR-compression, minus its weight). Dogfooded
+through udflow to a gatekeeper `READY`; the review panel caught a real content-loss bug (below).
+
+### Added
+- **`scripts/pack-review-diff.mjs` — a new (4th) zero-dependency session script** that reorders + line-numbers
+  + down-ranks a unified `git diff` for reviewer focus. The orchestrator pipes the base diff through it
+  (`git diff <base> -- <paths> | node …/pack-review-diff.mjs`) to produce the Review Packet's "Changed diff":
+  files grouped by language and ordered by substantive change size, hunks rendered with new-side line numbers
+  (so reviewers cite `file:line`), deletion-only / whitespace-only hunks ranked last. A pure stdin→stdout
+  transform, Node built-ins only.
+  - **The "reorder, never hide" guardrail (G1) is the whole point:** the packer only reorders/annotates — it
+    **never silently drops content**. Deletion & whitespace hunks are ranked last, never removed; an optional
+    `--max-lines` trim is DISCLOSED (a `⚠️` trailer naming the trimmed files + a regenerate pointer), never
+    silent; and it **fails open to the raw diff** on any unparseable input, so it is never worse than today.
+    The existing "a filtered diff is a starting point, not a cap" reviewer contract is preserved.
+- `test/pack-review-diff.test.mjs` — 17 tests pinning G1 (deletion/whitespace retained-but-last, default
+  preserves every changed line, disclosed-trim, fail-open passthrough), ranking, line-numbering, binary/rename
+  provenance, CRLF, and the **faithful-or-raw-passthrough** invariant across every region a `+`/`-` line can appear.
+
+### Fixed (panel + repair, same release)
+- The standard panel (spec/test/code/architecture) found — and reproduced — a **G1 violation**: a `git diff`
+  whose hunk carried an unparseable line (e.g. a blank context line whose trailing space was trimmed → a bare
+  empty line mid-hunk) silently dropped the rest of the hunk instead of passing through. Fixed by making
+  `parseDiff` reconstruct **faithfully or fall back to raw** — a bare `""` is treated as a blank context line,
+  and any `+`/`-` line that can't be placed in a hunk (mid-hunk **or in the preamble before the first
+  `diff --git`**) forces raw passthrough. Also fixed: rename/binary provenance was dropped on a rename-with-edit,
+  a pure rename was labelled with the old path, and a spaced filename kept git's trailing tab. All test-pinned.
+
+### Notes
+- **No machine literal changed**; hook (6) and agent (10) counts unchanged. `ARCHITECTURE.md` updated 3 → 4
+  session scripts. Version bumped 0.35.0 → 0.36.0 (a new capability exists) across `plugin.json`,
+  `package.json`, `marketplace.json`. `node --test` (347: 343 pass / 0 fail / 4 platform-skipped) +
+  `validate-structure` green. The packer is off the enforced path — a reviewer keeps full Read/Grep freedom.
+
 ## [0.35.0] - 2026-07-10
 
 Reviewer/gatekeeper **reliability sharpening** — apply the evidence-backed de-correlation levers from a
