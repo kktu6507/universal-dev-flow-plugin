@@ -179,16 +179,38 @@ before — `hookSpecificOutput` only on events CC accepts it on — but it canno
 contract still holds; the manual smoke above is the live conformance check. Record what it was tested
 against so drift is visible:
 
-- **Last live-smoked:** Claude Code — the compaction-fidelity `SessionStart·compact` path verified via a
-  real `/compact` (2026-06-28); GitHub Copilot CLI **1.0.65** — hooks + skills load-verified.
+- **Last live-smoked:** Claude Code **2.1.206** / Windows 11 / Node 24.16.0 — **full 8-step
+  clean-profile smoke on 2026-07-11** against installed **0.40.0** (see the 2026-07-11 bullet below);
+  GitHub Copilot CLI **1.0.65** — hooks + skills load-verified.
 - **2026-07-10 — in-session partial verification (NOT the full smoke):** Claude Code **2.1.206** /
   Windows 11 — the `universal-dev-flow` skill engaged for a real task (step 8's equivalent), and
   `plan-gate.js` live-fired during a real plan-mode phase via its `~/.claude/plans/` write-exemption path
   (the plan-mode deny path was not triggered live; it is covered behaviorally by the test suite), with the
   suite green including the newly-added `contract-guard` syntax check. The full 8-step clean-profile
-  **Manual activation smoke was NOT run** and remains an open pre-/post-release action for the maintainer —
-  0.33.0 (2026-07-07) added the `contract-guard` hook without a recorded smoke; this line makes that gap
-  visible instead of silent.
+  **Manual activation smoke was NOT run** that day — 0.33.0 (2026-07-07) had added the `contract-guard`
+  hook without a recorded smoke. **Closed on 2026-07-11** by the full smoke recorded in the next bullet.
+- **2026-07-11 — full 8-step clean-profile smoke (Claude Code 2.1.206 / Windows 11 / Node 24.16.0,
+  installed 0.40.0 @ `8490840`):** all 8 steps executed in a throwaway `CLAUDE_CONFIG_DIR` profile
+  (no settings, no other plugins; only OAuth credentials copied in), driven headless (`claude -p`)
+  from a scratch project. Results: (1) marketplace add (HTTPS) → install → enable landed 0.40.0;
+  (2) digest injected and its entry title quoted verbatim with a project `ai/FAILURE_MEMORY.md`,
+  silent with no file and an empty home; (3) plan-mode Write denied with the plan-gate reason text,
+  the same Write allowed outside plan mode; (4) `git reset --hard` intercepted by destructive-guard
+  (the ask surfaced as a block in the non-interactive runner, guard message relayed, command did not
+  run) while `git status` passed untouched; (5) contract-guard three-state: `mustNotChange` removal
+  asked-and-blocked naming the exact entry, pure-append allowed with no prompt, `contractGuard:false`
+  opt-out let the same removal through; (6) orchestration-check fired its advisory branch on an
+  asserted `Final verdict: READY` with no panel (`delivers=true unmet=[spec-reviewer,test-reviewer,
+  gatekeeper]` in the debug log) and stayed silent across 16 honest runs plus one sentinel-holding
+  real udflow run; (7) a **real auto-compaction** (context pushed past the threshold) produced a
+  `compact_boundary` event, zero `Hook JSON output validation failed`, the authoritative
+  `[compact-fidelity] emitted preservation block` log line, and the preservation block quoted
+  verbatim from the post-compaction context; (8) the `universal-dev-flow` skill engaged organically
+  from a plain-language task and spawned `udflow:implementer`. Honest limits of the headless
+  harness: interactive UI rendering of `ask` prompts / Stop `systemMessage` was not observable (hook
+  decisions verified via `UDFLOW_HOOK_DEBUG` log + stream events instead); `preserveOnCompact:false`
+  was not live-run (suite-covered); `/compact` as a slash command is not executable under `-p`, so
+  the auto-compaction trigger — which step 7 explicitly allows — was used.
 - **When Claude Code changes a hook-output contract** (a new/removed event, or a changed accepted shape):
   update `HSO_ACCEPT_EVENTS` / the `WIRING` table in `.github/scripts/validate-structure.mjs`, re-run this
   smoke, and update the line above.
