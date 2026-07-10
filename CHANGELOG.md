@@ -3,6 +3,55 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.38.0] - 2026-07-10
+
+Phase 4 of the improvement roadmap — **regression make-real**: the `gatekeeper`'s regression ratchet
+(`baseline_passing ∩ now_failing`) becomes OPERATIVE via an Agentless "run the tests twice" path, WITHOUT
+reintroducing the deliberately-rejected universal parseable-test-id contract. The orchestrator does the
+running; the new script is a pure differ over two captured test outputs, gated to `--deep` / high-risk runs.
+
+### Added
+- **`scripts/regression-delta.mjs` — a fifth session script (a pure differ).** Reads two saved test-runner
+  captures and emits the newly-failing tests (`baseline_passing ∩ now_failing`) or an explicit `no-claim` line.
+  Dependency-free (Node built-ins only), with **no `child_process`** — the orchestrator runs the tests, not
+  this script — and it **always exits 0** (fail-open, never throws to its caller). It parses each runner's
+  EXISTING native output — node --test (spec + TAP), jest, pytest `-v`, go test `-v` — and **mandates no
+  project-side test-id schema** (the anti-rejected-contract boundary, stated verbatim in the header).
+  Faithful-or-null: an opaque, partial, or cross-runner input returns no-claim rather than a half-parse;
+  ReDoS-safe line-by-line scanning. Peer-tested with real runner fixtures (`test/regression-delta.test.mjs`).
+- **A gated baseline capture in the flow (`SKILL.md`).** On `--deep` / high-risk runs only, the orchestrator
+  captures the pre-change test output before the `implementer` (`output/udflow/baseline-before.txt`, run in the
+  foreground so it releases its output pipe) and the post-change output at verify, runs the differ, and carries
+  the report into the Review Packet for the `gatekeeper`. Standard / low-risk runs are unchanged.
+
+### Changed
+- **The regression-ratchet prose is rewired from "deliberately not built" → OPERATIVE** across its three owners
+  (`agents/gatekeeper.agent.md`, `references/verification-gate.md`, `references/reviewer-selection.md`): the
+  ratchet now fires whenever a baseline was captured, **names** the newly-failing tests, and the `gatekeeper`
+  **classifies each green→red transition against the acceptance criteria + `mustNotChange`** (an intended
+  change vs a genuine regression) and **surfaces every one — never auto-suppressing** a green→red as "intended"
+  without stating the criterion that licenses it (G2). The fail-open, command-exit-status-authority, and
+  strictly-additive framing are intact.
+- `ARCHITECTURE.md` — "4 session scripts" → "5", with the new differ enumerated.
+
+### Fixed (panel + repair, same release)
+- The MAX-POWER `--deep` panel (spec/test/code/architecture, all opus, + adversarial verification) and the
+  `gatekeeper` reproduced a narrow **name-collision false positive** in `regression-delta.mjs`: a leaf test name
+  present as BOTH a pass and a fail in the baseline capture (the same `test("…")` name in two files, one green
+  one red) was flagged as a regression when it stayed failed. It could never cause a wrong `READY` (the differ
+  fires only when the post-change suite is already red, so exit-status authority already blocks) — but it could
+  cry wolf, which the pragmatism axiom (a false positive is worse than a documented miss) forbids. Fixed by
+  excluding baseline-ambiguous names before intersecting (`before.passed − before.failed`), turning the false
+  positive into a safe fail-open miss; a no-op on every existing fixture, test-pinned.
+- `docs/consolidation.md` — annotated the parked "emit test output with parseable test IDs" backlog candidate as
+  **superseded by 0.38.0** (the ratchet now diffs each runner's native output; no project-side test-id contract) —
+  the exact approach this phase deliberately rejects. Doc-consistency raised unanimously by the panel.
+
+### Notes
+- **No machine literal changed.** No sentinel (`udflow:verify=` / `udflow:delivery=` / `udflow:panel=`), verdict
+  (`READY` / `FIX REQUIRED` / `NOT READY`), or severity token was added, moved, or renamed; `validate-structure.mjs`
+  (§5f and the rest) stays green. This is a make-real of existing prose behind a new pure differ, not a new contract.
+
 ## [0.37.0] - 2026-07-10
 
 Phase 5 of the improvement roadmap — **grounding + docs polish**: two cheap, in-ethos wins from the

@@ -86,8 +86,10 @@ wording) and the following **behavior-add candidates**, which are BLOCKED by the
 
 - gatekeeper: treat a behavior-changing acceptance criterion with **no fail-first→pass test**
   as a blocking omission.
-- implementer: document **rollback steps** for deploy/schema/config changes; emit test output
-  with **parseable test IDs** (to feed the regression ratchet).
+- implementer: document **rollback steps** for deploy/schema/config changes. *(The co-listed "emit test
+  output with **parseable test IDs** to feed the regression ratchet" candidate is **superseded by 0.38.0** —
+  the ratchet now diffs each runner's NATIVE output via `regression-delta.mjs`; no project-side test-id
+  contract, by design.)*
 - spec-reviewer: an explicit **exported-API / contract-break** check on changed paths.
 - planner-creator: flag **vague/unmeasurable acceptance criteria**; surface `design.md`
   presence in the grounding output.
