@@ -14,8 +14,9 @@ accepted ones into this file), or add a section directly via pull request. See [
 - **Real-world runs (Type B) — the headline this log is built around.** A real udflow run on actual work
   where the outcome was **verified over time** (its `READY` verdict held up, or a defect escaped and was
   recorded; plus any false alarm and the cost). This is the evidence that shows udflow *works in practice* —
-  and it is what dropping "experimental" now hinges on. **It is currently sparse**: udflow has not yet been
-  used on many *logged* real projects, so this section is honestly near-empty and grows with real usage.
+  and it is what dropping "experimental" now hinges on. **It is no longer near-empty, but it is narrow**:
+  twelve runs are logged (eleven merged, one pending), yet all are maintainer runs concentrated on two
+  projects — volume is accumulating; breadth and independence are not yet.
 - **Capability validation (Type A) — controlled benchmarks.** Blind bug-catch experiments that characterize
   *what the reviewers can and cannot catch* and the precision profile. This is extensive (below), but it is a
   **proxy** for real use, not proof of it — a controlled measurement of the reviewers' reach, not a record of
@@ -51,14 +52,19 @@ it rather than blur it:
   from dominating.
 
 New `### Live run N …` entries are tagged with their tier. The first three logged below are maintainer
-**self-attested** (private); **Live runs 4–6 are publicly verifiable** (public-repo PRs) — but all six
-are maintainer runs, which is exactly why the ≥3-projects breadth and the ≥1 non-maintainer requirement remain open.
+**self-attested** (private); **Live runs 4–6 are publicly verifiable** (public-repo PRs); **Live runs 7–12**
+(the 0.34.0→0.39.0 dogfood arc on this repo, backfilled 2026-07-10) carry public PR links — the *diffs* are
+publicly verifiable — but their verdicts/panel-catches/outcomes rest on the maintainer's own CHANGELOG record,
+so they are counted **self-attested**. All twelve are maintainer runs, which is exactly why the ≥3-projects
+breadth and the ≥1 non-maintainer requirement remain open.
 
 ## Graduation criteria (two tracks)
 
 **Track 1 — Capability validation: MET.** ≥3 external repos ✓, ≥2 languages ✓, ≥20 qualifying Type-A points ✓,
 aggregate catch/false-positive rates computed ✓, and ≥half of the bugs not previously surfaced by a prior
 review ✓. This establishes the *profile* (near-zero false positives; recall that scales with intent specificity).
+Current-build re-run (2026-07-10): the committed fixture suite scored 5/5 hit recall + 2/2 clean precision on
+`claude-fable-5` — details and provenance in [`eval/baseline.md`](eval/baseline.md).
 
 **Track 2 — Real-world validation: NOT yet met.** Drop **"experimental"** only once this file also documents
 real-use evidence:
@@ -76,9 +82,9 @@ whether the **workflow + verdict** holds up in practice, which is the claim the 
 
 | Metric | Now | Track-1 target | Track-2 target |
 |---|---|---|---|
-| **Real-world verified runs (Type B)** | **6 logged** | — | ≥ 10 |
-| — of which **publicly verifiable** (vs self-attested / private) | **3** | — | — |
-| Distinct real projects (Type B) | **2 logged** (one private repo + udflow's own public repo) | — | ≥ 3 |
+| **Real-world verified runs (Type B)** | **12 logged** (11 merged; 1 pending — PR #86 open) | — | ≥ 10 |
+| — of which **publicly verifiable** (vs self-attested / private) | **3** (runs 7–12 carry public PR diffs, but their verdicts/outcomes are self-attested — counted self-attested) | — | — |
+| Distinct real projects (Type B) | **2 logged** (one private repo + udflow's own public repo — runs 7–12 add volume, not breadth) | — | ≥ 3 |
 | Independent (non-maintainer) runs | **0** | — | ≥ 1 |
 | External repos (Type A benchmark) | **~13** | ≥ 3 ✓ | — |
 | Languages (Type A) | **6** (C#, JS, Python, Java, Go, Rust) | ≥ 2 ✓ | — |
@@ -94,9 +100,11 @@ lower), and **~29% bug-blind at n=77**. The robust, condition-independent streng
 false-positive rate**. Track 2 (**real-world runs**) is **not yet met** — that is now the honest reason
 "experimental" stays. The defensible relabel is a *characterized* "beta" ("near-zero FP; recall scales with the
 quality of the intent you give it; real-world track record still accumulating"), to be earned by the Type-B
-runs this log is built to collect — the **first six of which are now logged below (6 of ≥10)**, across **two
-projects** (one private, plus udflow's own public repo) and now including **three publicly-verifiable** entries, so
-the **≥3-projects breadth and the ≥1 non-maintainer run remain open**.
+runs this log is built to collect — **twelve of which are now logged below** (11 merged + 1 pending), across **two
+projects** (one private, plus udflow's own public repo) and including **three publicly-verifiable** entries. The
+≥10 volume count is now reached on paper, but with the log's own weight caveat (runs 7–12 are same-week maintainer
+dogfood on udflow's own repo, backfilled from the CHANGELOG/PR record), so the **≥3-projects breadth and the
+≥1 non-maintainer run remain the open, binding gates**.
 
 **Update — 2026-06-29 (current-build Type-A refresh).** A 121-bug / 13-repo / 6-language blind **2×2** benchmark on the
 current build (Opus 4.8, 3 passes — see the Type-A *Run — 2026-06-29*) now pins the **live** profile and revises the
@@ -113,8 +121,8 @@ exists to claw back. The historical near-zero-FP figure held on its own (easier,
 ## Real-world runs (Type B)
 
 The headline section: real udflow runs on actual work, with verified outcomes. **This is the evidence that
-matters most** — and it is honestly near-empty today, because udflow has not yet been used on many *logged*
-real projects. Every entry here moves Track 2 toward graduation.
+matters most** — twelve runs are logged, but all are maintainer runs on two projects, so the breadth and
+independence Track-2 gates are still open. Every entry here moves Track 2 toward graduation.
 
 > **Showcase — not a Type-B data point.** [`udflow-public-demo`](https://github.com/kktu6507/udflow-public-demo)
 > is a public, captured `/udflow:run` that *demonstrates the workflow* end to end (plan gate → risk-selected
@@ -224,6 +232,86 @@ shape:
 - **Outcome after follow-up:** **merged** (PR #47, merge commit `49a7843`) and auto-released as **`v0.27.4`**; CI green on macOS / Ubuntu / Windows, no regression. Whether the verdict holds long-term is **to be confirmed**.
 - **Cost:** ~105K new tokens (observed: spec ~28K + test ~42K + gatekeeper ~34K; orchestrator main-thread an estimate) · 3 reviewer subagents ~76–111s each · **Evidence:** public — PR https://github.com/simba6507/universal-dev-flow-plugin/pull/47 · commit `6a4f9ec` · release `v0.27.4` · reported via issue #48.
 - **Evidentiary weight (honest caveat): low.** A maintainer **self-review of the maintainer's own docs/config change**, retrospective (already merged) and finding no real defect — a "verdict held on a clean small change" data point, the same weak class as runs 4–5, **not** a blind catch. It does **not** satisfy the Track-2 "≥1 run not by the maintainer" gate.
+
+> **Runs 7–12 — the 0.34.0→0.39.0 dogfood arc (backfilled 2026-07-10 from the CHANGELOG + merged-PR record).**
+> All six are maintainer dogfood on this repo (the udflow plugin — Markdown / Node JS). Evidentiary weight matches
+> run 6's caveat: maintainer self-review of the maintainer's own repo. The PR **diffs** are publicly verifiable;
+> the verdicts / panel catches / outcomes are the maintainer's own CHANGELOG record, so the entries are tiered
+> **self-attested**. They count toward Track-2 **volume only** — not toward the ≥1 non-maintainer bar, and they add
+> no project breadth. Unit check against *What counts (strict)*: unit = one task; each entry below is one release
+> task (run 7 contained two udflow arcs inside one release — counted **once**, conservatively). Per-run token costs
+> were not recorded.
+
+### Live run 7 — 2026-07-09 · `universal-dev-flow-plugin` (udflow's own repo — Markdown / Node JS) · verified live task (merged) · self-attested (public PR diff)
+
+- **Task:** the 0.34.0 audit-driven hardening release — batch 1 (five verified defect fixes + a ReDoS bound in the deterministic layer + a CI literal guard) and batch 2 (four precision-first review-workflow refinements); batch 3 (repo infrastructure) was plain edits, not a udflow run. Per the CHANGELOG: "The first two batches were produced **through udflow itself** (dogfood), each ending in a `gatekeeper` `READY`; the second batch ran `--deep` (adversarial verification)."
+- **Intent given:** a verified audit fix list (each item spot-verified against the code, and pre-checked via `git log --pickaxe` to be an original gap, before implementation).
+- **Reviewers:** dogfood panel per batch + gatekeeper; batch 2 on `--deep`. · **Verdict: READY** (each arc).
+- **Verification:** `node --test` (330: 326 pass / 0 fail / 4 platform-skipped) + `validate-structure` green (CHANGELOG record).
+- **Caught (save):** the `--deep` security review found a **pre-existing ReDoS** in `destructive-guard.js` (two unbounded `[^;&|]*` runs → O(n²) backtracking, ~7s on a 200KB input) while reviewing the subshell fix — bounded to `[^;&|]{0,200}` in the same release.
+- **Missed (escaped — found later):** this release's parenthesized-subshell hardening added `(` to `destructive-guard.js`'s POSIX anchors (including the `dd of=` pattern) but left `plan-gate.js`'s "reused verbatim" sibling un-updated — a cross-file anchor drift the panel did not flag. Found by the 2026-07-10 zero-based audit; closed red→green in 0.39.0 (P0-4).
+- **False alarms:** none recorded.
+- **Outcome after follow-up:** **merged** (PR #80) and auto-released as **`v0.34.0`**; not reverted; one escaped drift recorded above (fixed in 0.39.0).
+- **Cost:** not recorded per-run. · **Evidence:** public — PR https://github.com/kktu6507/universal-dev-flow-plugin/pull/80 · commit `e7d5ce3` · release `v0.34.0` · the escaped drift is checkable in the diff (`git show e7d5ce3`: the destructive-guard `dd` anchor changed, `plan-gate.js` untouched).
+
+### Live run 8 — 2026-07-10 · `universal-dev-flow-plugin` (udflow's own repo — Markdown / Node JS) · verified live task (merged) · self-attested (public PR diff)
+
+- **Task:** the 0.35.0 reviewer/gatekeeper reliability sharpening (tool-grounded blocker gate, factored Chain-of-Verification option, rubric-anchored severity). Per the CHANGELOG: "Dogfooded through `udflow --deep` to a gatekeeper `READY`; the deep panel caught a real drift bug."
+- **Intent given:** an external-research-derived change list (LLM self-correction literature), explicitly scoped to sharpening existing rules, not adding mass.
+- **Reviewers:** `--deep` panel (incl. adversarial verification) + gatekeeper. · **Verdict: READY.**
+- **Verification:** `node --test` (330: 326 pass / 0 fail / 4 platform-skipped) + `validate-structure` green (CHANGELOG record).
+- **Caught (save — the headline):** the deep-mode architecture reviewer found (and adversarial verification confirmed) that the new severity-rubric rule had been written to `reviewer-common.md` but **not mirrored** into the `review-packet.md` "Shared reviewer contract" block — the only copy a spawned reviewer actually receives — so it was inert for its audience. Fixed the instance AND the class in the same release: a CI guard (`validate-structure.mjs` 5k anchor) was root-caused and added from this finding.
+- **Missed:** none recorded at the verdict.
+- **False alarms:** none recorded.
+- **Outcome after follow-up:** **merged** (PR #82) and auto-released as **`v0.35.0`**; not reverted.
+- **Cost:** not recorded per-run. · **Evidence:** public — PR https://github.com/kktu6507/universal-dev-flow-plugin/pull/82 · commit `d1c07db` · release `v0.35.0`.
+
+### Live run 9 — 2026-07-10 · `universal-dev-flow-plugin` (udflow's own repo — Markdown / Node JS) · verified live task (merged) · self-attested (public PR diff)
+
+- **Task:** the 0.36.0 Review-Packet diff packer (`scripts/pack-review-diff.mjs`) — a zero-dependency stdin→stdout diff reorderer with a "reorder, never hide" guardrail (G1). Per the CHANGELOG: "Dogfooded through udflow to a gatekeeper `READY`; the review panel caught a real content-loss bug."
+- **Intent given:** a researched borrow spec (pr-agent's deterministic PR-compression, minus its weight) with the G1 never-hide guardrail as the binding invariant.
+- **Reviewers:** standard panel (spec / test / code / architecture) + gatekeeper. · **Verdict: READY** (after panel + repair in the same release).
+- **Verification:** `node --test` (347: 343 pass / 0 fail / 4 platform-skipped) + `validate-structure` green (CHANGELOG record); 17 new tests pin G1.
+- **Caught (save — the headline):** the panel found — **and reproduced** — a **G1 violation**: a `git diff` hunk carrying an unparseable line (e.g. a bare empty line mid-hunk) silently dropped the rest of the hunk instead of passing through. Fixed to faithful-or-raw-passthrough (plus rename/binary provenance fixes), all test-pinned, same release.
+- **Missed:** none recorded at the verdict.
+- **False alarms:** none recorded.
+- **Outcome after follow-up:** **merged** (PR #83) and auto-released as **`v0.36.0`**; not reverted.
+- **Cost:** not recorded per-run. · **Evidence:** public — PR https://github.com/kktu6507/universal-dev-flow-plugin/pull/83 · commit `f0df46e` · release `v0.36.0`.
+
+### Live run 10 — 2026-07-10 · `universal-dev-flow-plugin` (udflow's own repo — Markdown / Node JS) · verified live task (merged) · self-attested (public PR diff)
+
+- **Task:** the 0.37.0 plan-time coupling scan (`planner-creator` / `plan-grounding.md`) + the first-run tutorial (`docs/tutorial-first-run.md`). Per the CHANGELOG: "Dogfooded through the standard panel (spec/test/architecture) to a gatekeeper `READY`; the panel convergently flagged a real parity-guard gap."
+- **Intent given:** two scoped, in-ethos wins from the 2026-07-10 external research (grounding for the #1 miss category; the missing Diátaxis quadrant).
+- **Reviewers:** standard panel (spec / test / architecture) + gatekeeper. · **Verdict: READY.**
+- **Verification:** `node --test` (347: 343 pass / 0 fail / 4 platform-skipped) + `validate-structure` green (CHANGELOG record).
+- **Caught (save):** the new tutorial link had been mirrored into all three READMEs by hand but was **not registered in the parity guard** — flagged convergently by the panel; closed in the same release by adding it to `validate-structure.mjs`'s `requiredReadmeLinks` (guard the class, not just the instance).
+- **Missed:** none recorded at the verdict.
+- **False alarms:** none recorded.
+- **Outcome after follow-up:** **merged** (PR #84) and auto-released as **`v0.37.0`**; not reverted.
+- **Cost:** not recorded per-run. · **Evidence:** public — PR https://github.com/kktu6507/universal-dev-flow-plugin/pull/84 · commit `afdafb6` · release `v0.37.0`.
+
+### Live run 11 — 2026-07-10 · `universal-dev-flow-plugin` (udflow's own repo — Markdown / Node JS) · verified live task (merged) · self-attested (public PR diff)
+
+- **Task:** the 0.38.0 regression make-real — `scripts/regression-delta.mjs` (a pure differ over two captured native test outputs) + the gated `--deep` baseline capture, making the gatekeeper's regression ratchet operative without a project-side test-id contract.
+- **Intent given:** a researched make-real path for the C2 ratchet with an explicit anti-contract boundary (no universal parseable-test-id schema) stated verbatim in the script header.
+- **Reviewers:** MAX-POWER `--deep` panel (spec / test / code / architecture, all on opus, + adversarial verification) + gatekeeper. · **Verdict: READY** (after panel + repair in the same release).
+- **Verification:** test suite + `validate-structure` green per the CHANGELOG/CI record; the differ peer-tested against real runner fixtures (`test/regression-delta.test.mjs`).
+- **Caught (save — the headline):** the panel and gatekeeper **reproduced** a narrow **name-collision false positive** in `regression-delta.mjs` (a leaf test name present as both a pass and a fail in the baseline was flagged as a regression when it stayed failed) — it could never cause a wrong `READY` (exit-status authority already blocks), but it could cry wolf, which the pragmatism axiom forbids. Fixed by excluding baseline-ambiguous names before intersecting; a no-op on every existing fixture, test-pinned, same release. The panel also unanimously raised a doc-consistency fix (`docs/consolidation.md`'s superseded backlog item), applied same release.
+- **Missed:** none recorded at the verdict.
+- **False alarms:** none recorded.
+- **Outcome after follow-up:** **merged** (PR #85) and auto-released as **`v0.38.0`**; not reverted.
+- **Cost:** not recorded per-run. · **Evidence:** public — PR https://github.com/kktu6507/universal-dev-flow-plugin/pull/85 · commit `27cc360` · release `v0.38.0`.
+
+### Live run 12 — 2026-07-10 · `universal-dev-flow-plugin` (udflow's own repo — Markdown / Node JS) · live task, outcome pending (PR open) · self-attested (public PR diff)
+
+- **Task:** the 0.39.0 P0 audit-remediation run — close the six functional defects from the 2026-07-10 zero-based audit (shared-contract packet block, single-writer contradiction, `${CLAUDE_PLUGIN_ROOT}` prefixes, plan-gate `dd` anchor, CI syntax-check gap, artifact hygiene).
+- **Intent given:** contract-level — a no-omission audit fix list with per-item file:line targets, red→green requirements, and must-not-change guards; plan-gated with `planner-creator` grounding (the grounding scan added 4 out-of-list couplings to scope before approval).
+- **Reviewers:** full `udflow --deep` lifecycle — implementer; deterministic Workflow panel (spec / test / code) at Tier 1; Tier 2 adversarial verification of gating findings; gatekeeper on opus at maximum effort. · **Verdict: READY** — 0 blocker / 0 major / 3 minor durability findings, applied same-branch.
+- **Verification:** regression ratchet ran — **no regression**; red→green tests for the behavior change (the plan-gate `dd` anchor); full test suite + `validate-structure` green.
+- **Caught:** the 3 minor durability findings above (applied same-branch); no blocker/major survived adversarial verification.
+- **Missed / False alarms:** none known at the verdict — the PR is still open.
+- **Outcome after follow-up:** **pending — PR #86 is open**; outcome verification over time is not yet possible. This entry counts as *logged*, not yet outcome-verified (the tally marks it pending).
+- **Cost:** not separately recorded. · **Evidence:** public — PR https://github.com/kktu6507/universal-dev-flow-plugin/pull/86 (branch `claude/audit-p0-functional`, commits `dc91109` + `c9b9716`).
 
 _More runs needed for Track 2 — especially at least one **not** by the maintainer, and breadth beyond the current
 two projects (one private, one this public plugin repo). Add yours via the issue template above._

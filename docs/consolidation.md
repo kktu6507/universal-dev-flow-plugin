@@ -11,7 +11,7 @@
 
 ## Why
 
-The plugin's surface area (10 agents, 5 hooks, ~15 references, design contract, deep-mode
+The plugin's surface area (10 agents, 6 hooks, 13 references, design contract, deep-mode
 tiers, MCP seams, browser/app-launch capabilities) has outgrown its **validated** value:
 the real-world evidence is still thin (a handful of logged runs, all by the maintainer),
 and at least one shipped feature (`compact-fidelity`, 0.27.0–0.27.2) was silently broken
@@ -62,7 +62,7 @@ stop. When in doubt, it's blocked.
 - [x] L1 regression guards are in CI and green (prose drift is caught automatically). — `validate-structure.mjs` **5f contract-invariant guard**: asserts the verbatim machine literals (verdict / severity / sentinel tokens) survive in the files that own them (gatekeeper, reviewer-common, reviewer-selection, SKILL.md).
 - [ ] README 60-second value + reconciled cost section shipped.
 - [x] Surface-area audit complete (consolidation pass done). — Phase 2 audit (6 auditors): 0 removals, 0 real dedups, doc-alignment applied (0.27.7); behavior-add suggestions parked below.
-- [~] A current-build re-test number is published in `EVIDENCE.md`. — **attempted 2026-06-28; NOT publishable.** A bounded fresh blind benchmark ran (current `udflow:code-reviewer`, repo-native intent, independent judge), but ad-hoc web-extraction was too noisy for an honest rate (2/10 defects landed outside the extracted function; the apparent FPs were excerpt artifacts). Cleanly-extracted cases re-confirmed the profile (0 FP on clean code; misses the known security/soundness/omission classes as a lone reviewer). A publishable rate needs the original's **validated** extraction harness (a bounded future project); the provenance stamp handles the staleness meanwhile. **Decision needed:** invest in the validated harness, or accept the provenance stamp + documented attempt as sufficient to un-freeze.
+- [x] A current-build re-test number is published in `EVIDENCE.md`. — **attempted 2026-06-28; NOT publishable.** A bounded fresh blind benchmark ran (current `udflow:code-reviewer`, repo-native intent, independent judge), but ad-hoc web-extraction was too noisy for an honest rate (2/10 defects landed outside the extracted function; the apparent FPs were excerpt artifacts). Cleanly-extracted cases re-confirmed the profile (0 FP on clean code; misses the known security/soundness/omission classes as a lone reviewer). A publishable rate needs the original's **validated** extraction harness (a bounded future project); the provenance stamp handles the staleness meanwhile. **Decision (recorded 2026-07-10):** the provenance stamp + documented re-test attempt was **accepted** as satisfying this criterion — the mechanism is now live (`eval/check-model-provenance.mjs` + `eval/baseline.md`'s provenance lines), and as of 2026-07-10 a full committed-fixture re-run on the current model (`claude-fable-5`) scored 5/5 hit recall + 2/2 clean precision (`eval/baseline.md`). Criterion **closed as-amended**: the published number lives in `eval/baseline.md` (pointered from `EVIDENCE.md`'s Type-A section), not in `EVIDENCE.md` itself as this line's original wording assumed.
 
 **Drop the "experimental" label (a separate, higher bar — adoption-driven, not code):**
 - [ ] ≥10 verified real runs, across ≥3 projects, **with ≥1 not by the maintainer**.
@@ -81,22 +81,35 @@ stop. When in doubt, it's blocked.
 The Phase 2 audit (6 read-only auditors over 10 agents / 12 references / 5 hooks) found
 **0 dead weight to remove** and 17 "keep" — the surface is large but every piece earns its
 keep. It produced doc-alignment fixes (applied: SKILL.md Tier-1/Tier-2 + core-reviewer
-wording) and the following **behavior-add candidates**, which are BLOCKED by the freeze
-(they add new rules, not align docs) and parked here for the un-freeze:
+wording) and the following **behavior-add candidates**, which were BLOCKED by the freeze
+(they add new rules, not align docs) and parked here for the un-freeze (per-item status
+annotated 2026-07-10):
 
 - gatekeeper: treat a behavior-changing acceptance criterion with **no fail-first→pass test**
-  as a blocking omission.
-- implementer: document **rollback steps** for deploy/schema/config changes. *(The co-listed "emit test
+  as a blocking omission. — **SHIPPED (0.27.0):** the bidirectional criterion↔test↔change
+  traceability rule; live at `udflow/agents/gatekeeper.agent.md:61` ("treat the missing test as a
+  **blocking omission** (withhold `READY`)").
+- implementer: document **rollback steps** for deploy/schema/config changes. — **STILL OPEN**
+  (2026-07-10: no rollback guidance in `udflow/agents/implementer.agent.md`). *(The co-listed "emit test
   output with **parseable test IDs** to feed the regression ratchet" candidate is **superseded by 0.38.0** —
   the ratchet now diffs each runner's NATIVE output via `regression-delta.mjs`; no project-side test-id
   contract, by design.)*
-- spec-reviewer: an explicit **exported-API / contract-break** check on changed paths.
+- spec-reviewer: an explicit **exported-API / contract-break** check on changed paths. — **SHIPPED
+  (0.34.0, B2):** `udflow/agents/spec-reviewer.agent.md:38` "## Exported-API / contract-break lens".
 - planner-creator: flag **vague/unmeasurable acceptance criteria**; surface `design.md`
-  presence in the grounding output.
+  presence in the grounding output. — **SHIPPED:** the un-measurable-criteria flag in 0.34.0 (B3;
+  `udflow/agents/planner-creator.agent.md:51`); the `design.md`-presence detection shipped with the agent
+  itself in 0.25.3 (`planner-creator.agent.md:21`, `:50` — "design.md detection: present / absent /
+  not-applicable").
 - code-reviewer ↔ architecture-reviewer: make the **local-vs-structural duplication &
-  maintainability boundary** explicit in each file.
+  maintainability boundary** explicit in each file. — **SHIPPED (0.34.0, B4):** `## Boundary with other
+  reviewers` now in both files (`architecture-reviewer.agent.md:35`, added mirroring
+  `code-reviewer.agent.md:52`'s existing section).
 - destructive-guard: parenthesized POSIX forms (`(rm -rf …)`) slip the deny-list while the
-  PowerShell patterns already match `(` — closing it is a regex (behavior) change.
+  PowerShell patterns already match `(` — closing it is a regex (behavior) change. — **DONE:**
+  `destructive-guard.js`'s POSIX patterns gained `(` in 0.34.0; the remaining half (the `plan-gate.js`
+  `dd of=` sibling anchor, which 0.34.0 left drifted) was closed 2026-07-10 in 0.39.0 (P0-4),
+  red→green tested.
 
 **Investigated → kept as-is (NOT duplication; the audit's two "consolidation candidates" did not survive a read of the actual content):**
 - `deep-mode.md` ↔ `runtime-policy.md` are **two complementary angles**, not a copy: deep-mode

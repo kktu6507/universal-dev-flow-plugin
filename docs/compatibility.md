@@ -8,7 +8,22 @@ udflow targets Claude Code first. Its behavior depends on Claude Code plan mode,
 |---|---|---|---|---|---|---|---|---|---|
 | 0.27.x | Claude Code | compaction-fidelity `SessionStart`·`compact` live-smoked on 2026-06-28; full checklist required per release | 20.x in CI | manual smoke environment | manual smoke required | manual smoke required | manual smoke required | manual smoke required when available | supported |
 | 0.27.x | GitHub Copilot CLI | 1.0.65 live load verification | 20.x in CI | local live verification | no-op, runtime lacks permission-mode hook field | no-op, Stop output not surfaced | loads | no Workflow capability | supported with notes |
+| 0.38.0 installed / 0.39.0 pre-release tree | Claude Code | 2.1.206 — in-session partial verification 2026-07-10 (see note below; NOT a clean-profile smoke) | 24.16.0 local / 20.x CI | Windows 11 | live-fired: `~/.claude/plans/` write-exemption exercised; deny path not triggered live (suite-covered) | not exercised live (suite-covered) | exercised in-session (P0 dogfood panel + gatekeeper) | exercised in-session (deterministic panel graph) | partial in-session verification; clean-profile smoke **pending** |
 | current branch | CI structural checks | every PR / push | 20.x | Ubuntu / Windows / macOS | hook tests | hook tests | manifest checks | not exercised | regression net |
+
+**2026-07-10 row — exact scope of the claim (in-session partial verification, NOT a clean-profile smoke).**
+Observed in a real working session running the **installed 0.38.0 plugin cache** while the 0.39.0 tree was
+verified by the harness suite (`npm test`): (a) the `universal-dev-flow` skill engaged for a real task (the
+smoke checklist's step-8 equivalent); (b) `plan-gate.js` demonstrably loaded and executed during a real
+plan-mode phase — its `~/.claude/plans/` write-exemption path was exercised live (the plan-file write was
+allowed while plan mode was active); the plan-mode **deny** path was not triggered live this session (no
+working-tree write was attempted in plan mode) and is covered behaviorally by the test suite; (c) no
+failure-memory file exists and correctly **no digest appeared** (the expected no-op); (d) the
+destructive-guard / contract-guard / compact-fidelity / orchestration-check advisories were **not exercised
+live** this session — their behavioral coverage is the green `npm test` suite. The same session's P0 dogfood
+run exercised the reviewer/gatekeeper subagents and the deterministic Workflow panel graph (`EVIDENCE.md`,
+Live run 12). The clean-profile install smoke was **NOT performed — pending**, and remains required per
+release policy before or right after release.
 
 `EVIDENCE.md`, `RELEASING.md`, and the README are the human-facing source for live-smoke details. `.github/scripts/validate-structure.mjs` and `npm test` are the automated regression net.
 
