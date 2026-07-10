@@ -17,3 +17,12 @@ subagent = "subagent"
 subagents = "subagents"
 gitignored = "gitignored"
 ratchet = "ratchet"
+
+# First-run baseline (PR #89, 2026-07-11): every hit was verified intentional — zero real
+# typos. Each token below is whitelisted with its reason; remove an entry only after
+# confirming no remaining intentional use.
+unparseable = "unparseable" # legitimate variant spelling (vs "unparsable"), used consistently in prose AND in test-assertion strings that must not drift
+mis = "mis"                 # hyphenated prefix tokens: "mis-pair(s)", "mis-simulate", "mis-executing" (typos tokenizes at the hyphen)
+releas = "releas"           # regex stem in orchestration-check.js: releas(?:e|ing) — machine content, never edit
+OT = "OT"                   # uppercase-run token from "OTPs" (one-time passwords) in browser-evidence.md
+fo = "fo"                   # PowerShell abbreviated -fo (Force) flag inside a destructive-guard deny-list TEST FIXTURE command
