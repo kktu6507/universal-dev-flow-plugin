@@ -4,8 +4,9 @@
 // matched (a sibling append-only ledger), and this helper aggregates that usage into a prune report:
 // which entries are RETIRED (delete on the next write) and which are stale EXPIRE CANDIDATES (dated, old
 // enough, and never matched within the window). It is ADVISORY only — like contract-check.mjs, it hands
-// evidence to the gatekeeper, which performs the actual single-writer edits. It never modifies the memory
-// file or the ledger. Dependency-free, fail-open: no ledger / no usage data => no staleness claim, exit 0.
+// evidence to the gatekeeper, which decides the edits; the main thread (the single writer) applies them
+// after the verdict. It never modifies the memory file or the ledger. Dependency-free, fail-open: no
+// ledger / no usage data => no staleness claim, exit 0.
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -95,8 +96,8 @@ export function consolidationReport(entries, records, opts = {}) {
   };
 }
 
-// One compact, LLM-readable advisory for the gatekeeper. States plainly that the gatekeeper makes the
-// edits (single writer) and that this report changes nothing on disk.
+// One compact, LLM-readable advisory for the gatekeeper. States plainly that the gatekeeper decides and
+// the main thread makes the edits (single writer), and that this report changes nothing on disk.
 export function formatReport(report) {
   const lines = ["udflow failure-consolidate (deterministic advisory):"];
   lines.push("  entries: " + report.total + " (" + report.active.length + " matched in window, " + report.retired.length + " retired)");
@@ -111,7 +112,7 @@ export function formatReport(report) {
         report.expireCandidates.map((c) => c.key + " (" + c.ageDays + "d)").join("; ")
       : "  expire candidates: none (every aged entry was matched within the window)");
   }
-  lines.push("  note: advisory only — the gatekeeper makes the actual edits (single writer); this report modifies nothing.");
+  lines.push("  note: advisory only — the main thread makes the actual edits from the gatekeeper's decision (single writer); this report modifies nothing.");
   return lines.join("\n");
 }
 
