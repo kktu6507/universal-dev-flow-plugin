@@ -83,7 +83,8 @@ function bashLooksLikePlanWrite(command) {
     // truncate: always resizes (and creates) the named file.
     /(?:^|[\s;&|])truncate\s+\S/i,
     // dd writing to a file via of= (exempt of=/dev/null, of=NUL); without of= dd writes stdout.
-    /(?:^|[\s;&|])dd\s(?=[^;&|]*\bof=)(?![^;&|]*\bof=(?:\/dev\/null\b|NUL\b))/i,
+    // Anchor class includes `(` (subshell start) — kept character-identical with destructive-guard.js's dd pattern.
+    /(?:^|[\s;&|(])dd\s(?=[^;&|]*\bof=)(?![^;&|]*\bof=(?:\/dev\/null\b|NUL\b))/i,
     // ln creating a link (symbolic or hard) — writes a new directory entry into the tree.
     /(?:^|[\s;&|])ln\s+(?:-[A-Za-z]+\s+)*\S/i,
     // git apply that actually applies — exempt dry-run/report-only flags.

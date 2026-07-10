@@ -37,7 +37,7 @@ Honest scope: the Handoff Template's field order (`references/review-packet.md`)
 
 ## Shared-State Writes (single writer)
 
-The failure-memory file is shared mutable state, and reviewers run in parallel. To avoid lost-update / interleaved-write corruption, only **one** actor writes it: the main thread / `gatekeeper` after the verdict. Reviewers and the implementer only *propose* candidate entries (using the existing template); they never write the file themselves. The "reread global before writing" merge step is performed by that single writer.
+The failure-memory file is shared mutable state, and reviewers run in parallel. To avoid lost-update / interleaved-write corruption, only **one** actor writes it: the main thread, after the verdict, from the `gatekeeper`'s decision. Reviewers and the implementer only *propose* candidate entries (using the existing template); the `gatekeeper` rules on them and proposes the exact final entry; none of them writes the file itself. The "reread global before writing" merge step is performed by that single writer.
 
 ## Deep Mode Enforcement
 

@@ -7,9 +7,10 @@
 rules:
   adhoc-packages:
     ignore:
-      # validate.yml:67 — `npm install -g @anthropic-ai/claude-code` is a best-effort, Linux-only,
+      # validate.yml — `npm install -g @anthropic-ai/claude-code` is a best-effort, Linux-only,
       # continue-on-error install of Anthropic's OFFICIAL CLI, purely to run the non-gating
       # `claude plugin validate`. Pinning to a lockfile would defeat "validate against the CURRENT
       # CLI"; the step runs in the validate job (persist-credentials: false, no release access), so
-      # the blast radius is bounded. Accepted, not a fix.
-      - validate.yml:67
+      # the blast radius is bounded. Accepted, not a fix. FILE-LEVEL ignore (not a `:line` pin):
+      # a line pin silently un-suppresses whenever any edit above it shifts the line number.
+      - validate.yml

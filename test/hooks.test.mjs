@@ -306,6 +306,7 @@ test("Bash tripwire: obvious working-tree writes are denied in plan mode", () =>
     "truncate -s 0 build.log",       // truncate resizes/creates a file
     "truncate -s0 f",                // truncate, no space
     "dd if=/dev/zero of=out.bin bs=1 count=1", // dd writing via of=
+    "(dd if=/dev/zero of=out.bin bs=1 count=1)", // dd via of= inside a subshell — `(` is an anchor too
     "ln -s ../secret link",          // symlink creation
     "ln target.txt hardlink.txt",    // hard link creation
     "ls; ln -sf a b",                // ln after a chain separator
@@ -334,6 +335,7 @@ test("Bash tripwire: read-only / benign commands are allowed in plan mode", () =
     "perl -ne 'print if /foo/' app.txt", // perl without -i is read-only
     "perl -pe 's/a/b/' app.txt",    // perl -pe (no -i) writes to stdout, not the file
     "dd if=/dev/zero of=/dev/null bs=1 count=1", // of=/dev/null excluded
+    "(dd if=/dev/zero of=/dev/null bs=1 count=1)", // of=/dev/null exemption holds inside a subshell too
     "dd if=disk.img bs=1M | sha256sum", // dd without of= writes stdout, not a file
     "cat truncate.md",              // 'truncate' as an argument, not the command
     "grep -n println src/app.rs",   // 'ln' inside a word is not the ln command
@@ -985,9 +987,11 @@ function copyRepoTree() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "udflow-vtree-"));
   fs.cpSync(root, dir, { recursive: true, filter: (src) => {
     const b = path.basename(src);
-    // Skip vcs/deps and the same scratch globs validate-structure forbids, so a dirty local working
-    // tree can't false-fail the CONTROL copy (cpSync snapshots the tree, not the git index).
-    return b !== ".git" && b !== "node_modules" && !/^_|\.(tmp|bak|log)$|~$/.test(b);
+    // Skip vcs/deps, run-scratch (output/ captures, .claude/ session state) and the same scratch
+    // globs validate-structure forbids, so a dirty local working tree can't false-fail the CONTROL
+    // copy (cpSync snapshots the tree, not the git index) and 29 temp trees don't each drag ~215KB
+    // of untracked run captures along.
+    return b !== ".git" && b !== "node_modules" && b !== "output" && b !== ".claude" && !/^_|\.(tmp|bak|log)$|~$/.test(b);
   }});
   return dir;
 }
@@ -999,6 +1003,7 @@ function runValidator(treeDir) {
 test("validate-structure: passes on a clean copy of the repo (control)", () => {
   const tree = copyRepoTree();
   try {
+    assert.ok(!fs.existsSync(path.join(tree, "output")), "copyRepoTree must not drag run-scratch output/ into the temp tree");
     assert.strictEqual(runValidator(tree).code, 0, "the validator must pass on an unmodified copy");
   } finally { fs.rmSync(tree, { recursive: true, force: true }); }
 });
@@ -2132,6 +2137,7 @@ test("destructive-guard: ASKS on unrecoverable commands in ANY mode (incl. defau
     "ls && rm -rf node_modules",        // after a chain separator
     "find . -name '*.tmp' -delete",
     "dd if=/dev/zero of=/dev/sda bs=1M",// of=<real device>
+    "(dd if=/dev/zero of=/dev/sda bs=1M)", // of=<real device> inside a subshell — `(` anchor
     "mkfs.ext4 /dev/sdb1",
     "shred -u secret.key",
   ]) {

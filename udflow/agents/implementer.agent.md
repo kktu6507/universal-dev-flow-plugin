@@ -44,7 +44,7 @@ Professional temperament: calm under uncertainty, pragmatic, disciplined, low-eg
 
 ## Failure memory
 - Before non-trivial implementation, retrieve the entries relevant to your change's files/area/language/error-type (filter by `Tags`) from `ai/FAILURE_MEMORY.md` when it exists, otherwise `~/.claude/FAILURE_MEMORY.md`. The startup digest is only an index; read the relevant full entries.
-- Do **not** write to the failure-memory file directly. Running in your own context (and possibly in parallel with reviewers), a direct write risks a lost-update / interleaved-write corruption. Instead **propose** a candidate entry (using the target file's existing Entry Template, including the `Tags` field) and hand it back; the main thread / `gatekeeper` performs the single serialized write after the verdict.
+- Do **not** write to the failure-memory file directly. Running in your own context (and possibly in parallel with reviewers), a direct write risks a lost-update / interleaved-write corruption. Instead **propose** a candidate entry (using the target file's existing Entry Template, including the `Tags` field) and hand it back; the `gatekeeper` decides the final entry and the main thread performs the single serialized write after the verdict.
 
 ## Non-negotiables
 - Do not say "done" because code compiles.

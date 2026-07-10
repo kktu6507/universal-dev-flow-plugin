@@ -100,12 +100,12 @@ During planning, perform **targeted retrieval**: search the failure-memory file 
 To make this retrieval **deterministic instead of a best-effort grep**, run the dependency-free helper `scripts/failure-retrieve.mjs` with the task's signature — affected paths, language, area, and error-type tokens — and read the full entries it ranks back:
 
 ```
-node skills/universal-dev-flow/scripts/failure-retrieve.mjs --query "src/auth/login.ts node jsdom ci-test" [--file <path>] [--top 5]
+node ${CLAUDE_PLUGIN_ROOT}/skills/universal-dev-flow/scripts/failure-retrieve.mjs --query "src/auth/login.ts node jsdom ci-test" [--file <path>] [--top 5]
 ```
 
 It parses the same `### ` entries, scores each by tag/title/body overlap with the signature (a tag hit outweighs a title hit outweighs a body hit), drops retired (`expired`/`superseded`) and placeholder entries, and returns the top matches' verbatim markdown. Fail-open: an absent/unstructured file or no sufficiently-relevant match yields a no-claim line and exit 0 — it is a ranking aid, **not** a gate, and never replaces reading the file when judgment calls for it. The retrieval recall/precision is regression-guarded by the committed `eval/failure-memory/` oracle (`test/failure-retrieve.test.mjs`).
 
-**Single writer:** the failure-memory file is shared mutable state and reviewers run in parallel, so only one actor writes it — the main thread / `gatekeeper` after the verdict. Reviewers and the implementer only *propose* entries; they do not write the file. This avoids lost-update / interleaved-write corruption (the "reread global first" step below is a lockless read-modify-write and is only safe with a single writer).
+**Single writer:** the failure-memory file is shared mutable state and reviewers run in parallel, so only one actor writes it — the **main thread**, after the verdict, from the `gatekeeper`'s decision. Reviewers and the implementer only *propose* entries; the `gatekeeper` rules on them and proposes the exact final entry text, but does not write the file either (it holds no editor tools). This avoids lost-update / interleaved-write corruption (the "reread global first" step below is a lockless read-modify-write and is only safe with a single writer).
 
 Before every failure-memory write:
 
@@ -147,7 +147,7 @@ To make consolidation **data-driven instead of by-feel**, the retrieval helper r
 
 - During planning, run `scripts/failure-retrieve.mjs` with **`--log`** so each entry it surfaces for a real task signature is appended to a sibling **append-only** ledger (`.failure-memory-usage.jsonl`, next to the memory file — **never** inside it; recording a hit must not touch the single-writer `FAILURE_MEMORY.md`). A "hit" means the entry was *relevant to real work*.
 - At the consolidation step, run `scripts/failure-consolidate.mjs` for a deterministic prune advisory: it lists **retired** entries (delete on the next write) and **expire candidates** — dated entries old enough and never matched within the window. It is honest by construction: an empty ledger or insufficient history makes **no** staleness claim (it never says "expire everything" from missing data), and undated or too-new entries are never flagged.
-- The advisory is **evidence, not an action**: the gatekeeper (the single writer) decides what to actually merge/retire/delete and makes the edits. The ledger is local runtime telemetry — gitignore it; deleting it just resets the counts.
+- The advisory is **evidence, not an action**: the `gatekeeper` decides what to actually merge/retire/delete, and the main thread (the single writer) applies those edits verbatim after the verdict. The ledger is local runtime telemetry — gitignore it; deleting it just resets the counts.
 
 ## Failure Memory Entry Template
 

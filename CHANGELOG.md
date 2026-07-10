@@ -3,6 +3,41 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.39.0] - 2026-07-10
+
+Audit remediation P0 — the six functional defects from the 2026-07-10 zero-based audit, closed with red→green
+evidence where behavior changed.
+
+### Fixed
+- **Plan-gate `dd` anchor drift** (`hooks/plan-gate.js`): the `dd … of=` tripwire's anchor class now includes
+  `(` (subshell start), so `(dd if=… of=out.bin)` is denied in plan mode — the pattern is again character-identical
+  with `hooks/destructive-guard.js`'s, as that file's "reused verbatim" comment claims. Red→green tested; the
+  `of=/dev/null` exemption still allows inside a subshell; the other 7 tripwire patterns keep their anchors by design.
+- **Shared reviewer contract block completed** (`references/review-packet.md`): the full Non-mutating rule, the
+  "materially underspecified — say so explicitly" rule, and one-line `blocker` / `major` / `minor` definitions from
+  canonical `reviewer-common.md` now travel in the verbatim block each reviewer receives (previously only the
+  Non-mutating rule's "filter noise, not signal" tail survived, and the severity labels were named but never
+  defined); the severity-grading tail aligned to the canonical "(regardless of how ordinary the code looks)".
+- **Gatekeeper single-writer contradiction**: `agents/gatekeeper.agent.md` told an agent with no Write/Edit tools
+  to "perform the one serialized write yourself" — resolved by the executor clarification under Changed.
+- **`${CLAUDE_PLUGIN_ROOT}` prefix** on the `failure-retrieve.mjs` / `failure-consolidate.mjs` invocations in
+  `references/verification-gate.md` and `SKILL.md` (a bare `node skills/…` path only resolves from the plugin root).
+- **CI syntax-check covered only 5 of 6 hooks**: `node --check udflow/hooks/contract-guard.js` added to the
+  validate workflow.
+- **Artifact hygiene**: `output/udflow/.gitignore` (`*` + `!.gitignore`) is now committed, as
+  `references/task-contract.md` documents (ends the perpetual untracked-`output/` status noise), and the test
+  suite's `copyRepoTree` no longer copies untracked `output/` / `.claude/` run scratch into its temp trees.
+
+### Changed
+- **Single-writer executor clarified across all owners** (`agents/gatekeeper.agent.md`,
+  `agents/implementer.agent.md`, `SKILL.md`, `references/verification-gate.md`, `references/runtime-policy.md`,
+  `scripts/failure-consolidate.mjs` incl. its runtime advisory line): the `gatekeeper` **decides** and proposes the
+  exact final failure-memory entry; the **main thread** performs the one serialized write verbatim after the
+  verdict. The single-writer invariant — exactly one serialized write, after the verdict — is unchanged.
+- **zizmor ignore is now file-level** (`.github/zizmor.yml`): the `adhoc-packages` exception for the best-effort
+  official-CLI install was pinned to `validate.yml:67`, which silently un-suppresses on any line shift above it;
+  switched to file-level `validate.yml` (pulled forward from the audit's P2-23).
+
 ## [0.38.0] - 2026-07-10
 
 Phase 4 of the improvement roadmap — **regression make-real**: the `gatekeeper`'s regression ratchet
