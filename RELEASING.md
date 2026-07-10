@@ -182,8 +182,8 @@ against so drift is visible:
   (the plan-mode deny path was not triggered live; it is covered behaviorally by the test suite), with the
   suite green including the newly-added `contract-guard` syntax check. The full 8-step clean-profile
   **Manual activation smoke was NOT run** and remains an open pre-/post-release action for the maintainer —
-  0.34.0 added the `contract-guard` hook without a recorded smoke; this line makes that gap visible instead
-  of silent.
+  0.33.0 (2026-07-07) added the `contract-guard` hook without a recorded smoke; this line makes that gap
+  visible instead of silent.
 - **When Claude Code changes a hook-output contract** (a new/removed event, or a changed accepted shape):
   update `HSO_ACCEPT_EVENTS` / the `WIRING` table in `.github/scripts/validate-structure.mjs`, re-run this
   smoke, and update the line above.

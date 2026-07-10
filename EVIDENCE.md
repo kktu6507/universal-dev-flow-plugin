@@ -63,6 +63,8 @@ breadth and the ≥1 non-maintainer requirement remain open.
 **Track 1 — Capability validation: MET.** ≥3 external repos ✓, ≥2 languages ✓, ≥20 qualifying Type-A points ✓,
 aggregate catch/false-positive rates computed ✓, and ≥half of the bugs not previously surfaced by a prior
 review ✓. This establishes the *profile* (near-zero false positives; recall that scales with intent specificity).
+Current-build re-run (2026-07-10): the committed fixture suite scored 5/5 hit recall + 2/2 clean precision on
+`claude-fable-5` — details and provenance in [`eval/baseline.md`](eval/baseline.md).
 
 **Track 2 — Real-world validation: NOT yet met.** Drop **"experimental"** only once this file also documents
 real-use evidence:
