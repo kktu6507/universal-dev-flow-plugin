@@ -47,6 +47,8 @@ typo 修正、純粋なフォーマット、低リスクの小さな変更、単
 /udflow:run ログインフローを修正し、期限切れの access token を、失敗した request をリトライする前に一度だけ refresh するようにして。
 ```
 
+> udflow は初めてですか？[最初の実行を最初から最後まで](docs/tutorial-first-run.md)たどってみましょう。
+
 - **インストールしただけでは有効になりません。** 有効化するまで、udflow の hooks と skills は何もしません。
 - **Marketplace 名は `kktu` です。** インストール id は `udflow@kktu`。
 - **更新：** `/plugin marketplace update kktu` の後に `/reload-plugins`。
@@ -281,6 +283,7 @@ trust model については [`SECURITY.md`](SECURITY.md)（英語）を、releas
 
 ## ドキュメント
 
+- [`docs/tutorial-first-run.md`](docs/tutorial-first-run.md)（英語）- udflow の最初の実行を、最初から最後まで。
 - [`docs/task-writing-guide.md`](docs/task-writing-guide.md)（英語）- udflow が検証できるタスクの書き方。
 - [`docs/how-to-read-verdicts.md`](docs/how-to-read-verdicts.md)（英語）- `READY` / `FIX REQUIRED` / `NOT READY` の意味。
 - [`docs/compatibility.md`](docs/compatibility.md)（英語）- tested runtime と conformance smoke checklist。

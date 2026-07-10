@@ -446,6 +446,7 @@ if (fs.existsSync(enReadme)) {
   const sectionCount = (s) => (s.replace(/```[\s\S]*?```/g, "").match(/^##\s+/gm) || []).length;
   const enSections = sectionCount(en);
   const requiredReadmeLinks = [
+    "docs/tutorial-first-run.md",
     "docs/task-writing-guide.md",
     "docs/how-to-read-verdicts.md",
     "docs/compatibility.md",

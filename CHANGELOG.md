@@ -3,6 +3,50 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.37.0] - 2026-07-10
+
+Phase 5 of the improvement roadmap — **grounding + docs polish**: two cheap, in-ethos wins from the
+2026-07-10 external research. Attack the #1 quality weakness (omission/intent) at PLAN time with a lean grep
+coupling-scan, and attack the #1 adoption bottleneck with the learning-oriented tutorial udflow's docs lacked.
+Dogfooded through the standard panel (spec/test/architecture) to a gatekeeper `READY`; the panel convergently
+flagged a real parity-guard gap (below).
+
+### Added
+- **A lean coupling scan at plan-time grounding** (`agents/planner-creator.agent.md`,
+  `references/plan-grounding.md`) — `aider`'s repo-map idea minus tree-sitter. For the key symbols a change
+  touches, the planner `Grep`s their callers/callees to surface coupled code the change may ALSO need to touch
+  (a top omission source) and cites the coupling sites. Bounded + advisory by construction: **a lean `Grep`,
+  not a call-graph**, and it *surfaces* coupling for the plan — it does **not** assert an omission finding (the
+  reviewers/gatekeeper still do that), so it **cannot cry wolf**. Targets omission — the #1 real miss category —
+  at its cheapest fix point, before any code is written.
+- **`docs/tutorial-first-run.md` — a learning-oriented "first run" tutorial** (the missing Diátaxis quadrant;
+  the docs already had how-to + reference + explanation). A linear ~10-minute walkthrough: install → enable →
+  hand udflow one small concrete task → the restated requirement → the plan gate (approve) → the implementer's
+  smallest change → verification (exit status is authority) → the risk-selected reviewers → the `gatekeeper`
+  verdict + the `udflow:verify=` / `udflow:delivery=` / `udflow:panel=` footer (machine literals verbatim).
+  Linked from all three READMEs (a near-Quick-start pointer + the Docs section) at README parity.
+
+### Changed
+- `.github/scripts/validate-structure.mjs` — added `docs/tutorial-first-run.md` to the `requiredReadmeLinks`
+  parity allowlist, so the new tutorial link is machine-enforced across all three READMEs (en / zh-TW / ja) —
+  the same guarantee its sibling core docs already had. A ratified, CI-only guard-strengthening the review
+  panel convergently requested (guard the class, not just the instance).
+
+### Not adopted (recorded, not silently dropped)
+- **A per-commit hook-stdout JSON-schema check** — DROPPED as redundant. `test/hooks.test.mjs` already asserts
+  every hook's output shape behaviorally (15× `hookSpecificOutput` + orchestration `systemMessage` / `decision`),
+  and `validate-structure` §5g statically guards hook-output/event conformance. A schema layer would duplicate
+  existing coverage for no net gain — the same "don't add redundant machinery" call as the Phase-3 drop.
+
+### Notes
+- The standard panel (spec/test/architecture) convergently flagged that the new tutorial link was mirrored in
+  all three READMEs by hand but **not** registered in the parity guard — closed by the `requiredReadmeLinks`
+  addition above. The §7 tutorial panel description was also sharpened to name the code-review pass. Both
+  closed in the same release.
+- **No machine literal changed**; hook (6) and agent (10) counts unchanged. Version bumped 0.36.0 → 0.37.0
+  (planner grounding gains a user-perceptible step) across `plugin.json`, `package.json`, `marketplace.json`.
+  `node --test` (347: 343 pass / 0 fail / 4 platform-skipped) + `validate-structure` green.
+
 ## [0.36.0] - 2026-07-10
 
 Phase 2 of the improvement roadmap: a **Review-Packet diff packer** — the highest-value borrow from the

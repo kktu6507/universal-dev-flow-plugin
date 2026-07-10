@@ -47,6 +47,8 @@ Prerequisites: **Claude Code** + `node` on `PATH`. The hooks are Node scripts; w
 /udflow:run Fix the login flow so expired access tokens are refreshed once before retrying the failed request.
 ```
 
+> New to udflow? Walk through [your first run, end to end](docs/tutorial-first-run.md).
+
 - **Install does not enable the plugin.** Until enabled, udflow's hooks and skills do nothing.
 - **Marketplace name is `kktu`.** The install id is `udflow@kktu`.
 - **Update:** `/plugin marketplace update kktu` then `/reload-plugins`.
@@ -281,6 +283,7 @@ Use `/udflow:run --lite` for cheaper runs, `--deep` for maximum scrutiny, and `-
 
 ## Docs
 
+- [`docs/tutorial-first-run.md`](docs/tutorial-first-run.md) - your first udflow run, end to end.
 - [`docs/task-writing-guide.md`](docs/task-writing-guide.md) - how to write tasks udflow can verify.
 - [`docs/how-to-read-verdicts.md`](docs/how-to-read-verdicts.md) - what `READY` / `FIX REQUIRED` / `NOT READY` mean.
 - [`docs/compatibility.md`](docs/compatibility.md) - tested runtimes and conformance smoke checklist.
