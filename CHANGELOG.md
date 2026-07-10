@@ -3,6 +3,16 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.40.1] - 2026-07-11
+
+### Fixed
+- `doctor` skill: when no plugin-root env var (`$CLAUDE_PLUGIN_ROOT` / `$COPILOT_PLUGIN_ROOT` /
+  `$PLUGIN_ROOT`) is set, the skill now explicitly forbids falling back to a filesystem search for
+  udflow installations — a searched-up copy (old marketplace cache, another runtime's install) is not
+  the running copy, and a live 2026-07-11 clean-profile run diagnosed a stale `~/.copilot` copy as
+  "DEGRADED / contract-guard missing" (a false report). The health report now always names which env
+  var supplied the plugin root, or `none — not diagnosable from here`.
+
 ## [0.40.0] - 2026-07-10
 
 Audit remediation P2 — structural optimization: prompt-layer dedup + hooks-infra sync + test/changelog structure.

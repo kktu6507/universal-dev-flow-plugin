@@ -17,7 +17,12 @@ project. If a step can't run, say why and continue.
 ## Steps
 
 1. **Plugin root.** Resolve `$CLAUDE_PLUGIN_ROOT` (else `$COPILOT_PLUGIN_ROOT`, else `$PLUGIN_ROOT`).
-   If none is set, report that hooks can't be located from here and stop with that finding.
+   If none is set, report that hooks can't be located from here and stop with that finding. Do
+   **not** fall back to searching the filesystem for udflow installations: a copy found by search
+   (an old marketplace cache, another runtime's install such as `~/.copilot/…`) is not the copy this
+   session runs, and diagnosing it produces a false health report — worse than no report (a live
+   2026-07-11 run did exactly this and reported a stale copy as "DEGRADED"). Note which variable
+   supplied the root; the report prints it.
 
 2. **Node.** Run `node --version`. If `node` is **absent**, this is the single most common silent
    failure — **all six hooks no-op** (fail-open by design). Report it as the top finding.
@@ -47,8 +52,9 @@ project. If a step can't run, say why and continue.
 ## Report
 
 Print a compact table — one row per hook: `OK` (fired, exit 0) / `no-op` (exit 0 but never processed
-— usually no Node) / `FAIL` (non-zero exit, or wrong output shape) — plus the Node and plugin-root
-status. End with a one-line verdict (**healthy** / **degraded** / **broken**) and, if degraded/broken,
+— usually no Node) / `FAIL` (non-zero exit, or wrong output shape) — plus the Node status and the
+plugin root **with which env var supplied it** (or `none — not diagnosable from here`). End with a
+one-line verdict (**healthy** / **degraded** / **broken**) and, if degraded/broken,
 the most likely cause and fix. Tell the user they can paste this report into a
 [`Verified udflow run`](https://github.com/kktu6507/universal-dev-flow-plugin/issues/new?template=verified-run.yml)
 issue or a bug report — it is the only health signal udflow has, since it sends none on its own.
