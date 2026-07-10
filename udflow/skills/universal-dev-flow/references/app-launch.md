@@ -14,7 +14,7 @@ Follow the protocol in `references/external-capabilities.md`.
 1. **Detect** — is the target already up? Probe the expected surface first (the dev-server URL/route responds, the API port is open, the process is already running). **If it is already running, attach — do NOT launch** (and do not tear it down afterward; you only own what you started).
 2. **Use** (not reachable) — bring it up, in preference order, and record which path was used:
    - **Delegate to the built-in `/run` skill** (preferred). `/run` already resolves a project-specific launch skill if one exists, else falls back to per-stack patterns (CLI / server / TUI / Electron / browser-driven / library). udflow does **not** keep its own per-stack launch-command table — it asks `/run` to start the app and report the reachable surface (URL / port).
-   - **Built dev-server preview** — `mcp__Claude_Preview__*` `preview_start` when a built preview is the right surface for a web app.
+   - **Built dev-server preview** — a server exposing `preview_start` (e.g. `mcp__Claude_Browser__*`) when a built preview is the right surface for a web app.
    - **Documented repo run command** (fallback, only if `/run` is unavailable) — start the app's *documented* start command (README / `package.json` scripts / launch profile) in a way that leaves **no lingering child** (see *Teardown*). Do not invent a start command; if the repo documents none, treat it as the Else branch.
 3. **Else** (cannot launch) — do **not** fake a live check. Disclose the exact blocker + the best local fallback (a render/component or contract test) + the remaining gap. Two distinct shapes, disclosed differently (per `references/external-capabilities.md`, *Absent vs. present-but-failing*):
    - **No launch capability** — `/run` absent and no documented start command → "could not bring the app up; verified via `<local fallback>`; live-behavior gap remains".
@@ -44,4 +44,4 @@ Launching then driving a real, authenticated app inherits the data-sensitivity r
 - **Own only what you started.** Attach to an already-running app and leave it running; tear down only a udflow-started process.
 - **Delegate, don't hardcode.** Prefer `/run`; udflow keeps no per-stack launch-command table of its own.
 - **Orchestrator launches and drives; reviewers stay read-only.**
-- Language: user-facing text follows the user's language; identifiers, skill names (`/run`), MCP tool names, paths, and the machine-checked tokens stay verbatim (see `SKILL.md`, Language And Text Integrity).
+- Language: per `SKILL.md` *Language And Text Integrity* — user-facing text follows the user's language; technical contracts verbatim.

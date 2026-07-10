@@ -65,7 +65,7 @@ Produce:
 - **Assists, never replaces, human approval.** Its outputs are material for the user's decision at `ExitPlanMode`; ambiguities become `AskUserQuestion`; it never auto-decides product behavior.
 - **Depth, not breadth.** It does not change reviewer selection (still the smallest sufficient set) and adds **no new reviewer** — Stage A runs as a single focused grounding subagent (`planner-creator`, else `Explore`), not a fan-out, and Stage B runs on the main thread. `planner-creator` is a *planning* agent (it only *recommends* the panel), never a reviewer added to it.
 - **Never a hard dependency.** With no exploration subagent, the main thread falls back to local grounding and discloses; absence never raises an error.
-- **Language.** Outputs surfaced to the user follow the user's language (see `SKILL.md`, Language And Text Integrity); identifiers, file names, commands, and the machine-checked tokens (`READY` / `FIX REQUIRED` / `NOT READY`, `blocker` / `major` / `minor`) stay verbatim.
+- **Language.** Per `SKILL.md` *Language And Text Integrity* — user-facing text follows the user's language; technical contracts verbatim.
 
 ## Deep mode
 

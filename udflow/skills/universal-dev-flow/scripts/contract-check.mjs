@@ -88,15 +88,14 @@ export function formatReport({ contractFound, scope, coverage }) {
   return lines.join("\n");
 }
 
-// Changed paths come from `git diff --name-only` (vs --base, else HEAD). Exposed via _internal for the
-// CLI; a git failure is swallowed to [] so the checker stays fail-open and never throws to its caller.
+// Changed paths come from `git diff --name-only` (vs --base, else HEAD); called directly by main().
+// A git failure is swallowed to [] so the checker stays fail-open and never throws to its caller.
 function changedPathsFromGit(base) {
   try {
     const args = base ? ["diff", "--name-only", base] : ["diff", "--name-only", "HEAD"];
     return cp.execFileSync("git", args, { encoding: "utf8" }).split(/\r?\n/).filter(Boolean);
   } catch (e) { return []; }
 }
-export const _internal = { changedPathsFromGit };
 
 function main(argv) {
   const args = argv.slice(2);

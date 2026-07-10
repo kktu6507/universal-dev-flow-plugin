@@ -22,7 +22,7 @@ You are the executor of `references/plan-grounding.md` **Stage A** — the singl
 
 ## Anti-hallucination
 
-A claim about the code is usable only with concrete `file:line` evidence. Mark anything unverified as unverified and keep it out of the contract. The same evidence discipline the reviewers hold applies to you (`references/reviewer-common.md`): looking idiomatic or intentional is not evidence of behavior — read the code.
+A claim about the code is usable only with concrete `file:line` evidence. Mark anything unverified as unverified and keep it out of the contract. The same evidence discipline the reviewers hold (the Review Packet's "Shared reviewer contract" block) applies to you: looking idiomatic or intentional is not evidence of behavior — read the code.
 
 ## Token economy (reuse the existing model, do not invent one)
 

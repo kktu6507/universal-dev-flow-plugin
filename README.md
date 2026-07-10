@@ -288,6 +288,7 @@ Use `/udflow:run --lite` for cheaper runs, `--deep` for maximum scrutiny, and `-
 - [`docs/how-to-read-verdicts.md`](docs/how-to-read-verdicts.md) - what `READY` / `FIX REQUIRED` / `NOT READY` mean.
 - [`docs/compatibility.md`](docs/compatibility.md) - tested runtimes and conformance smoke checklist.
 - [`docs/advanced/external-capabilities.md`](docs/advanced/external-capabilities.md) - optional MCP, Codex, browser, and design capabilities.
+- [`udflow/examples/FAILURE_MEMORY.sample.md`](udflow/examples/FAILURE_MEMORY.sample.md) - a filled-in failure-memory example (entry template + retire markers).
 - [`EVIDENCE.md`](EVIDENCE.md) - real-world and benchmark evidence log.
 - [`ARCHITECTURE.md`](ARCHITECTURE.md) - component map, stable contracts, and limits.
 - [`SECURITY.md`](SECURITY.md) - trust model, safe install, and vulnerability reporting.

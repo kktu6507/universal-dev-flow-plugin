@@ -50,5 +50,5 @@ Print a compact table — one row per hook: `OK` (fired, exit 0) / `no-op` (exit
 — usually no Node) / `FAIL` (non-zero exit, or wrong output shape) — plus the Node and plugin-root
 status. End with a one-line verdict (**healthy** / **degraded** / **broken**) and, if degraded/broken,
 the most likely cause and fix. Tell the user they can paste this report into a
-[`Verified udflow run`](.github/ISSUE_TEMPLATE/verified-run.yml) issue or a bug report — it is the
-only health signal udflow has, since it sends none on its own.
+[`Verified udflow run`](https://github.com/kktu6507/universal-dev-flow-plugin/issues/new?template=verified-run.yml)
+issue or a bug report — it is the only health signal udflow has, since it sends none on its own.

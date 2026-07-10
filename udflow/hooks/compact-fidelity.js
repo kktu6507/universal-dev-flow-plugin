@@ -26,6 +26,7 @@ const crypto = require("crypto");
 
 const MAX_STDIN = 5 * 1024 * 1024; // cap stdin buffering (bytes) — same posture as the other hooks
 
+// debug() kept in sync with plan-gate.js / destructive-guard.js / contract-guard.js / load-failure-memory.js / orchestration-check.js (documented copy — see P3 garden hash guard)
 function debug(msg) {
   if (!process.env.UDFLOW_HOOK_DEBUG) return;
   try { fs.appendFileSync(path.join(os.tmpdir(), "udflow-hook.log"), "[compact-fidelity] " + msg + "\n"); } catch (e) {}
@@ -50,6 +51,7 @@ const PRESERVE_BODY = [
 // Neutralize any line that could read as a conversational role marker or instruction-block tag, mirroring
 // load-failure-memory.js. The body here is hook-authored (not repo content), so this is defense-in-depth /
 // symmetry, not a guard against untrusted input.
+// neutralize() kept in sync with load-failure-memory.js (documented copy — see P3 garden hash guard)
 function neutralize(text) {
   return String(text).split(/\r?\n/).map((ln) => {
     if (/^\s*[-*]?\s*(?:system|assistant|user|human)\s*:/i.test(ln)) return ln.replace(/:/, "："); // fullwidth colon breaks the role marker
@@ -63,9 +65,12 @@ function neutralize(text) {
 // precedence). Mirrors destructive-guard.js's opt-out exactly, including the FAIL-SAFE: a missing file,
 // parse error, oversized config, or any read error counts as "not disabled" (keep preserving), so a broken
 // settings file can never silently drop the nudge.
-function preserveDisabledForProject(cwd) {
+// settings-flag reader (DisabledForProject + readFlag pair) kept in sync with plan-gate.js / destructive-guard.js / contract-guard.js (documented copy — see P3 garden hash guard)
+function preserveDisabledForProject(input) {
   try {
-    const root = process.env.CLAUDE_PROJECT_DIR || cwd || "";
+    // Root resolution matches the other hooks (CLAUDE_PROJECT_DIR, then the event cwd) with one
+    // deliberate extra: a process.cwd() fallback, because a SessionStart event may carry no cwd.
+    const root = process.env.CLAUDE_PROJECT_DIR || (input && input.cwd) || process.cwd();
     if (!root) return false;
     for (const name of ["settings.local.json", "settings.json"]) { // local overrides project
       const v = readPreserveFlag(path.join(root, ".claude", name));
@@ -90,6 +95,7 @@ function readPreserveFlag(file) {
   } catch (e) { return undefined; }
 }
 
+// stdin reader kept in sync with plan-gate.js / destructive-guard.js / contract-guard.js / load-failure-memory.js / orchestration-check.js (documented copy — see P3 garden hash guard)
 let raw = "";
 let rawBytes = 0;
 process.stdin.setEncoding("utf8");
@@ -117,12 +123,7 @@ process.stdin.on("end", () => {
     const source = parsed && typeof parsed.source === "string" ? parsed.source : "";
     if (source && source !== "compact") { debug("source=" + source + " (not a compaction); skipping"); return process.exit(0); }
 
-    // Resolve the project root the same way the other hooks do (CLAUDE_PROJECT_DIR first, then the event
-    // cwd), so the opt-out anchors to the same project root as plan-gate / destructive-guard.
-    let cwd = process.env.CLAUDE_PROJECT_DIR || process.cwd();
-    if (!process.env.CLAUDE_PROJECT_DIR && parsed && parsed.cwd) cwd = parsed.cwd;
-
-    if (preserveDisabledForProject(cwd)) { debug("preserveOnCompact=false for this project; suppressing"); return process.exit(0); }
+    if (preserveDisabledForProject(parsed)) { debug("preserveOnCompact=false for this project; suppressing"); return process.exit(0); }
 
     // Wrap the instruction in an unforgeable per-run nonce fence and role-neutralize it, mirroring
     // load-failure-memory.js so the injected block can't be confused with a turn boundary.

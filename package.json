@@ -2,8 +2,11 @@
   "name": "udflow",
   "private": true,
   "version": "0.39.0",
-  "description": "Universal Dev Flow — Claude Code plugin. Tests cover the session hooks.",
+  "description": "Universal Dev Flow — Claude Code plugin. Tests cover the session hooks, the release publisher, the CI structure validator, and the workflow scripts.",
   "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "test": "node --test"
   }
