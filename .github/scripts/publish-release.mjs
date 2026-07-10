@@ -90,7 +90,12 @@ function releaseState(runner, cwd, tag) {
 
 function releaseNotes(root, version) {
   const changelog = fs.readFileSync(path.join(root, "CHANGELOG.md"), "utf8").split(/\r?\n/);
-  const start = changelog.findIndex((line) => line === `## [${version}]`);
+  // Accept both heading forms: bare `## [x.y.z]` and the dated keep-a-changelog form
+  // `## [x.y.z] - YYYY-MM-DD` (used since 0.28.0). The old exact `===` match never matched a
+  // dated heading, so releases silently shipped the "See CHANGELOG.md" fallback (P3-8).
+  const escaped = version.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const headingRe = new RegExp(`^## \\[${escaped}\\](?: - .*)?\\s*$`);
+  const start = changelog.findIndex((line) => headingRe.test(line));
   if (start === -1) return "";
   const out = [];
   for (let i = start + 1; i < changelog.length; i += 1) {

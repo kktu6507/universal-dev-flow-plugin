@@ -26,6 +26,16 @@ One markdown file per case under `fixtures/`, with YAML frontmatter:
 …followed by an **Intent** line (the contract) and the code in a fenced block. The reviewer is shown only
 the **intent + code** (blind); the **judge** additionally sees `expected` + `defect`.
 
+## Manifest + assertion policy
+
+[`manifest.yaml`](manifest.yaml) is the single machine-readable **index** of the fixtures (id, file,
+lang, expected, scorer). **Deterministic asserts first:** everything that can be checked without a
+model IS checked in CI — `test/eval-manifest.test.mjs` enforces three-way parity (manifest ⇄ the
+`fixtures/*.md` files on disk ⇄ the hand-synced `FIXTURES` array in `fixture-eval.workflow.js`, which
+cannot read the filesystem at runtime) and that each entry's `id`/`expected` matches the fixture's own
+frontmatter. **LLM-judged checks never enter the regression ratchet** — the blind-review scoring is
+for this on-demand behavioral suite only, recorded in `baseline.md`, never a per-commit CI gate.
+
 ## How to run (on demand — not CI)
 
 The reviewer is a Claude subagent, so this costs model tokens and is **not** a per-commit CI gate; run it

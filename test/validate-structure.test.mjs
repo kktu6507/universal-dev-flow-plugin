@@ -355,3 +355,97 @@ test("validate-structure: a second event entry can no longer cover another hook'
     assert.match(out, /matcher does not cover "MultiEdit"/, "the failure must name the token plan-gate's own entry omits");
   } finally { fs.rmSync(tree, { recursive: true, force: true }); }
 });
+
+// --- P3-1 §9 "garden" guards: one injected-defect negative test per check (a–e) ---
+
+test("validate-structure: garden 9a FAILS on an orphan reference file not mentioned in SKILL.md", () => {
+  const tree = copyRepoTree();
+  try {
+    // A reference file nothing links: SKILL.md's Reference Loading list never names it.
+    fs.writeFileSync(path.join(tree, "udflow", "skills", "universal-dev-flow", "references", "zz-orphan.md"),
+      "# Orphan reference\n\nDead weight the workflow can never load.\n", "utf8");
+    const { code, out } = runValidator(tree);
+    assert.notStrictEqual(code, 0, "an orphan reference must fail the build");
+    assert.match(out, /garden 9a: .*zz-orphan\.md is not mentioned by filename in SKILL\.md/, "the failure must name the orphan reference");
+  } finally { fs.rmSync(tree, { recursive: true, force: true }); }
+});
+
+test("validate-structure: garden 9b FAILS in both agent-parity directions (unlisted on disk / ghost in manifest)", () => {
+  // Direction 1: an agent file on disk that plugin.json agents[] does not list (it would never load).
+  let tree = copyRepoTree();
+  try {
+    fs.writeFileSync(path.join(tree, "udflow", "agents", "zz-unlisted.agent.md"),
+      "---\nname: zz-unlisted\ndescription: parity-test agent not wired in the manifest\n---\n\nBody.\n", "utf8");
+    const { code, out } = runValidator(tree);
+    assert.notStrictEqual(code, 0, "an on-disk agent missing from plugin.json agents[] must fail the build");
+    assert.match(out, /garden 9b: .*zz-unlisted\.agent\.md exists on disk but is not listed in plugin\.json/, "the failure must name the unlisted agent");
+  } finally { fs.rmSync(tree, { recursive: true, force: true }); }
+  // Direction 2: a plugin.json agents[] entry whose file does not exist on disk.
+  tree = copyRepoTree();
+  try {
+    const pj = path.join(tree, "udflow", ".claude-plugin", "plugin.json");
+    const obj = JSON.parse(fs.readFileSync(pj, "utf8"));
+    obj.agents.push("./agents/ghost.agent.md");
+    fs.writeFileSync(pj, JSON.stringify(obj, null, 2), "utf8");
+    const { code, out } = runValidator(tree);
+    assert.notStrictEqual(code, 0, "a manifest agent entry with no file on disk must fail the build");
+    assert.match(out, /garden 9b: plugin\.json agents\[\] lists ".\/agents\/ghost\.agent\.md" but .* does not exist on disk/, "the failure must name the ghost manifest entry");
+  } finally { fs.rmSync(tree, { recursive: true, force: true }); }
+});
+
+test("validate-structure: garden 9c FAILS when SKILL.md grows past the agreed size cap", () => {
+  const tree = copyRepoTree();
+  try {
+    // 25,812 B (P2 compressed size) + 6 KB of growth crosses the 30,000 B cap.
+    const skill = path.join(tree, "udflow", "skills", "universal-dev-flow", "SKILL.md");
+    fs.appendFileSync(skill, "\n" + "x".repeat(6000) + "\n", "utf8");
+    const { code, out } = runValidator(tree);
+    assert.notStrictEqual(code, 0, "SKILL.md growing past the cap must fail the build");
+    assert.match(out, /garden 9c: .*SKILL\.md is \d+ bytes and grew past the agreed cap \(30000\)/, "the failure must name the cap and the actual size");
+    assert.match(out, /consciously raise the cap/, "the failure must state the conscious-override path");
+  } finally { fs.rmSync(tree, { recursive: true, force: true }); }
+});
+
+test("validate-structure: garden 9d FAILS on drift in each guarded copy cluster (dd regex / debug body / packet anchor)", () => {
+  for (const [mutate, expected] of [
+    // d1: one character of destructive-guard's dd-of= regex changes -> the documented
+    // character-identical pair with plan-gate.js is broken.
+    [(tree) => {
+      const p = path.join(tree, "udflow", "hooks", "destructive-guard.js");
+      fs.writeFileSync(p, fs.readFileSync(p, "utf8").replace("NUL\\b))/i,", "NULL\\b))/i,"), "utf8");
+    }, /garden 9d: the dd-of= regex drifted between plan-gate\.js and destructive-guard\.js/],
+    // d2: one hook's debug() body drifts from the other five documented copies.
+    [(tree) => {
+      const p = path.join(tree, "udflow", "hooks", "compact-fidelity.js");
+      fs.writeFileSync(p, fs.readFileSync(p, "utf8").replace("udflow-hook.log", "udflow-hook2.log"), "utf8");
+    }, /garden 9d: debug\(\) drifted between .*compact-fidelity\.js/],
+    // d3 (§5k extension): a packet-block rule drops out of review-packet.md while
+    // reviewer-common.md still has it — the P0-1 drift class.
+    [(tree) => {
+      const p = path.join(tree, "udflow", "skills", "universal-dev-flow", "references", "review-packet.md");
+      fs.writeFileSync(p, fs.readFileSync(p, "utf8").split("materially underspecified").join("XXX"), "utf8");
+    }, /rigor-contract guard: .*review-packet\.md no longer contains the anchor "materially underspecified"/],
+  ]) {
+    const tree = copyRepoTree();
+    try {
+      mutate(tree);
+      const { code, out } = runValidator(tree);
+      assert.notStrictEqual(code, 0, `a drifted documented copy must fail the build (${expected})`);
+      assert.match(out, expected, "the failure must name the drifted pair/anchor");
+    } finally { fs.rmSync(tree, { recursive: true, force: true }); }
+  }
+});
+
+test("validate-structure: garden 9e FAILS on a bare plugin-script invocation missing ${CLAUDE_PLUGIN_ROOT}", () => {
+  const tree = copyRepoTree();
+  try {
+    // Strip the plugin-root prefix from a shipped invocation — the P0-3 regression.
+    const vg = path.join(tree, "udflow", "skills", "universal-dev-flow", "references", "verification-gate.md");
+    fs.writeFileSync(vg, fs.readFileSync(vg, "utf8").replace(
+      "node ${CLAUDE_PLUGIN_ROOT}/skills/universal-dev-flow/scripts/failure-retrieve.mjs",
+      "node skills/universal-dev-flow/scripts/failure-retrieve.mjs"), "utf8");
+    const { code, out } = runValidator(tree);
+    assert.notStrictEqual(code, 0, "a bare plugin-script invocation in a shipped .md must fail the build");
+    assert.match(out, /garden 9e: .*verification-gate\.md:\d+ invokes a plugin script without the plugin root/, "the failure must name the file:line and the fix");
+  } finally { fs.rmSync(tree, { recursive: true, force: true }); }
+});

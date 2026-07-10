@@ -1,0 +1,11 @@
+# lychee (link-check.yml) exclusion patterns — one regex per line.
+# Placeholder / documentation-only hosts that are never meant to resolve:
+^https?://localhost
+^https?://127\.0\.0\.1
+^https?://(?:[a-z0-9-]+\.)?example\.(?:com|org|net|invalid)
+# Email links are not checked (no SMTP probing from CI).
+^mailto:
+# GitHub "new issue with template" deep-links redirect to login for unauthenticated
+# clients, which link checkers intermittently score as failures; the literal presence of
+# these links is already CI-enforced by validate-structure §8 (requiredReadmeLinks).
+^https://github\.com/.+/issues/new

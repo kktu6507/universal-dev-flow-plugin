@@ -364,3 +364,55 @@ test("release publisher: release discovery errors fail closed unless they are no
     fs.rmSync(tmp, { recursive: true, force: true });
   }
 });
+
+// --- P3-8: releaseNotes() must tolerate the DATED heading form (`## [x.y.z] - YYYY-MM-DD`),
+// which CHANGELOG.md has used since 0.28.0. The old exact match `## [x.y.z]` never matched a
+// dated heading, so every release since silently published the "See CHANGELOG.md for vX."
+// fallback instead of the real section body. ---
+
+// A release root whose CHANGELOG uses the dated keep-a-changelog heading form (the real repo's form).
+function makeDatedReleaseRoot() {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "udflow-release-root-"));
+  fs.mkdirSync(path.join(dir, "udflow", ".claude-plugin"), { recursive: true });
+  fs.writeFileSync(path.join(dir, "udflow", ".claude-plugin", "plugin.json"), JSON.stringify({ version: "1.2.3" }), "utf8");
+  fs.writeFileSync(path.join(dir, "CHANGELOG.md"),
+    "# Changelog\n\n## [1.2.3] - 2026-07-10\n\nDated release notes body.\n\n## [1.2.2] - 2026-07-01\n\nOld notes.\n", "utf8");
+  return dir;
+}
+
+test("release publisher: dated CHANGELOG headings yield the real section body as release notes", () => {
+  const tree = makeDatedReleaseRoot();
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "udflow-release-tmp-"));
+  try {
+    const { runner } = makeReleaseRunner({ state: null, tagExists: false });
+    const result = runRelease({ root: tree, tmpDir: tmp, runner, archiveWriter: fakeArchiveWriter, log: () => {} });
+    assert.strictEqual(result.action, "created-release");
+    // runRelease writes the notes it hands to `gh release create --notes-file` to <tmpDir>/relnotes.md.
+    const notes = fs.readFileSync(path.join(tmp, "relnotes.md"), "utf8");
+    assert.match(notes, /Dated release notes body\./,
+      "a `## [x.y.z] - YYYY-MM-DD` heading must yield the section body, not the see-CHANGELOG fallback");
+    assert.ok(!notes.includes("See CHANGELOG.md"), "dated headings must not trigger the fallback note");
+    assert.ok(!notes.includes("Old notes."), "collection must stop at the next `## [` heading");
+  } finally {
+    fs.rmSync(tree, { recursive: true, force: true });
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test("release publisher: a genuinely missing CHANGELOG heading still falls back to the see-CHANGELOG note", () => {
+  const tree = makeDatedReleaseRoot();
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), "udflow-release-tmp-"));
+  try {
+    // No heading for 1.2.3 at all (dated or undated) -> the fallback must survive the P3-8 fix.
+    fs.writeFileSync(path.join(tree, "CHANGELOG.md"),
+      "# Changelog\n\n## [1.2.2] - 2026-07-01\n\nOld notes.\n", "utf8");
+    const { runner } = makeReleaseRunner({ state: null, tagExists: false });
+    const result = runRelease({ root: tree, tmpDir: tmp, runner, archiveWriter: fakeArchiveWriter, log: () => {} });
+    assert.strictEqual(result.action, "created-release");
+    const notes = fs.readFileSync(path.join(tmp, "relnotes.md"), "utf8");
+    assert.match(notes, /See CHANGELOG\.md for v1\.2\.3\./, "a missing version heading must keep the fallback note");
+  } finally {
+    fs.rmSync(tree, { recursive: true, force: true });
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});

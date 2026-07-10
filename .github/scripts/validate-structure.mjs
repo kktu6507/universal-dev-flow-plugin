@@ -357,7 +357,17 @@ if (fs.existsSync(path.join(root, packetRel))) {
 // mandate). A drift that drops one side silently guts the contract for every reviewer while CI stays
 // green. Narrow literal-presence anchors only, no wording constraints — same philosophy as 5f/5j.
 // ("as the fixed reference" pins the severity-rubric rule (C3), added after it drifted into one file.)
-const RIGOR_ANCHORS = ["Admission to the findings index", "Evidence grading", "refute your strongest finding", "as the fixed reference", /[Tt]wo channels/];
+// The last four anchors are the P3-1(d3) packet-block sync additions (the P0-1 drift class: the
+// Non-mutating rule, the underspecified clause, and the blocker/minor severity definitions each
+// silently dropped out of ONE side once). Curated substrings, not a full hash — the two files are
+// different formats by design (canonical prose vs the verbatim handoff block).
+const RIGOR_ANCHORS = [
+  "Admission to the findings index", "Evidence grading", "refute your strongest finding", "as the fixed reference", /[Tt]wo channels/,
+  "Non-mutating: inspect, don't change",
+  "materially underspecified",
+  "clearly incorrect, materially unsafe", // the `blocker` definition
+  "worthwhile cleanup or polish",         // the `minor` definition
+];
 for (const rel of [
   `${PLUGIN}/skills/universal-dev-flow/references/reviewer-common.md`,
   `${PLUGIN}/skills/universal-dev-flow/references/review-packet.md`,
@@ -485,6 +495,170 @@ if (fs.existsSync(enReadme)) {
       if (!translated.includes(base)) fail(`README parity: ${rel} does not mention the hook "${base}" (docs out of sync)`);
     }
   }
+}
+
+// 9. "Garden" guards — dead weight + copy-sync (P3-1; shape borrowed from wshobson/agents `make garden`).
+// Deterministic only, no fuzzy matching. Every failure names the fix, and every cap/anchor has an
+// obvious conscious-override path: edit the constant/list HERE with a justifying comment. The hooks
+// deliberately keep per-hook COPIES of shared infra (per-hook failure isolation over a shared lib —
+// docs/consolidation.md), each stamped "kept in sync … (documented copy — see P3 garden hash guard)";
+// 9d is that promised guard. The packet-block half of the copy-sync mandate (d3) lives in §5k's
+// RIGOR_ANCHORS above (same two files, same mechanism — extended rather than duplicated).
+
+// 9a. Reference reachability: every shipped references/*.md must be named in SKILL.md (the Reference
+// Loading list) — an orphan reference is dead weight the workflow can never load.
+{
+  const refDirRel = `${PLUGIN}/skills/universal-dev-flow/references`;
+  const refDirAbs = path.join(root, refDirRel);
+  const skillAbs = path.join(root, skillRel);
+  if (fs.existsSync(refDirAbs) && fs.existsSync(skillAbs)) {
+    const skillText = fs.readFileSync(skillAbs, "utf8");
+    for (const name of fs.readdirSync(refDirAbs)) {
+      if (!name.endsWith(".md")) continue;
+      if (!skillText.includes(name))
+        fail(`garden 9a: ${refDirRel}/${name} is not mentioned by filename in SKILL.md — an orphan reference the workflow can never load; add it to SKILL.md's Reference Loading list or delete the file`);
+    }
+  }
+}
+
+// 9b. Agent parity, both directions: every plugin.json agents[] entry exists on disk, and every
+// agents/*.agent.md on disk is listed in plugin.json (Claude Code loads agents via the manifest
+// array, so an unlisted agent silently never loads). §5b covers only the SKILL.md prose roster;
+// this holds regardless of the roster sentence.
+if (plugin && Array.isArray(plugin.agents)) {
+  for (const entry of plugin.agents) {
+    const relPath = String(entry).replace(/^\.\//, "");
+    if (!fs.existsSync(path.join(root, PLUGIN, relPath)))
+      fail(`garden 9b: plugin.json agents[] lists "${entry}" but ${PLUGIN}/${relPath} does not exist on disk — restore the file or remove the manifest entry`);
+  }
+  const agentsDirAbs = path.join(root, `${PLUGIN}/agents`);
+  if (fs.existsSync(agentsDirAbs)) {
+    for (const name of fs.readdirSync(agentsDirAbs)) {
+      if (!name.endsWith(".agent.md")) continue;
+      if (!plugin.agents.some((p) => String(p).replace(/^\.\//, "") === `agents/${name}`))
+        fail(`garden 9b: ${PLUGIN}/agents/${name} exists on disk but is not listed in plugin.json agents[] — it would silently never load; add "./agents/${name}" to the manifest or delete the file`);
+    }
+  }
+}
+
+// 9c. Size caps with headroom. These two files dominate always-loaded prompt cost and were
+// deliberately compressed in P2 (2026-07-10: SKILL.md 25,812 B / gatekeeper.agent.md 22,366 B);
+// the caps leave ~4.5 KB headroom each so ordinary edits never trip. Raising a cap is allowed —
+// but must be a CONSCIOUS decision made here with a justifying comment, not accretion.
+{
+  const SIZE_CAPS = [
+    [`${PLUGIN}/skills/universal-dev-flow/SKILL.md`, 30000],
+    [`${PLUGIN}/agents/gatekeeper.agent.md`, 27000],
+  ];
+  for (const [rel, cap] of SIZE_CAPS) {
+    const abs = path.join(root, rel);
+    if (!fs.existsSync(abs)) continue; // a missing file is reported by earlier sections
+    const size = fs.statSync(abs).size;
+    if (size > cap)
+      fail(`garden 9c: ${rel} is ${size} bytes and grew past the agreed cap (${cap}); either shrink it or consciously raise the cap in validate-structure with a justifying comment`);
+  }
+}
+
+// 9d. Copy-sync guards for the documented per-hook infra copies (deterministic string/regex
+// extraction only). Each check fails CLOSED when it cannot locate what it guards, so a refactor
+// cannot silently disarm it — the message then says to re-point the guard.
+{
+  const hookRel = (name) => `${PLUGIN}/hooks/${name}`;
+  const readHook = (rel) => fs.readFileSync(path.join(root, rel), "utf8").replace(/\r\n/g, "\n");
+
+  // d1. dd-of= regex identity (P0 panel finding M2): plan-gate.js and destructive-guard.js each carry
+  // the dd write-detection pattern with a "kept character-identical / reused verbatim" comment — make
+  // that an enforced invariant. Extract the regex literal from the line containing `dd\s(?=` and
+  // require strict equality (surrounding whitespace/comment are excluded by the extraction).
+  const extractDdRegex = (rel) => {
+    const line = readHook(rel).split("\n").find((l) => l.includes("dd\\s(?="));
+    if (!line) return null;
+    const m = line.match(/\/\(\?:.*?\/i(?=[\s,)\]]|$)/); // the literal: first `/(?:` through its `/i` flags
+    return m ? m[0] : null;
+  };
+  const ddPair = [hookRel("plan-gate.js"), hookRel("destructive-guard.js")];
+  if (ddPair.every((rel) => fs.existsSync(path.join(root, rel)))) {
+    const [ddGate, ddGuard] = ddPair.map(extractDdRegex);
+    if (!ddGate || !ddGuard) {
+      fail(`garden 9d: cannot locate the dd-of= regex literal (the line containing "dd\\s(?=") in ${ddPair.join(" / ")} — the pattern moved; re-point the 9d dd-identity guard`);
+    } else if (ddGate !== ddGuard) {
+      fail(`garden 9d: the dd-of= regex drifted between plan-gate.js and destructive-guard.js (plan-gate: ${ddGate} vs destructive-guard: ${ddGuard}) — the two are documented character-identical copies; change BOTH together`);
+    }
+  }
+
+  // d2. Byte-identical function copies: debug() (all six hooks) and neutralize() (two hooks).
+  // Extraction: the `function <name>(` line through the closing `}` at column 0; line endings
+  // normalized; the hook's OWN basename inside its log labels is normalized to "<hook>" (each
+  // debug() copy legitimately embeds its own name — the only sanctioned difference).
+  const extractFn = (rel, fnName) => {
+    const lines = readHook(rel).split("\n");
+    const start = lines.findIndex((l) => l.startsWith(`function ${fnName}(`));
+    if (start === -1) return null;
+    for (let i = start + 1; i < lines.length; i++) {
+      if (lines[i] === "}") return lines.slice(start, i + 1).join("\n").split(path.basename(rel, ".js")).join("<hook>");
+    }
+    return null;
+  };
+  const FN_CLUSTERS = [
+    ["debug", ["plan-gate.js", "destructive-guard.js", "contract-guard.js", "load-failure-memory.js", "compact-fidelity.js", "orchestration-check.js"]],
+    ["neutralize", ["load-failure-memory.js", "compact-fidelity.js"]],
+  ];
+  for (const [fnName, files] of FN_CLUSTERS) {
+    const present = files.map((f) => hookRel(f)).filter((rel) => fs.existsSync(path.join(root, rel)));
+    const bodies = present.map((rel) => [rel, extractFn(rel, fnName)]);
+    for (const [rel, body] of bodies) {
+      if (body === null) fail(`garden 9d: cannot extract function ${fnName}() from ${rel} — the function moved or lost its column-0 shape; re-point the 9d copy guard`);
+    }
+    const found = bodies.filter(([, b]) => b !== null);
+    for (let i = 1; i < found.length; i++) {
+      if (found[i][1] !== found[0][1])
+        fail(`garden 9d: ${fnName}() drifted between ${found[0][0]} and ${found[i][0]} — these are documented byte-identical copies (modulo each hook's own log label); change ALL copies together`);
+    }
+  }
+
+  // d2 (cont.) Quote-stripper regex line pair: plan-gate.js / destructive-guard.js each strip quoted
+  // spans with the same one-line regex before pattern matching ("kept in sync" documented copy).
+  const quotePair = [hookRel("plan-gate.js"), hookRel("destructive-guard.js")];
+  if (quotePair.every((rel) => fs.existsSync(path.join(root, rel)))) {
+    const quoteLines = quotePair.map((rel) => {
+      const line = readHook(rel).split("\n").find((l) => l.includes("const unquoted ="));
+      return line ? line.trim() : null;
+    });
+    if (quoteLines.some((l) => l === null)) {
+      fail(`garden 9d: cannot locate the quote-stripper line ("const unquoted =") in ${quotePair.join(" / ")} — it moved; re-point the 9d quote-stripper guard`);
+    } else if (quoteLines[0] !== quoteLines[1]) {
+      fail(`garden 9d: the quote-stripper line drifted between plan-gate.js and destructive-guard.js ("${quoteLines[0]}" vs "${quoteLines[1]}") — a documented identical copy; change BOTH together`);
+    }
+  }
+
+  // d2 (cont.) Settings-flag readers: the four opt-out readers legitimately DIFFER by settings key
+  // (planGate / destructiveGuard / contractGuard / preserveOnCompact), so no body comparison — assert
+  // each still carries the shared precedence marker comment stamped in P2, which pins the documented
+  // local-over-project / explicit-true-wins precedence contract to its siblings.
+  const SETTINGS_MARKER = "settings-flag reader (DisabledForProject + readFlag pair) kept in sync with";
+  for (const f of ["plan-gate.js", "destructive-guard.js", "contract-guard.js", "compact-fidelity.js"]) {
+    const rel = hookRel(f);
+    if (!fs.existsSync(path.join(root, rel))) continue; // missing hooks are reported by §5c wiring
+    if (!readHook(rel).includes(SETTINGS_MARKER))
+      fail(`garden 9d: ${rel} lost the settings-flag reader sync marker ("${SETTINGS_MARKER} …") — keep the precedence comment naming the sibling copies (or update this guard if the cluster was consciously dissolved)`);
+  }
+}
+
+// 9e. ${CLAUDE_PLUGIN_ROOT} lint: an installed plugin's scripts do NOT live under the consuming
+// project's cwd, so a shipped doc instructing `node skills/universal-dev-flow/scripts/…` (bare,
+// without the ${CLAUDE_PLUGIN_ROOT}/ prefix) breaks at runtime in every consuming repo (the P0-3
+// bug class). Narrow by design: only the `node <path>` invocation form is flagged, so prose
+// mentions of script paths never false-trip.
+{
+  const badInvocation = /node\s+(?:\.\/)?skills\/universal-dev-flow\/scripts\//;
+  walk(PLUGIN, (rel) => {
+    if (!rel.endsWith(".md")) return;
+    const lines = fs.readFileSync(path.join(root, rel), "utf8").split(/\r?\n/);
+    lines.forEach((ln, i) => {
+      if (badInvocation.test(ln))
+        fail(`garden 9e: ${rel}:${i + 1} invokes a plugin script without the plugin root — write "node \${CLAUDE_PLUGIN_ROOT}/skills/universal-dev-flow/scripts/…" so the command resolves in a consuming repo (P0-3 bug class)`);
+    });
+  });
 }
 
 if (errors.length) {
