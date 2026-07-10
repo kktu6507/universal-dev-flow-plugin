@@ -21,8 +21,16 @@ test("hooks.json wires the Stop hook to orchestration-check.js", () => {
 test("orchestration-check: oversized stdin fails open (no advisory, no crash)", () => {
   // Mirrors the sibling hooks' over-cap stdin tests: the MAX_STDIN cap (added 0.40.0 to match
   // the other five hooks) must make an over-cap Stop event a silent no-op, never a crash.
+  // Discriminating form (P2 gatekeeper m4): the control run proves this transcript triggers an
+  // advisory under the cap, so removing the cap turns the over-cap run's silence assertion red.
+  const tp = mkTranscript([
+    { role: "assistant", content: "Final verdict: READY — shipping.\nudflow:verify=pass\nudflow:delivery=shipped" },
+  ]);
+  const control = cp.spawnSync("node", [ORCH], { input: JSON.stringify({ transcript_path: tp }), maxBuffer: 64 * 1024 * 1024 });
+  assert.notStrictEqual((control.stdout || "").toString().trim(), "",
+    "control: under-cap, this transcript must trigger an advisory (else this test cannot discriminate)");
   const big = "x".repeat(6 * 1024 * 1024);
-  const input = JSON.stringify({ transcript_path: "does-not-exist.jsonl", pad: big });
+  const input = JSON.stringify({ transcript_path: tp, pad: big });
   const r = cp.spawnSync("node", [ORCH], { input, maxBuffer: 64 * 1024 * 1024 });
   assert.strictEqual(r.status, 0, "over-cap stdin must exit 0 (fail open)");
   assert.strictEqual((r.stdout || "").toString().trim(), "", "over-cap stdin must emit no advisory output");
