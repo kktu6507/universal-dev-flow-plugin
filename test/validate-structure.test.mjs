@@ -396,9 +396,11 @@ test("validate-structure: garden 9b FAILS in both agent-parity directions (unlis
 test("validate-structure: garden 9c FAILS when SKILL.md grows past the agreed size cap", () => {
   const tree = copyRepoTree();
   try {
-    // 25,812 B (P2 compressed size) + 6 KB of growth crosses the 30,000 B cap.
+    // Size-independent overshoot (P3 panel m2): 64 KB of growth exceeds the cap from ANY
+    // plausible base size or future cap raise, so a later SKILL.md compression pass can't
+    // silently defuse this negative.
     const skill = path.join(tree, "udflow", "skills", "universal-dev-flow", "SKILL.md");
-    fs.appendFileSync(skill, "\n" + "x".repeat(6000) + "\n", "utf8");
+    fs.appendFileSync(skill, "\n" + "x".repeat(65536) + "\n", "utf8");
     const { code, out } = runValidator(tree);
     assert.notStrictEqual(code, 0, "SKILL.md growing past the cap must fail the build");
     assert.match(out, /garden 9c: .*SKILL\.md is \d+ bytes and grew past the agreed cap \(30000\)/, "the failure must name the cap and the actual size");
@@ -425,6 +427,12 @@ test("validate-structure: garden 9d FAILS on drift in each guarded copy cluster 
       const p = path.join(tree, "udflow", "skills", "universal-dev-flow", "references", "review-packet.md");
       fs.writeFileSync(p, fs.readFileSync(p, "utf8").split("materially underspecified").join("XXX"), "utf8");
     }, /rigor-contract guard: .*review-packet\.md no longer contains the anchor "materially underspecified"/],
+    // d2 (stdin cluster): a hook loses its stdin-reader sync stamp — the P3-panel M1 class
+    // (stamps must not point at a guard that would let them silently rot).
+    [(tree) => {
+      const p = path.join(tree, "udflow", "hooks", "orchestration-check.js");
+      fs.writeFileSync(p, fs.readFileSync(p, "utf8").replace("stdin reader kept in sync with", "stdin reader formerly synced with"), "utf8");
+    }, /garden 9d: .*orchestration-check\.js lost the stdin-reader sync marker/],
   ]) {
     const tree = copyRepoTree();
     try {

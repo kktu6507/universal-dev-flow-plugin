@@ -366,6 +366,7 @@ const RIGOR_ANCHORS = [
   "Non-mutating: inspect, don't change",
   "materially underspecified",
   "clearly incorrect, materially unsafe", // the `blocker` definition
+  "should be fixed before the work is considered ready", // the `major` definition
   "worthwhile cleanup or polish",         // the `minor` definition
 ];
 for (const rel of [
@@ -641,6 +642,19 @@ if (plugin && Array.isArray(plugin.agents)) {
     if (!fs.existsSync(path.join(root, rel))) continue; // missing hooks are reported by §5c wiring
     if (!readHook(rel).includes(SETTINGS_MARKER))
       fail(`garden 9d: ${rel} lost the settings-flag reader sync marker ("${SETTINGS_MARKER} …") — keep the precedence comment naming the sibling copies (or update this guard if the cluster was consciously dissolved)`);
+  }
+
+  // d2 (cont.) Stdin readers ×6: the read-loop bodies legitimately diverge (per-hook payload
+  // handling), so like the settings-flag cluster this is a marker-presence guard, not a body
+  // hash — each hook must keep its stdin-reader sync stamp (incl. the MAX_STDIN cap discipline
+  // the stamp documents). Added post-P3-panel: the stamps shipped pointing at this guard before
+  // it existed (the M1 finding); this closes that loop.
+  const STDIN_MARKER = "stdin reader kept in sync with";
+  for (const f of ["plan-gate.js", "destructive-guard.js", "contract-guard.js", "load-failure-memory.js", "compact-fidelity.js", "orchestration-check.js"]) {
+    const rel = hookRel(f);
+    if (!fs.existsSync(path.join(root, rel))) continue; // missing hooks are reported by §5c wiring
+    if (!readHook(rel).includes(STDIN_MARKER))
+      fail(`garden 9d: ${rel} lost the stdin-reader sync marker ("${STDIN_MARKER} …") — keep the stamp naming the sibling copies and the MAX_STDIN cap (or update this guard if the cluster was consciously dissolved)`);
   }
 }
 

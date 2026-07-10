@@ -9,7 +9,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import {
-  COMPACTFIDELITY, HOOKS, TWO_ENTRIES_PLUS_PLACEHOLDER,
+  COMPACTFIDELITY, HOOKS, MEM, TWO_ENTRIES_PLUS_PLACEHOLDER,
   compactFidelity, digestOf, globalMemExists, isolatedHome, mkProject, mkProjectWithSettings,
 } from "./helpers.mjs";
 
@@ -383,6 +383,21 @@ test("compact-fidelity: opt-out is honored via the event cwd when CLAUDE_PROJECT
 test("compact-fidelity: malformed stdin fails open (no output, no crash)", () => {
   const out = cp.execFileSync("node", [COMPACTFIDELITY], { input: "not json {{{" }).toString();
   assert.strictEqual(out.trim(), "", "unparseable input -> fail open (emit nothing on bad input it can't anchor), never crash");
+});
+
+test("load-failure-memory: oversized stdin fails open (no digest emitted)", () => {
+  // P3-panel repair: the one hook of six that had no over-cap test. Discriminating form —
+  // the control run proves this project WOULD produce a digest under the cap, so removing
+  // MAX_STDIN turns the over-cap silence assertion red.
+  const dir = mkProject(TWO_ENTRIES_PLUS_PLACEHOLDER);
+  const control = digestOf({ cwd: dir });
+  assert.ok(control && control.includes("jsdom missing in CI"),
+    "control: under-cap, this project must produce a digest (else this test cannot discriminate)");
+  const big = "x".repeat(6 * 1024 * 1024);
+  const input = JSON.stringify({ cwd: dir, filler: big });
+  const r = cp.spawnSync("node", [MEM], { input, maxBuffer: 64 * 1024 * 1024 });
+  assert.strictEqual(r.status, 0, "over-cap stdin must exit 0 (fail open)");
+  assert.strictEqual((r.stdout || "").toString().trim(), "", "over-cap stdin must emit no digest");
 });
 
 test("compact-fidelity: oversized stdin fails open (no block emitted)", () => {
