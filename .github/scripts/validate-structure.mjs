@@ -698,6 +698,35 @@ if (plugin && Array.isArray(plugin.agents)) {
   });
 }
 
+// 9f. Trust-marker enumeration parity — the incident-response OPS_PROFILE trust marker is a 3-tier
+//     set (verified / dry-run-verified / UNVERIFIED, added 0.43.0). Every current-facing FULL
+//     enumeration must list all three, else a future edit silently drops a tier (enumerated-member
+//     drift — the risk §9d/FAILURE_MEMORY name). Explicit-site-anchored (NOT a blanket regex) so
+//     the 2-tier decoys never false-trip: the 0.42.0 CHANGELOG entry, the 0.43.0 entry's own prose
+//     (CHANGELOG lists all three markers in order!), the RELEASING single-marker example, and the
+//     by-design 2-tier staleness bullet in ops-profile.md.
+const TRUST_TOP = /(?<!dry-run-)verified: <date>/; // standalone top tier, not the dry-run-verified substring
+const TRUST_MARKER_SITES = [
+  { rel: `${PLUGIN}/skills/incident-response/references/ops-profile.md`, anchor: "carries a trust marker" },
+  { rel: `${PLUGIN}/skills/incident-response/references/ops-profile.md`, anchor: "Exact steps: <commands, in order>" },
+  { rel: `${PLUGIN}/skills/incident-response/references/ops-profile.md`, anchor: "how to flip it" },
+  { rel: "README.md", anchor: "carries a trust marker" },
+  { rel: "README.zh-TW.md", anchor: "帶信任標記" },
+  { rel: "README.ja.md", anchor: "信頼マーカー" },
+];
+for (const { rel, anchor } of TRUST_MARKER_SITES) {
+  const abs = path.join(root, rel);
+  if (!fs.existsSync(abs)) { fail(`garden 9f: ${rel} missing — trust-marker enumeration site (update TRUST_MARKER_SITES if it moved)`); continue; }
+  const matched = fs.readFileSync(abs, "utf8").replace(/\r\n/g, "\n").split("\n").filter((l) => l.includes(anchor));
+  if (matched.length !== 1) { fail(`garden 9f: ${rel} — trust-marker anchor "${anchor}" matched ${matched.length} line(s), expected 1; the enumeration moved or the anchor drifted — update TRUST_MARKER_SITES`); continue; }
+  const line = matched[0];
+  const missing = [];
+  if (!TRUST_TOP.test(line)) missing.push("verified: <date>");
+  if (!line.includes("dry-run-verified: <date>")) missing.push("dry-run-verified: <date>");
+  if (!line.includes("UNVERIFIED")) missing.push("UNVERIFIED");
+  if (missing.length) fail(`garden 9f: ${rel} trust-marker enumeration ("${anchor}") is missing tier(s): ${missing.join(", ")} — the 3-tier set (verified: <date> / dry-run-verified: <date> / UNVERIFIED) must stay in sync across all ${TRUST_MARKER_SITES.length} sites (or update TRUST_MARKER_SITES if the enumeration was consciously changed)`);
+}
+
 if (errors.length) {
   console.error("Plugin structure validation FAILED:");
   for (const e of errors) console.error("  - " + e);

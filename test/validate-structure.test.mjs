@@ -470,6 +470,80 @@ test("validate-structure: garden 9e FAILS on a bare plugin-script invocation mis
   } finally { fs.rmSync(tree, { recursive: true, force: true }); }
 });
 
+test("validate-structure: garden 9f FAILS when any OPS_PROFILE trust-marker enumeration site drops a tier", () => {
+  // The 3-tier trust marker (verified: <date> / dry-run-verified: <date> / UNVERIFIED, added 0.43.0)
+  // must stay enumerated in full at all 6 current-facing sites. Prove §9f goes RED when a tier is
+  // dropped at EACH site (middle-tier ×6), the top-tier lookbehind, the UNVERIFIED tier, and §9f's own
+  // anchor-drift fail-closed branch (case 9). Each find-string is copied verbatim from the live file;
+  // the notStrictEqual assert fails loudly if an edit makes one stop matching (the always-green
+  // fixture-drift trap, hit twice here).
+  const OPS = ["udflow", "skills", "incident-response", "references", "ops-profile.md"];
+  const cases = [
+    // --- middle tier (dry-run-verified) dropped, one row per current-facing enumeration site ---
+    // ops-profile.md intro prose (the token appears 4x in this file, so anchor with prose context)
+    { file: OPS,
+      find: "(a human actually ran it on that date), `dry-run-verified: <date>` (the agent",
+      repl: "(a human actually ran it on that date), (the agent",
+      expected: /ops-profile\.md.*\("carries a trust marker"\).*missing tier\(s\): dry-run-verified: <date>/ },
+    // ops-profile.md Rollback "Exact steps" line (full parenthetical, unique via "in order>")
+    { file: OPS,
+      find: "in order>  (verified: <date> | dry-run-verified: <date> | UNVERIFIED)",
+      repl: "in order>  (verified: <date> | UNVERIFIED)",
+      expected: /ops-profile\.md.*\("Exact steps: <commands, in order>"\).*missing tier\(s\): dry-run-verified: <date>/ },
+    // ops-profile.md feature-flags line (full parenthetical, unique via "how to flip it>")
+    { file: OPS,
+      find: "how to flip it>  (verified: <date> | dry-run-verified: <date> | UNVERIFIED)",
+      repl: "how to flip it>  (verified: <date> | UNVERIFIED)",
+      expected: /ops-profile\.md.*\("how to flip it"\).*missing tier\(s\): dry-run-verified: <date>/ },
+    // README.md (English)
+    { file: ["README.md"],
+      find: "`verified: <date>`, `dry-run-verified: <date>`, or `UNVERIFIED`",
+      repl: "`verified: <date>`, or `UNVERIFIED`",
+      expected: /garden 9f: README\.md.*missing tier\(s\): dry-run-verified: <date>/ },
+    // README.zh-TW.md
+    { file: ["README.zh-TW.md"],
+      find: "`verified: <date>`、`dry-run-verified: <date>` 或 `UNVERIFIED`",
+      repl: "`verified: <date>` 或 `UNVERIFIED`",
+      expected: /garden 9f: README\.zh-TW\.md.*missing tier\(s\): dry-run-verified: <date>/ },
+    // README.ja.md
+    { file: ["README.ja.md"],
+      find: "`verified: <date>`、`dry-run-verified: <date>` または `UNVERIFIED`",
+      repl: "`verified: <date>` または `UNVERIFIED`",
+      expected: /garden 9f: README\.ja\.md.*missing tier\(s\): dry-run-verified: <date>/ },
+    // --- top tier (verified) dropped: leaves the dry-run-verified token, so this only goes RED if the
+    //     (?<!dry-run-) lookbehind correctly ignores the "verified: <date>" substring inside it ---
+    { file: OPS,
+      find: "`verified: <date>` (a human actually ran it on that date), ",
+      repl: "",
+      expected: /ops-profile\.md.*\("carries a trust marker"\).*missing tier\(s\): verified: <date>/ },
+    // --- UNVERIFIED tier dropped (first full parenthetical = the Rollback "Exact steps" line) ---
+    { file: OPS,
+      find: "(verified: <date> | dry-run-verified: <date> | UNVERIFIED)",
+      repl: "(verified: <date> | dry-run-verified: <date>)",
+      expected: /ops-profile\.md.*\("Exact steps: <commands, in order>"\).*missing tier\(s\): UNVERIFIED/ },
+    // --- anchor-drift branch: rename an anchor (tiers left INTACT) so the site's line no longer
+    //     matches → the matched.length!==1 fail-closed path fires. This branch is §9f's OWN
+    //     always-green protection, so it must be exercised too (the exact rot class guarded here). ---
+    { file: OPS,
+      find: "how to flip it>  (verified: <date> | dry-run-verified: <date> | UNVERIFIED)",
+      repl: "how to toggle it>  (verified: <date> | dry-run-verified: <date> | UNVERIFIED)",
+      expected: /garden 9f: .*ops-profile\.md.*anchor "how to flip it" matched 0 line\(s\), expected 1/ },
+  ];
+  for (const { file, find, repl, expected } of cases) {
+    const tree = copyRepoTree();
+    try {
+      const p = path.join(tree, ...file);
+      const before = fs.readFileSync(p, "utf8");
+      const after = before.replace(find, repl);
+      assert.notStrictEqual(after, before, `fixture drift: find-string no longer matches in ${file.join("/")} (${expected})`);
+      fs.writeFileSync(p, after, "utf8");
+      const { code, out } = runValidator(tree);
+      assert.notStrictEqual(code, 0, `dropping a trust-marker tier must fail the build (${expected})`);
+      assert.match(out, expected, "the failure must name the site and the missing tier");
+    } finally { fs.rmSync(tree, { recursive: true, force: true }); }
+  }
+});
+
 // --- 0.42.0 §6b udflowOp hygiene: the /udflowOp/ gitignore line + the tracked-content git guard ---
 
 test("validate-structure: 6b FAILS when .gitignore loses the /udflowOp/ line", () => {
