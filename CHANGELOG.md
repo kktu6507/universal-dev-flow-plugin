@@ -3,6 +3,11 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.41.0] - 2026-07-11
+
+### Added
+- Intent-assumption register in the planning layer (prose-only): every behavior choice the requirement underdetermines must now either become an `AskUserQuestion` option at the plan gate (product-impacting — asking helps the user sharpen intent) or an explicit contract assumption entry (chosen default + rejected alternative + basis); silent resolution is a planning defect; ALL product-impacting ambiguities are asked (across multiple question rounds when they exceed one dialog — never volume-demoted), and the register records the non-product-impacting interpretive defaults. Touches `plan-grounding.md` (Stage B item 4 + routing row), `planner-creator` (deliverable 5 + direction contrast with code-side unknowns), `task-contract.md` (body field + optional machine-block `assumptions` array — `contract-check.mjs`/`contract-guard.js` unchanged, fail-open), and the Review Packet's Assumptions field (first-class review target). Rides the existing high-risk plan-grounding gate; low/medium tiers gain no ceremony.
+
 ## [0.40.1] - 2026-07-11
 
 ### Fixed

@@ -27,7 +27,10 @@ deterministic claim (fail-open).
   ],
   "allowedPaths": ["src/auth/**", "test/auth/**"],
   "forbiddenPaths": ["src/billing/**"],
-  "mustNotChange": ["public signature of AuthService.request"]
+  "mustNotChange": ["public signature of AuthService.request"],
+  "assumptions": [
+    { "text": "expired = within 30s of expiry", "alternative": "expired = past expiry only", "basis": "requirement silent; matches refresh-ahead convention in src/auth/refresh.ts" }
+  ]
 }
 ```
 
@@ -38,12 +41,17 @@ deterministic claim (fail-open).
   with no red-green, per `references/verification-gate.md`).
 - `allowedPaths` / `forbiddenPaths` — glob lists (`**` crosses segments, `*` is segment-local).
   Empty `allowedPaths` ⇒ no allow-list claim (forbidden is still checked).
+- `assumptions` — optional intent-assumption register entries (`references/plan-grounding.md`
+  Stage B): the chosen default (`text`), the rejected alternative interpretation (`alternative`),
+  and the `basis` for choosing. `contract-check.mjs` makes **no claim** on this field and
+  `contract-guard.js` does not guard it — fail-open; it exists for disclosure at the plan gate and
+  for review (the Review Packet's Assumptions field derives from it).
 
 ## Body (human-readable, follows the user's language)
 
 Requirement · In scope · Out of scope (incl. deferred) · Implied edge checklist · Risk flags ·
-Open decisions. On high-risk work these mirror the `references/plan-grounding.md` sharpened
-contract — do not duplicate, route the same content here.
+Open decisions · Assumptions (defaulted interpretations). On high-risk work these mirror the
+`references/plan-grounding.md` sharpened contract — do not duplicate, route the same content here.
 
 ## Risk-proportional fill
 
