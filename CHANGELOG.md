@@ -3,6 +3,18 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.43.0] - 2026-07-11
+
+### Added
+- **`incident-response` reference refinements** (external-practice gap-analysis; `udflow/skills/incident-response/references/`):
+  - Data-repair **completeness check** — reconcile touched-vs-affected record counts, or re-run the corruption query to zero, proving the repair reached every row (distinct from proving the script correct on a copy).
+  - **Postmortem review gate** in the closure checklist — a human approves the gate-gap analysis and the proposed FAILURE_MEMORY entry, and action items get named owners + a tracked home, before the incident closes.
+  - `Mitigated:` / `Resolved:` **journal timestamps** so MTTM/MTTR read from the header instead of timeline prose.
+  - **Named redaction tooling** for the sanitize-before-write pass — gitleaks / detect-secrets for secrets, Microsoft Presidio for PII (guidance, not a hard dependency; per-axis fallback to a built-in pattern list).
+  - `dry-run-verified: <date>` **ops-profile trust tier** between `verified:` and `UNVERIFIED`, earned by a clean non-mutating preview, with full restore-drills / game-days named as the human-scheduled ceiling.
+  - **Breach-readiness** ops-profile field — a secure evidence store + an out-of-band comms channel (NIST Preparation).
+  - Prepare-mode's repo scan now **delegates to a read-only subagent** in parallel with the human decision cards.
+
 ## [0.42.4] - 2026-07-11
 
 ### Fixed

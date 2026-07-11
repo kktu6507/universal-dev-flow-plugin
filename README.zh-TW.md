@@ -197,7 +197,7 @@ Verdicts 是 release-readiness decisions，不是絕對真理。請看 [`docs/ho
 | **— 重回正式環境** | 走平常的 deploy 路徑部署、驗證先前宣告的 fixed-check、守完觀察期，再一次一個地恢復先前的止血措施。 |
 | **7 · 收尾 + postmortem** | 收尾 checklist（止血措施全數恢復、資料修復完成、抽出的資料已刪除、journal 關閉），加上一份簡短、不咎責的 postmortem。 |
 
-**在需要之前先準備。** `/udflow:incident-response prepare` 會建立 `udflowOp/ops/OPS_PROFILE.md`——這張平時地圖讓戰時從 30 秒開始，而不是 30 分鐘：標明 agent-runnable 與 human-only 的存取清單、附 schema-migration 相容性情報的 rollback 步驟、feature flags、備份與可觀測性。每個條目都帶信任標記——`verified: <date>` 或 `UNVERIFIED`——未驗證的 rollback 指令會在依賴它的 decision card 上被標出，絕不默默信任。prepare 模式誠實回報缺口（「找不到備份——今天不可能做 restore」）。
+**在需要之前先準備。** `/udflow:incident-response prepare` 會建立 `udflowOp/ops/OPS_PROFILE.md`——這張平時地圖讓戰時從 30 秒開始，而不是 30 分鐘：標明 agent-runnable 與 human-only 的存取清單、附 schema-migration 相容性情報的 rollback 步驟、feature flags、備份與可觀測性。每個條目都帶信任標記——`verified: <date>`、`dry-run-verified: <date>` 或 `UNVERIFIED`——未驗證的 rollback 指令會在依賴它的 decision card 上被標出，絕不默默信任。prepare 模式誠實回報缺口（「找不到備份——今天不可能做 restore」）。
 
 **Decision cards。** 一次一張：建議、成本/取捨、可回復性，以及核准後會執行的確切內容。破壞性或影響正式環境的動作永遠停在一張 card 上——絕不打包進先前核准過的 plan。`destructive-guard.js` hook 還會在狹義破壞性指令前額外詢問；那是預期行為，絕不繞過。
 
