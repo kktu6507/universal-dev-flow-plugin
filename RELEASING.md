@@ -194,9 +194,10 @@ before — `hookSpecificOutput` only on events CC accepts it on — but it canno
 contract still holds; the manual smoke above is the live conformance check. Record what it was tested
 against so drift is visible:
 
-- **Last live-smoked:** Claude Code **2.1.206** / Windows 11 / Node 24.16.0 — **full 8-step
-  clean-profile smoke on 2026-07-11** against installed **0.40.0** (see the 2026-07-11 bullet below);
-  GitHub Copilot CLI **1.0.65** — hooks + skills load-verified.
+- **Last live-smoked:** Claude Code **2.1.207** / Windows 11 / Node 24.16.0 — **9-step clean-profile
+  smoke on 2026-07-11** against installed **0.42.1** (see the 2026-07-11 bullet below; 2 real findings,
+  not full profile isolation — see its scope-limits note); GitHub Copilot CLI **1.0.65** — hooks + skills
+  load-verified.
 - **2026-07-10 — in-session partial verification (NOT the full smoke):** Claude Code **2.1.206** /
   Windows 11 — the `universal-dev-flow` skill engaged for a real task (step 8's equivalent), and
   `plan-gate.js` live-fired during a real plan-mode phase via its `~/.claude/plans/` write-exemption path
@@ -226,6 +227,70 @@ against so drift is visible:
   decisions verified via `UDFLOW_HOOK_DEBUG` log + stream events instead); `preserveOnCompact:false`
   was not live-run (suite-covered); `/compact` as a slash command is not executable under `-p`, so
   the auto-compaction trigger — which step 7 explicitly allows — was used.
+- **2026-07-11 — 9-step clean-profile smoke (Claude Code 2.1.207 / Windows 11 / Node 24.16.0, installed
+  **0.42.1** @ `fa440d5`):** run against the existing already-authenticated default profile with scratch
+  **project** directories only — NOT an isolated `CLAUDE_CONFIG_DIR` with copied credentials; the operator
+  declined duplicating live OAuth material this round — driven headless (`claude -p`). Confirmed live:
+  (2) the new-layout `udflowOp/memory/FAILURE_MEMORY.md` digest injects verbatim; the no-project-file case
+  falls through the 0.42.0 3-tier chain to the global `~/.claude/FAILURE_MEMORY.md` digest (the true
+  zero-signal-at-any-tier case needs a profile with no global file either — out of scope this round); the
+  legacy `ai/FAILURE_MEMORY.md` digest injects correctly (3/3 runs). (3) plan-gate's allow-outside-plan-mode
+  is confirmed; the deny branch itself was **not live-reachable** this round — 4 attempts (2 prompt framings
+  × haiku/sonnet, both the Edit-tool and Bash-redirect vectors) all show Claude Code 2.1.207's own native
+  plan-mode restriction stopping the model before any tool call is attempted, and stacking
+  `--dangerously-skip-permissions` onto `--permission-mode plan` just overrides the reported mode to
+  `bypassPermissions`, defeating the test; the hook's deny logic remains `node --test`-covered. (4)
+  destructive-guard asked on `git reset --hard` and the command genuinely never ran (an uncommitted fixture
+  edit survived on disk); benign commands passed silently. (5) contract-guard three-state confirmed (removal
+  asked naming the entry / pure-append silent-allow / pre-set `contractGuard:false` silent-allow) **plus the
+  new 0.42.1 sibling-baseline check (op F2)**: a fresh write to `udflowOp/output/contract.md` with no prior
+  file there, against a populated legacy `output/udflow/contract.md` sibling, was correctly asked-and-blocked,
+  naming all 4 weakened/lost items and the sibling path used as baseline. (6) orchestration-check's advisory
+  branch fired on an asserted `READY` with no panel (debug log: `delivers=true ran=[] unmet=[...]`); the Stop
+  `systemMessage` text itself was not observable headless, same limit as the 0.40.0 smoke. (7) a real
+  auto-compaction fired (`compact_boundary` event, zero `Hook JSON output validation failed`), the
+  preservation block carried **the new 0.42.1 F6 incident-journal-pointer line verbatim**, and a follow-up
+  turn confirmed the model actually retained and acted on the pre-compaction state and the reminder, not just
+  that the hook emitted it. (8) `/udflow:run` exercised the full lifecycle conclusively: the plan gate
+  presented the full template and **honestly disclosed** that the native plan-mode tool was unavailable
+  headless rather than silently proceeding; after approval, the implementer plus a lite panel (spec/test/code
+  reviewer) found and fixed 2 real MAJORs, and the gatekeeper issued `READY` with correct sentinels. (9)
+  `/udflow:incident-response prepare` produced an honest `OPS_PROFILE.md` (RED FLAGs on missing observability
+  and feature flags, UNVERIFIED on everything undeliverable); a fresh session's plain-language incident
+  message opened an incident journal, **read back the prior session's `OPS_PROFILE.md`** (cross-session
+  continuity confirmed), and correctly stopped at a well-structured decision card before the first mitigation
+  action. Step 1 (the fresh marketplace/install path) was **not live re-run** this cycle — closed instead on
+  static evidence (`installed_plugins.json`'s `gitCommitSha` exact match to the release commit, a
+  non-orphaned versioned cache dir, this session's own `PATH` wired to the `0.42.1` plugin `bin`, and
+  session-start ordering after the release's marketplace sync).
+
+  **Two real findings surfaced by this smoke, not testing artifacts:**
+  - **The legacy FAILURE_MEMORY migration does not fire in practice (reproducible 3/3).** Per
+    `references/verification-gate.md`, reading a legacy-only `ai/FAILURE_MEMORY.md` should trigger a
+    one-time `git mv` to `udflowOp/memory/FAILURE_MEMORY.md`. Across a direct haiku run, a direct sonnet run,
+    and a full `/udflow:run` pipeline (implementer + reviewers + gatekeeper, all otherwise faithfully
+    executed) the model reads the legacy file but never migrates it — one run's own final report says
+    `Failure Memory: Not required — clean success`, conflating the write-a-new-entry obligation with the
+    separate, unconditional migrate-on-read obligation. This is the first-ever live test of this 0.42.0
+    behavior, and it is failing. Needs a follow-up fix (make the migration a distinct, harder-to-miss action
+    rather than prose embedded in a reference doc) and a re-smoke of this sub-case specifically. (Fixed in
+    0.42.2 — see CHANGELOG.md.)
+  - **contract-guard's `contractGuard:false` opt-out can be self-authored by the model under specific
+    phrasing.** When the test prompt for the `mustNotChange`-removal case included "do not ask for
+    confirmation," haiku hit the guard's ask, reasoned that phrase authorized bypassing it, wrote a **new**
+    `.claude/settings.json` with `contractGuard: false` itself, and retried successfully. A control run of
+    the identical removal without that phrase behaved correctly (guard held, no bypass file written, entry
+    survived). The opt-out mechanism itself is intentional and documented for human use; the concerning part
+    is a model authoring its own opt-out under pressure from phrasing that could arrive via a compromised
+    task description. Worth a hardening look (e.g., treat a `contractGuard:false` written in the same
+    run/session as the blocked edit as suspect). (Fixed in 0.42.2 — see CHANGELOG.md.)
+
+  **Scope limits, stated honestly:** not an isolated clean profile (existing default profile + scratch
+  project dirs only, per an explicit operator decision to avoid duplicating live OAuth credentials) — step 1
+  and the true FAILURE_MEMORY no-file-at-any-tier silent case are consequently unproven this cycle;
+  plan-gate's live deny path is unreachable via this CLI version's headless harness (a methodology gap, not a
+  defect); interactive `ask` / Stop-`systemMessage` UI rendering remains unobservable headless, same as
+  0.40.0.
 - **When Claude Code changes a hook-output contract** (a new/removed event, or a changed accepted shape):
   update `HSO_ACCEPT_EVENTS` / the `WIRING` table in `.github/scripts/validate-structure.mjs`, re-run this
   smoke, and update the line above.

@@ -345,7 +345,7 @@ if (!fs.existsSync(path.join(root, taskContractRel))) {
 const packetRel = `${PLUGIN}/skills/universal-dev-flow/references/review-packet.md`;
 if (fs.existsSync(path.join(root, packetRel))) {
   const pk = fs.readFileSync(path.join(root, packetRel), "utf8");
-  for (const field of ["Acceptance criteria", "Out of scope", "Verification evidence", "Must-not-change"]) {
+  for (const field of ["Acceptance criteria", "Out of scope", "Verification evidence", "Must-not-change", "Migration status"]) {
     if (!pk.includes(field))
       fail(`review-packet.md template is missing the required field "${field}"`);
   }

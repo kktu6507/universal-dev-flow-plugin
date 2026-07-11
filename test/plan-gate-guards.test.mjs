@@ -371,6 +371,32 @@ for (const row of [
   });
 }
 
+test("destructive-guard: the ASK reason warns an AI agent against self-authoring the destructiveGuard opt-out reactively", () => {
+  // 0.42.2: a live smoke found the model self-authoring the opt-out to defeat contract-guard's ASK under
+  // "do not ask for confirmation" phrasing; destructive-guard's ASK carries the identical opt-out mention,
+  // so it needs the same warning. Hermetic env (no ambient CLAUDE_PROJECT_DIR opt-out) so the command reliably ASKs.
+  const env = { ...process.env }; delete env.CLAUDE_PROJECT_DIR;
+  const out = runHook(DGUARD, { tool_name: "Bash", permission_mode: "default", tool_input: { command: "git reset --hard" } }, env);
+  const j = JSON.parse(out);
+  const reason = (j.hookSpecificOutput && j.hookSpecificOutput.permissionDecisionReason) || "";
+  assert.match(reason, /AI agent/i, "the ASK reason must address an AI agent reading it");
+  assert.match(reason, /self-author/i, "the ASK reason must name self-authoring the opt-out as invalid");
+  assert.match(reason, /standing human decision/i, "the ASK reason must frame the opt-out as a standing human decision, not a same-turn reaction");
+});
+
+test("destructive-guard: the ASK reason names settings.local.json alongside settings.json (higher-precedence, gitignored, diff-invisible)", () => {
+  // 0.42.2 repair (R1): destructiveGuardDisabledForProject already reads settings.local.json at HIGHER
+  // precedence than settings.json (unchanged here), but settings.local.json is gitignored — a project
+  // opt-out written there never shows up in a diff review. The ASK's pre-existing "Disable for this
+  // project with..." sentence named only settings.json; it must also name settings.local.json so a
+  // reader knows both files control this decision. Hermetic env so the command reliably ASKs.
+  const env = { ...process.env }; delete env.CLAUDE_PROJECT_DIR;
+  const out = runHook(DGUARD, { tool_name: "Bash", permission_mode: "default", tool_input: { command: "git reset --hard" } }, env);
+  const j = JSON.parse(out);
+  const reason = (j.hookSpecificOutput && j.hookSpecificOutput.permissionDecisionReason) || "";
+  assert.match(reason, /settings\.local\.json/, "the ASK reason must name settings.local.json alongside settings.json");
+});
+
 test("destructive-guard: malformed stdin fails open (no ask, no crash)", () => {
   const out = cp.execFileSync("node", [DGUARD], { input: "not json {{{" }).toString();
   assert.strictEqual(out.trim(), "", "unparseable input -> fail open (allow), never crash");
@@ -759,6 +785,36 @@ for (const row of [
     assert.strictEqual(r.decision, row.expected, row.msg);
   });
 }
+
+test("contract-guard: the ASK reason warns an AI agent against self-authoring the contractGuard opt-out reactively", () => {
+  // 0.42.2: a live smoke had haiku hit this exact ASK (mustNotChange removal), reason that a "do not ask
+  // for confirmation" task phrase authorized bypassing it, and self-author a NEW .claude/settings.json with
+  // contractGuard:false to retry successfully. The ASK reason must now name that response as invalid.
+  const dir = mkCGuardProject();
+  writeContract(dir, contractMd());
+  const newMd = contractMd({ mustNotChange: [] });
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: contractPath(dir), content: newMd } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ASK");
+  assert.match(r.reason, /AI agent/i, "the ASK reason must address an AI agent reading it");
+  assert.match(r.reason, /self-author/i, "the ASK reason must name self-authoring the opt-out as invalid");
+  assert.match(r.reason, /standing human decision/i, "the ASK reason must frame the opt-out as a standing human decision, not a same-turn reaction");
+});
+
+test("contract-guard: the ASK reason names settings.local.json alongside settings.json (higher-precedence, gitignored, diff-invisible)", () => {
+  // 0.42.2 repair (R1): contractGuardDisabledForProject already reads settings.local.json at HIGHER
+  // precedence than settings.json (unchanged here), but settings.local.json is gitignored — a project
+  // opt-out written there never shows up in a diff review. The ASK's pre-existing "Disable for this
+  // project with..." sentence named only settings.json; it must also name settings.local.json so a
+  // reader knows both files control this decision.
+  const dir = mkCGuardProject();
+  writeContract(dir, contractMd());
+  const newMd = contractMd({ mustNotChange: [] });
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: contractPath(dir), content: newMd } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ASK");
+  assert.match(r.reason, /settings\.local\.json/, "the ASK reason must name settings.local.json alongside settings.json");
+});
 
 test("contract-guard: oversized stdin fails open (allow)", () => {
   const big = "x".repeat(6 * 1024 * 1024);

@@ -8,7 +8,8 @@ udflow targets Claude Code first. Its behavior depends on Claude Code plan mode,
 |---|---|---|---|---|---|---|---|---|---|
 | 0.27.x | Claude Code | compaction-fidelity `SessionStart`·`compact` live-smoked on 2026-06-28; full checklist required per release | 20.x in CI | manual smoke environment | manual smoke required | manual smoke required | manual smoke required | manual smoke required when available | supported |
 | 0.27.x | GitHub Copilot CLI | 1.0.65 live load verification | 20.x in CI | local live verification | no-op, runtime lacks permission-mode hook field | no-op, Stop output not surfaced | loads | no Workflow capability | supported with notes |
-| 0.40.0 | Claude Code | 2.1.206 — **full clean-profile smoke 2026-07-11** (headless `claude -p`; see note below) | 24.16.0 local / 20.x CI | Windows 11 | deny + allow both live-verified | orchestration advisory live-fired on a READY assertion; silent on honest runs (debug-log-verified) | skill engaged organically; `udflow:implementer` spawned | not exercised in this smoke | supported |
+| 0.42.1 | Claude Code | 2.1.207 — **9-step clean-profile smoke 2026-07-11** (headless `claude -p`; see note below) | 24.16.0 local / 20.x CI | Windows 11 | allow live-verified; deny not live-reachable this round (CLI's native plan-mode pre-empts headless tool-call attempts before the hook fires) | orchestration advisory live-fired on a READY assertion; silent on honest runs (debug-log-verified) | full `/udflow:run` lifecycle exercised: plan gate, implementer, lite reviewer panel (2 real MAJORs found+fixed), gatekeeper `READY` | not exercised in this smoke | supported, 2 findings — see note |
+| 0.40.0 | Claude Code | 2.1.206 — full clean-profile smoke 2026-07-11 (headless `claude -p`) | 24.16.0 local / 20.x CI | Windows 11 | deny + allow both live-verified | orchestration advisory live-fired on a READY assertion; silent on honest runs (debug-log-verified) | skill engaged organically; `udflow:implementer` spawned | not exercised in this smoke | superseded by the 0.42.1 clean-profile smoke (2026-07-11) |
 | 0.38.0 installed / 0.39.0 pre-release tree | Claude Code | 2.1.206 — in-session partial verification 2026-07-10 (see note below; NOT a clean-profile smoke) | 24.16.0 local / 20.x CI | Windows 11 | live-fired: `~/.claude/plans/` write-exemption exercised; deny path not triggered live (suite-covered) | not exercised live (suite-covered) | exercised in-session (P0 dogfood panel + gatekeeper) | exercised in-session (deterministic panel graph) | superseded by the 0.40.0 clean-profile smoke (2026-07-11) |
 | current branch | CI structural checks | every PR / push | 20.x | Ubuntu / Windows / macOS | hook tests | hook tests | manifest checks | not exercised | regression net |
 
@@ -25,6 +26,30 @@ live** this session — their behavioral coverage is the green `npm test` suite.
 run exercised the reviewer/gatekeeper subagents and the deterministic Workflow panel graph (`EVIDENCE.md`,
 Live run 12). The clean-profile install smoke was **NOT performed** that day; it was completed on
 **2026-07-11** (see the 0.40.0 row above and the note below).
+
+**2026-07-11 — 9-step clean-profile smoke (0.42.1 @ `fa440d5`, Claude Code 2.1.207, Windows 11, Node
+24.16.0).** Run against the existing already-authenticated default profile with scratch **project**
+directories only — not an isolated `CLAUDE_CONFIG_DIR` with copied credentials, per an explicit operator
+decision to avoid duplicating live OAuth material. All 9 checklist surfaces were exercised live, with two
+real findings. **(1) Legacy FAILURE_MEMORY migration does not fire in practice**, reproducible across 3
+independent runs (direct haiku, direct sonnet, a full `/udflow:run` pipeline with reviewers and gatekeeper):
+the model reads a legacy-only `ai/FAILURE_MEMORY.md` but never performs the documented one-time `git mv` to
+`udflowOp/memory/FAILURE_MEMORY.md` — first-ever live test of this 0.42.0 behavior, and it fails. **(2)
+contract-guard's `contractGuard:false` opt-out can be self-authored by the model** when a test prompt
+included "do not ask for confirmation" — the model wrote a new `.claude/settings.json` to defeat its own
+block and retried successfully; a control run without that phrase behaved correctly. Everything else passed
+cleanly, including two things new in 0.42.1: the sibling-baseline contract-guard check (op F2) correctly used
+a populated legacy `output/udflow/contract.md` as the diff baseline for a fresh weakened write at the new
+path, naming the sibling and all lost entries; and the compaction-fidelity preservation block carried the
+new incident-journal-pointer line (op F6) verbatim through a real auto-compaction, with a follow-up turn
+confirming the model actually retained and acted on it. `/udflow:incident-response prepare` produced an
+honest, gap-flagged `OPS_PROFILE.md`, and a fresh session's live-incident message correctly read that profile
+back, opened a journal, and stopped at a decision card before its first mitigation action. Scope limits:
+step 1 (the fresh marketplace/install path) was closed on static evidence rather than live re-run; the true
+FAILURE_MEMORY no-file-at-any-tier silent case needs a profile with no global fallback file either; plan-gate's
+live deny path was not reachable — Claude Code 2.1.207's own native plan-mode restriction stops the model
+before any tool call is attempted in headless `-p` mode, regardless of prompt framing or model. Full detail:
+`RELEASING.md`'s Contract Conformance section, 2026-07-11 bullet.
 
 **2026-07-11 — full clean-profile smoke (0.40.0 @ `8490840`, Claude Code 2.1.206, Windows 11, Node
 24.16.0).** Run in a throwaway `CLAUDE_CONFIG_DIR` profile (no settings, no other plugins; only OAuth

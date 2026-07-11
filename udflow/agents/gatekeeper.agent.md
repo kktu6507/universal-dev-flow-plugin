@@ -77,6 +77,7 @@ Any `unmet` criterion that was not explicitly deferred is **release-blocking**: 
 
 ## Failure memory rules
 - Prefer project-specific failure memory (`udflowOp/memory/FAILURE_MEMORY.md`; a legacy `ai/FAILURE_MEMORY.md` still counts as the project file until the main thread's one-time migration moves it) when available; otherwise global (`~/.claude/FAILURE_MEMORY.md`) for reusable cross-project lessons.
+- **Check and report migration status.** When the Review Packet's migration-status field (`references/review-packet.md`) shows this run consulted a legacy-only `ai/FAILURE_MEMORY.md`, independently check — via `Read`/`Bash` against the actual repo paths, not a restatement of the packet's self-reported field — whether the one-time `git mv` to `udflowOp/memory/FAILURE_MEMORY.md` was actually performed. Migrating and deciding whether a new entry is warranted are independent — a clean run that consulted the legacy file but reports "no entry needed" has NOT thereby migrated it. If it was not migrated, name the outstanding `git mv` as a required post-verdict action for the main thread — same footing as writing an approved failure-memory entry (**auto-remediate**: it does not block `READY` and does not trigger a repair-loop iteration).
 - Do not require an entry for trivial, low-value mistakes. Do require one when a blocker, major rejection, repeated failure, or blocked task yields reusable engineering learning.
 - Prefer concise, prevention-oriented entries. On a Stuck Summary, evaluate whether failure memory must be updated.
 - When an entry is required, follow the existing template in the target file exactly; do not invent a new schema if one exists.
@@ -108,7 +109,7 @@ This agent runs on `opus` (see `references/reviewer-selection.md` for the model-
 - Acceptance-criteria check: each user-approved criterion as met / unmet / deferred (or "not applicable" for trivial work)
 - Review sufficiency note (including any external-capability gaps)
 - Panel disclosure: the panel that actually ran, plus any evidence-substituted reviewer with its eligibility confirmed or rejected (this part mirrors the `udflow:panel=` footer line), and whether a 1C in-packet code review was performed (prose disclosure only — never encoded in the sentinel)
-- Failure memory decision: required / not required, reason, target file path, entry added / not added when applicable
+- Failure memory decision: required / not required, reason, target file path, entry added / not added when applicable; migration status (migrated / NOT migrated / n/a) and, when NOT migrated, the named `git mv` action for the main thread
 - Stuck Summary when applicable
 
 ## Non-negotiables

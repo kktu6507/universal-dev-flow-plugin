@@ -26,6 +26,7 @@ Emitted unless `--report full` was passed. Summary one-liner · a Verification b
 - Cost: ~<new tokens> new tokens · tier: <lite | default | deep> (observed where surfaced, orchestrator estimated; no telemetry)
 - Panel: <full, or name each evidence-substituted reviewer + the evidence that qualified it (fast lane — `references/reviewer-selection.md`)> — mirrored by the `udflow:panel=` footer line
 - External capabilities: only when a required MCP / skill / subagent was unavailable — name it, the local fallback, and the resulting verification gap (omit the line entirely when none were needed or all were available). A real capability gap is decision-relevant, so it stays visible even in the compact report.
+- Migration status: only when NOT migrated (this run consulted a legacy-only `ai/FAILURE_MEMORY.md` but the one-time `git mv` to `udflowOp/memory/FAILURE_MEMORY.md` was not performed) — name the outstanding `git mv` action for the main thread (omit the line entirely when migrated or not applicable). A NOT-migrated state is a required post-verdict action, not a nice-to-know, so it stays visible even in the compact report.
 
 ## Findings
 
@@ -120,6 +121,7 @@ Per-component basis: the harness rarely surfaces a per-subagent Input/Output/Cac
 | Required | required / not required |
 | Reason | <why> |
 | Entry added | yes / no — <target file path when applicable> |
+| Migration status | migrated / NOT migrated / n/a — when NOT migrated, the named `git mv` action for the main thread |
 
 ## Final Verdict
 - pick one: ✅ **READY** · ⚠️ **FIX REQUIRED** · 🔴 **NOT READY**

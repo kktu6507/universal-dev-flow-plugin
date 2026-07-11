@@ -143,6 +143,17 @@ test("validate-structure: §5j FAILS CLOSED when review-packet.md drops a requir
   } finally { fs.rmSync(tree, { recursive: true, force: true }); }
 });
 
+test("validate-structure: §5j FAILS CLOSED when review-packet.md drops the Migration status field", () => {
+  const tree = copyRepoTree();
+  try {
+    const pk = path.join(tree, "udflow", "skills", "universal-dev-flow", "references", "review-packet.md");
+    fs.writeFileSync(pk, fs.readFileSync(pk, "utf8").split("Migration status").join("XXX"), "utf8");
+    const { code, out } = runValidator(tree);
+    assert.notStrictEqual(code, 0, "dropping the Migration status packet field must fail the build");
+    assert.match(out, /review-packet\.md template is missing the required field/, "the failure must name the missing packet field");
+  } finally { fs.rmSync(tree, { recursive: true, force: true }); }
+});
+
 test("validate-structure: a missing SKILL-linked reference FAILS", () => {
   const tree = copyRepoTree();
   try {

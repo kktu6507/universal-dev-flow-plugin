@@ -3,6 +3,24 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.42.2] - 2026-07-11
+
+### Fixed
+- Failure-memory migration: `references/verification-gate.md`'s Failure Memory section now states the
+  one-time legacy `ai/FAILURE_MEMORY.md` → `udflowOp/memory/FAILURE_MEMORY.md` migration as a distinct,
+  numbered, unconditional action — separate from whether a new entry is written — after a 2026-07-11 live
+  smoke found the migration never fired in practice (3/3 runs); `SKILL.md`'s Lifecycle step 2 bullet is
+  tightened the same way. `review-packet.md` and `gatekeeper.agent.md` add a migration-status field/check
+  as an independent, checkable backstop (auto-remediate: an unmigrated legacy consult is named as a
+  required post-verdict `git mv` for the main thread; it never blocks `READY`).
+- `contract-guard.js` / `destructive-guard.js`: the ASK message now explicitly tells an AI agent that
+  self-authoring the `contractGuard: false` / `destructiveGuard: false` project opt-out in reaction to
+  that same ask — even when task text says to skip confirmation — is not a valid response, and that the
+  opt-out is a standing human decision, not a same-turn reaction; `implementer.agent.md` and `SKILL.md`
+  gain the matching instructional rule (reactive-only — a freestanding human instruction is unaffected).
+  Closes a 2026-07-11 live smoke finding where a model self-authored a new `.claude/settings.json` with
+  `contractGuard: false` to defeat its own block under "do not ask for confirmation" task phrasing.
+
 ## [0.42.1] - 2026-07-11
 
 ### Fixed

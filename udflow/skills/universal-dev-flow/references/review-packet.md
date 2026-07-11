@@ -21,6 +21,7 @@ Use a Review Packet before handing work to any reviewer. The packet is the revie
 - Context exclusions: stale decisions, abandoned approaches, or old logs that reviewers should not treat as current.
 - External-capability notes: which optional MCP/skills/subagents were used or were unavailable, and any resulting verification gaps.
 - Design contract (`design.md`): for UI scope, the **path** to the project's `design.md` when one exists (a pointer, not re-pasted content — `references/design-spec.md`), so `ui-ux-reviewer` judges consistency against it; "none" when absent.
+- Migration status: whether this run consulted a legacy-only `ai/FAILURE_MEMORY.md` (`references/verification-gate.md`, *Failure Memory*) and, if so, whether the one-time `git mv` to `udflowOp/memory/FAILURE_MEMORY.md` was actually performed — `migrated` / `NOT migrated` / `n/a` (tier 1 already existed, or failure memory was not consulted at all this run). The `gatekeeper` checks and reports this field; when `NOT migrated`, it names the outstanding `git mv` as a required post-verdict action for the main thread (auto-remediate — it does not block `READY`).
 
 On high-risk work where the plan-grounding step ran (`references/plan-grounding.md`), populate the Acceptance criteria and Reviewer scope from its **sharpened contract**, and fill the Must-not-change and Edge checklist fields from its contract + **implied edge checklist** (also seeding Verification evidence / expected tests). This contract-level intent is the dominant recall lever (see `references/reviewer-selection.md`, *Recall vs precision*), so carry it into the packet rather than re-deriving a vaguer version.
 
@@ -62,6 +63,8 @@ Context exclusions:
 External-capability notes:
 
 Design contract (design.md path, or "none"):
+
+Migration status (migrated / NOT migrated / n/a):
 
 Shared reviewer contract:
 - Report findings as `blocker` / `major` / `minor`; do NOT emit a PASS/CONCERNS/BLOCK verdict — only `gatekeeper` issues `READY` / `FIX REQUIRED` / `NOT READY`.

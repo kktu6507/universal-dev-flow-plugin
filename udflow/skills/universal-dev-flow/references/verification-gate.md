@@ -93,12 +93,18 @@ Do not perform broad encoding conversion unless the root cause and interoperabil
 Read before non-trivial implementation. The SessionStart hook injects only a condensed **digest** (entry titles + tags, **ranked by importance — recurrence first, then recency** — so the always-on index leads with the lessons that keep biting, not merely the newest; the prevention-rule text is read on demand, not injected) as an index — do not treat it as the full record:
 
 1. `udflowOp/memory/FAILURE_MEMORY.md` when it exists.
-2. The legacy project path (`ai/FAILURE_MEMORY.md`, pre-0.42.0 layout) when only it exists — reading it triggers the one-time migration below.
+2. The legacy project path (`ai/FAILURE_MEMORY.md`, pre-0.42.0 layout) when only it exists — reading it triggers the one-time migration below, **unconditionally, regardless of this run's outcome** (a clean success with nothing to record still migrates; migration is never contingent on whether a new entry gets written).
 3. `~/.claude/FAILURE_MEMORY.md` otherwise, including consolidated groups.
 
 When both project tiers exist, the new path (tier 1) wins and the legacy file is ignored — any entries only it holds (e.g. rollback-era lessons) are stranded there, so disclose that state once and suggest a manual merge-then-delete.
 
-**One-time migration (workflow main thread, at this consult step — hooks never do this; they are read-only with a documented never-write/never-delete promise).** It runs **only** when the new path is absent — the consult found only the legacy file (tier 2); when both exist, move or overwrite nothing (tier 1 wins, above). Move the legacy file to the new path before using it: a git-tracked file — create the destination directory, then `git mv <legacy path> udflowOp/memory/FAILURE_MEMORY.md` (`git mv` does not create the destination directory; the move preserves history); an untracked file via copy to the new path → verify the copy is readable → delete the legacy file. Migrate sibling files the same way (e.g. the `.failure-memory-usage.jsonl` usage ledger next to it). Disclose one line to the user (e.g. "migrated failure memory to udflowOp/memory/"). After migration, never read or write the legacy path again — all writes go to the new path only.
+**One-time migration — a distinct, mandatory action, separate from writing a new entry (workflow main thread, at this consult step — hooks never do this; they are read-only with a documented never-write/never-delete promise).** Reading the legacy file at tier 2 above ALWAYS triggers this migration, even on a run that writes zero new failure-memory entries — do not conflate "no new entry needed" with "no migration needed"; they are two independent obligations, and a report that only addresses the first (e.g. "Failure Memory: not required — clean success") has NOT discharged the second. It runs **only** when the new path is absent — the consult found only the legacy file (tier 2); when both exist, move or overwrite nothing (tier 1 wins, above). Perform these steps, in order, before finishing the run:
+
+1. Create the destination directory (`udflowOp/memory/`) if it does not already exist.
+2. Move the legacy file to the new path: a git-tracked file — `git mv <legacy path> udflowOp/memory/FAILURE_MEMORY.md` (`git mv` does not create the destination directory itself, which is why step 1 comes first; the move preserves history); an untracked file — copy it to the new path, verify the copy is readable, then delete the legacy file.
+3. Migrate sibling files the same way (e.g. the `.failure-memory-usage.jsonl` usage ledger next to it).
+4. Disclose one line to the user (e.g. "migrated failure memory to udflowOp/memory/").
+5. After migration, never read or write the legacy path again — all writes go to the new path only.
 
 During planning, perform **targeted retrieval**: search the failure-memory file for entries relevant to this task's affected files, area, language, and error type (use the entry `Tags` to filter), then read those full entries. Do not rely on the startup digest alone.
 
