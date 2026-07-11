@@ -3,6 +3,17 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.42.3] - 2026-07-11
+
+### Fixed
+- Failure-memory migration: `references/verification-gate.md`'s migration step 2 now requires an explicit,
+  runnable git-tracked check (`git ls-files --error-unmatch <legacy path>`, exit 0 = tracked) ahead of the
+  git-mv-vs-copy branch instead of assuming which branch applies, and states plainly that manual copy+delete
+  is never an acceptable substitute for a tracked file since it silently discards commit history — closes a
+  gap found in a 2026-07-11 live re-smoke of the 0.42.2 fix, where migration fired correctly but a
+  git-tracked legacy file was moved via copy+delete (an unstaged deletion plus an untracked new file) instead
+  of `git mv`, losing file history even though the file's content and location ended up correct.
+
 ## [0.42.2] - 2026-07-11
 
 ### Fixed
