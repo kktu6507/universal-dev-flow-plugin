@@ -3,6 +3,33 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.42.4] - 2026-07-11
+
+### Fixed
+- Closes the same class of gap the 0.42.3 fix addressed (found by `spec-reviewer` during that fix's own
+  review, in two sibling one-time-migration procedures it left untouched): both
+  `references/verification-gate.md`'s Artifact Hygiene migration (legacy `output/udflow/` →
+  `udflowOp/output/`) and `references/design-spec.md`'s `design.md` migration (legacy root → `udflowOp/design/`)
+  stated an assumed default ("normally untracked" / "the normal case for this committed artifact") standing
+  in for a check, with no instruction for how to actually determine it. Both now require the same explicit,
+  runnable `git ls-files --error-unmatch <path>` check (exit 0 = tracked) ahead of the git-mv-vs-copy branch
+  — per-path for the multi-file `output/udflow/` tree, single-file for `design.md` — and state plainly that
+  manual copy+delete is never an acceptable substitute for a path/file git tracks, since it silently discards
+  commit history.
+- Fixes a reproduced `major`-severity bug in the same `output/udflow/` → `udflowOp/output/` migration
+  (`references/verification-gate.md`): the destination directory was created once, flat, upfront for the
+  whole legacy tree, so a path nested under a subdirectory (e.g. `output/udflow/evidence/shot.png`,
+  `output/udflow/review/diff.patch`) failed its move with `fatal: renaming '...' failed: No such file or
+  directory` — neither `git mv` nor a plain copy creates missing intermediate directories, and one
+  top-level directory made upfront leaves a nested destination with nowhere to land. Each path's own
+  destination directory (with any missing intermediates) is now created immediately before that path's
+  move, not once upfront for the whole tree, so a migration carrying over nested prior-run content (e.g.
+  `output/udflow/evidence/`, `output/udflow/review/`) no longer aborts partway through.
+  `references/design-spec.md`'s single-file `design.md` migration gets the same-shaped fix: the
+  destination directory is now created as an unconditional step ahead of the tracked/untracked branch
+  instead of only alongside the `git mv` (tracked) branch as before, so the untracked copy path is no
+  longer left assuming a directory that was never guaranteed to exist.
+
 ## [0.42.3] - 2026-07-11
 
 ### Fixed
