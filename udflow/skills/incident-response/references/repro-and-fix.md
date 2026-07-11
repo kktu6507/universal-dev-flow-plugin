@@ -27,7 +27,7 @@ When the repro needs real data:
 
 - **Minimal extraction** — only the records implicated by the evidence; never a DB dump.
 - **One-way flow** — pull data out into an isolated scratch area; never experiment inside production.
-- **Sanitization gate** — mask PII and secrets BEFORE the data enters the AI context or any test fixture. Concretely: the extraction command writes straight to a file in the isolated scratch area via shell redirection (the query's raw output is never echoed into the conversation or tool output), masking runs as a small script over that file (schema/pattern-driven), and only the MASKED sample is read back into context — shown to the user for approval (decision card).
+- **Sanitization gate** — mask PII and secrets BEFORE the data enters the AI context or any test fixture. Concretely: the extraction command writes straight to a file in the isolated scratch area via shell redirection (the query's raw output is never echoed into the conversation or tool output), masking runs as a small script over that file (schema/pattern-driven — prefer a maintained secret/PII pattern set over improvised regex; see the named tools in `references/closure.md`), and only the MASKED sample is read back into context — shown to the user for approval (decision card).
 - **Policy switch** — if the org forbids production data entirely, build synthetic data shaped like the real records instead.
 - **Ephemeral handling** — extracted data lives in an isolated temp location, is never committed, and is deleted at incident closure — or immediately when the incident is abandoned or goes inactive: deletion is owed at closure or abandonment, whichever comes first. Anything archived as a permanent regression test must be the sanitized or synthetic version.
 
@@ -58,7 +58,8 @@ The code fix stops new corruption; it does not repair the damage already done. C
 3. **Repair source** — backup restore, recompute from surviving data, or manual entry; choose against the profile's backup reality.
 4. **Repair script** — write it, then verify it on an extracted COPY first: red→green on the copy (before-state provably wrong, after-state provably correct).
 5. **Decision card** — row counts, repair source, reversibility (is there a pre-repair snapshot?). Only a human-approved run touches production.
-6. **Journal everything** — the script, the counts, the approval, the result.
+6. **Completeness check** — after the approved run, prove the repair was *complete*, not just correct: reconcile the number of records the repair actually touched against the affected-record count from step 2, or re-run the read-only query that first identified the corruption and confirm it now returns zero. Step 4 proved the script's logic on a copy; this proves every affected row in production was reached. A mismatch reopens the repair — it does not close it.
+7. **Journal everything** — the script, the counts, the completeness result, the approval, the outcome.
 
 ## Production re-entry
 

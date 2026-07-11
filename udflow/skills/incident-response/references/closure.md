@@ -10,14 +10,15 @@ An incident is closed only when every line holds. This prevents the permanent-de
 - [ ] production-verified — the declared fixed-check ran green in production (required for every fault domain)
 - [ ] observation window passed without regression
 - [ ] all mitigations restored — flags back on, maintenance mode lifted, scaled back to normal
-- [ ] data repaired and verified, if corruption occurred
+- [ ] data repaired, verified, and completeness-checked, if corruption occurred
 - [ ] extracted production data deleted (the ephemeral-handling promise from `references/repro-and-fix.md`)
 - [ ] postmortem written
+- [ ] postmortem reviewed — a human has read and approved it (its gate-gap analysis and the FAILURE_MEMORY entry it proposes), and its action items have named owners and a tracked home (an issue/ticket id, or the FAILURE_MEMORY entry for a prevention rule)
 - [ ] journal status flipped to `closed`
 
 ## Journal schema
 
-One journal per incident at `udflowOp/incidents/INCIDENT-<YYYYMMDD>-<slug>.md`. Every stage appends. Sanitization discipline, restated: nothing unmasked enters the journal — it is committed to git as the audit trail, so mask PII and secrets before writing, always. Before the journal (or a postmortem file) is committed, run a deterministic redaction pass — a secret/PII pattern scan (keys, tokens, passwords, emails, card-like numbers) over the file; agent judgment alone is not sufficient for a committed audit trail. At closure, offer to commit it.
+One journal per incident at `udflowOp/incidents/INCIDENT-<YYYYMMDD>-<slug>.md`. Every stage appends. Sanitization discipline, restated: nothing unmasked enters the journal — it is committed to git as the audit trail, so mask PII and secrets before writing, always. Before the journal (or a postmortem file) is committed, run a deterministic redaction pass — a secret/PII pattern scan (keys, tokens, passwords, emails, card-like numbers) over the file; agent judgment alone is not sufficient for a committed audit trail. Prefer a maintained pattern set over improvised regex — a secrets scanner such as gitleaks (MIT) or detect-secrets (Apache-2.0) for keys and tokens, and Microsoft Presidio (MIT) for PII such as emails, card numbers, and national IDs (scope the PII detector to those fields, so it does not strip the `approved by:` ownership the audit trail must keep); when the tool for either axis is unavailable, fall back to an explicit built-in pattern list for that axis and disclose it — the pass always covers both secrets and PII. Naming a tool is guidance, not a hard dependency — the redaction pass runs regardless of which tool backs it. At closure, offer to commit it.
 
 ~~~markdown
 # INCIDENT-<YYYYMMDD>-<slug>
@@ -25,6 +26,7 @@ One journal per incident at `udflowOp/incidents/INCIDENT-<YYYYMMDD>-<slug>.md`. 
 - Status: open | mitigated | closed
 - Severity: SEV1 | SEV2 | SEV3
 - Started: <timestamp> — Detected: <timestamp>
+- Mitigated: <timestamp> — Resolved: <timestamp>
 - Systems affected: <list>
 - Current owner: <who>
 
@@ -55,6 +57,10 @@ Append it to the journal, or write a sibling file next to it. Factual, blame-fre
 - **Detection gap** — how long from start to noticed, and why: no alert, an ignored alert, no metric at all?
 - **What went well / what went poorly** — two or three honest bullets each.
 - **Gate-gap analysis** — the udflow-specific question: *which dev-flow gate SHOULD have caught this before ship?* A reviewer lens missing from the panel? The verification gate (a required check that never ran)? A missing acceptance criterion? An ops-profile red flag that was recorded and then ignored? Answer with a concrete, one-sentence prevention rule — not "be more careful".
+
+**Blame-free ≠ anonymous.** Blame-free is about tone and causal framing, not erasing who did what — the actions log still records `approved by: <who>` for every action (factual ownership). This follows Google SRE's blameless model, which separates blame-toned narrative from the factual ownership fields an audit trail needs; it is accountability, not blame.
+
+**Review before closing.** An unreviewed postmortem barely counts — the gate-gap analysis and the prevention rule it proposes are the entire point, and a human confirms or corrects them before the incident closes (the closure checklist's `postmortem reviewed` line). Authoring is not approval.
 
 ## Failure-memory closure loop
 
