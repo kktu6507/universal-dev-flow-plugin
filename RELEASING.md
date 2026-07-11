@@ -88,15 +88,21 @@ In a throwaway/clean Claude Code profile, from a scratch project directory:
    - `/plugin install udflow@kktu`
    - `/plugin` → **Installed** → toggle **udflow** on (or `claude plugin enable udflow@kktu`)
    - `/reload-plugins`
-2. **SessionStart hook** — put a tiny `ai/FAILURE_MEMORY.md` with one `### ` entry in the project,
-   start a fresh session, and confirm the failure-memory **digest** (titles + tags, nonce-fenced,
-   labeled untrusted) is injected. With no file, nothing should appear.
+2. **SessionStart hook** — put a tiny `udflowOp/memory/FAILURE_MEMORY.md` with one `### ` entry in
+   the project, start a fresh session, and confirm the failure-memory **digest** (titles + tags,
+   nonce-fenced, labeled untrusted) is injected. With no file, nothing should appear. Then the
+   legacy variant: in a project with ONLY a legacy `ai/FAILURE_MEMORY.md` (no `udflowOp/`), confirm
+   (a) the digest still injects from the legacy path, and (b) after one real flow run the file has
+   been fully **moved** to `udflowOp/memory/FAILURE_MEMORY.md` and the legacy file deleted — the
+   one-time migration, performed by the workflow main thread as visible tool actions and disclosed
+   in-run, never by the hook (hooks stay read-only).
 3. **PreToolUse plan gate** — enter plan mode and ask Claude to edit a file; the write must be
    **denied** with the plan-gate reason. Outside plan mode the same edit is allowed.
 4. **PreToolUse destructive guard** — outside plan mode, ask for a narrow unrecoverable command such
    as `git reset --hard` in a disposable project and confirm `destructive-guard.js` asks before it.
    Confirm a benign command is allowed.
-5. **PreToolUse contract guard** — create a disposable `output/udflow/contract.md` fixture with a
+5. **PreToolUse contract guard** — create a disposable `udflowOp/output/contract.md` fixture (the
+   guard also still watches the legacy `output/udflow/contract.md` path) with a
    populated JSON fenced block (an `acceptanceCriteria` entry and a `mustNotChange` entry), then ask
    Claude to edit it in a way that removes the `mustNotChange` entry; confirm `contract-guard.js` **asks**
    before the edit, naming the entry that would be lost. Confirm a pure-append edit (adding a new AC,
@@ -118,6 +124,12 @@ In a throwaway/clean Claude Code profile, from a scratch project directory:
    surfaces; 0.27.3 relocated the emit to the supported SessionStart·`compact` path.)
 8. **Skill activation** — describe a non-trivial engineering task in plain language and confirm the
    `universal-dev-flow` skill engages (or `/udflow:run <task>` invokes it manually).
+9. **incident-response activation** — in a scratch project, run `/udflow:incident-response prepare`
+   and confirm it produces `udflowOp/ops/OPS_PROFILE.md` and honestly reports gaps (unverified
+   rollback, missing backups, no observability). Then send a plain-language production-incident
+   message (e.g. "production is down — checkout returns 500s since the last deploy") and confirm the
+   `incident-response` skill engages, opens a journal under `udflowOp/incidents/`, and presents a
+   triage decision card.
 
 If any step fails, do **not** rely on the release for that surface — fix and re-run. Note the result
 in the PR or the `EVIDENCE.md` log so the activation path has a paper trail.

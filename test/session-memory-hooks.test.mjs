@@ -309,6 +309,79 @@ test("load-failure-memory: retired entries do not inflate the omitted count", ()
   assert.ok(!ctx.includes("retired one") && !ctx.includes("retired two"), "neither retired entry is injected");
 });
 
+// --- load-failure-memory: udflowOp 3-tier read priority (0.42.0 layout) ---
+// Read priority: udflowOp/memory/FAILURE_MEMORY.md → legacy ai/FAILURE_MEMORY.md → global. The hook is
+// READ-ONLY (the one-time legacy→new migration is the workflow main thread's job); these pin the order.
+// mkProject() writes the LEGACY layout, so this local helper writes either/both tiers.
+
+function mkProject3(newMem, legacyMem) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "udflow-mem3-"));
+  if (newMem != null) {
+    fs.mkdirSync(path.join(dir, "udflowOp", "memory"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "udflowOp", "memory", "FAILURE_MEMORY.md"), newMem, "utf8");
+  }
+  if (legacyMem != null) {
+    fs.mkdirSync(path.join(dir, "ai"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "ai", "FAILURE_MEMORY.md"), legacyMem, "utf8");
+  }
+  return dir;
+}
+const NEW_MEM = "# FM\n\n### 2026-07-11 — NEW-LAYOUT-ENTRY\n- **Prevention rule**: r.\n- **Tags**: x.\n";
+const LEGACY_MEM = "# FM\n\n### 2026-07-01 — LEGACY-LAYOUT-ENTRY\n- **Prevention rule**: r.\n- **Tags**: y.\n";
+
+test("load-failure-memory 3-tier: udflowOp/memory alone is read and disclosed (new first tier)", (t) => {
+  // Discriminating: under the pre-0.42.0 resolver (ai/ then global) this project has NO readable file
+  // in the isolated home, so the digest would be empty — both assertions go red without the change.
+  const { home, env } = isolatedHome(); // no global fallback to mask the result
+  t.after(() => { try { fs.rmSync(home, { recursive: true, force: true }); } catch (e) {} });
+  const ctx = digestOf({ cwd: mkProject3(NEW_MEM, null) }, env);
+  assert.ok(ctx.includes("NEW-LAYOUT-ENTRY"), "the digest must come from udflowOp/memory/FAILURE_MEMORY.md");
+  assert.match(ctx, /udflowOp[\\/]memory[\\/]FAILURE_MEMORY\.md/, "the digest header must disclose the new-layout source path");
+});
+
+test("load-failure-memory 3-tier: BOTH tiers present -> the new path wins over legacy", () => {
+  // Discriminating: the pre-0.42.0 resolver would read ai/ and inject exactly LEGACY-LAYOUT-ENTRY,
+  // turning the negative assertion red — this is the control that proves the ORDER, not mere reachability.
+  const ctx = digestOf({ cwd: mkProject3(NEW_MEM, LEGACY_MEM) });
+  assert.ok(ctx.includes("NEW-LAYOUT-ENTRY"), "new-layout entry injected");
+  assert.ok(!ctx.includes("LEGACY-LAYOUT-ENTRY"), "legacy content must NOT be read when the new path exists");
+});
+
+test("load-failure-memory 3-tier: legacy-only still injects (read-only fallback tier; regression control)", () => {
+  const ctx = digestOf({ cwd: mkProject3(null, LEGACY_MEM) });
+  assert.ok(ctx.includes("LEGACY-LAYOUT-ENTRY"), "a not-yet-migrated project must keep injecting from ai/");
+});
+
+test("load-failure-memory 3-tier: neither project tier -> the global file is the last tier (regression control)", (t) => {
+  const { home, env } = isolatedHome();
+  t.after(() => { try { fs.rmSync(home, { recursive: true, force: true }); } catch (e) {} });
+  fs.mkdirSync(path.join(home, ".claude"), { recursive: true });
+  fs.writeFileSync(path.join(home, ".claude", "FAILURE_MEMORY.md"), "# FM\n\n### 2026-07-02 — GLOBAL-TIER-ENTRY\n- **Tags**: g.\n", "utf8");
+  const ctx = digestOf({ cwd: mkProject3(null, null) }, env);
+  assert.ok(ctx.includes("GLOBAL-TIER-ENTRY"), "with neither project tier present the global file must still inject");
+});
+
+test("load-failure-memory 3-tier: a junction at udflowOp/memory escaping the project is not read (containment covers the new first tier)", (t) => {
+  const { home, env } = isolatedHome();
+  const proj = fs.mkdtempSync(path.join(os.tmpdir(), "udflow-m3proj-"));
+  const external = fs.mkdtempSync(path.join(os.tmpdir(), "udflow-m3ext-"));
+  t.after(() => {
+    try { fs.rmSync(home, { recursive: true, force: true }); } catch (e) {}
+    try { fs.rmSync(proj, { recursive: true, force: true }); } catch (e) {}
+    try { fs.rmSync(external, { recursive: true, force: true }); } catch (e) {}
+  });
+  fs.writeFileSync(path.join(external, "FAILURE_MEMORY.md"), "# FM\n\n### 2026-07-03 — NEWPATH-ESCAPE-MARKER\n- **Tags**: x.\n", "utf8");
+  fs.mkdirSync(path.join(proj, "udflowOp"), { recursive: true });
+  try {
+    fs.symlinkSync(external, path.join(proj, "udflowOp", "memory"), "junction"); // junction on Windows; dir symlink elsewhere
+  } catch (e) {
+    return t.skip("cannot create a junction/dir-symlink here: " + (e && e.code));
+  }
+  const ctx = digestOf({ cwd: proj }, env);
+  assert.ok(!ctx.includes("NEWPATH-ESCAPE-MARKER"), "a udflowOp/memory junction escaping the project must not be read/injected");
+  assert.strictEqual(ctx, "", "containment skip yields no injection (no legacy/global fallback here)");
+});
+
 // --- compact-fidelity SessionStart(compact) hook (item G; relocated from PreCompact) ---
 // Claude Code's hook-output schema has NO PreCompact `hookSpecificOutput` variant, so emitting
 // additionalContext under PreCompact is REJECTED ("Invalid input") and errors on every /compact. The
@@ -332,6 +405,14 @@ test("compact-fidelity: a post-compaction SessionStart emits a nonce-fenced pres
   assert.ok(/udflow:verify=/.test(ctx) && /udflow:delivery=/.test(ctx), "preserves the Run Card sentinels");
   assert.ok(/PRIMARY EVIDENCE/.test(ctx), "treats subagent findings as primary evidence");
   assert.ok(/UNANSWERED/.test(ctx), "preserves unanswered requirements");
+  // 0.42.0 layout: the re-read pointer must target the migrated progress-ledger home. Discriminating —
+  // the pre-0.42.0 nudge said `output/udflow/progress.md`, which does not contain this substring.
+  assert.ok(ctx.includes("udflowOp/output/progress.md"),
+    "the re-read nudge must point at the 0.42.0 ledger home udflowOp/output/progress.md, not the legacy output/udflow/ path");
+  // Negative pin: "udflowOp/output/progress.md" does NOT contain "output/udflow/progress.md" as a
+  // substring, so this fails ONLY if a legacy pointer is re-added alongside (or instead of) the new one.
+  assert.ok(!ctx.includes("output/udflow/progress.md"),
+    "the nudge must not carry the legacy output/udflow/progress.md pointer");
 });
 
 test("compact-fidelity: a non-compact SessionStart (startup/resume/clear) emits nothing", () => {

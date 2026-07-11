@@ -6,14 +6,48 @@
 
 **udflow は Claude Code を慎重なリリースエンジニアのように振る舞わせます：** まず計画し、承認を得てから変更し、証拠で検証し、最後に `READY` / `FIX REQUIRED` / `NOT READY` を判定します。
 
-udflow は Claude Code 向けの、plan-gate 方式によるコードレビュー & リリース可否判定ワークフローです。bug scanner でも、linter でも、static analyzer でも、CI の代替でも、zero-bug の保証でもありません。その役割は、AI が行った変更を追跡可能にすることです：明示された意図、acceptance criteria、最小限の安全な実装、実際の検証証拠、リスクに応じたレビュー、そして gatekeeper の verdict。
+udflow は、開発から本番までを2つのフローでカバーします。**dev flow** は plan-gate 方式のコードレビュー & リリース可否判定ワークフローです：plan → 承認 → 実装 → 検証 → リスクに応じたレビュー → verdict。**incident flow** はそのフローを反転させ、本番の緊急事態に使うものです：まず被害を止め（mitigate first）、次に診断し、正式な修正は dev flow に戻して行い、最後に postmortem で締めます。udflow は bug scanner でも、linter でも、static analyzer でも、CI の代替でも、zero-bug の保証でもありません。その役割は、AI が行った変更を追跡可能にすることです：明示された意図、acceptance criteria、最小限の安全な実装、実際の検証証拠、リスクに応じたレビュー、そして gatekeeper の verdict。
 
 ```text
-タスク -> 要件理解 -> Plan（まだコード変更なし）-> あなたが plan + acceptance criteria を承認
-     -> 最小限の安全な変更 -> build / test / lint / browser evidence
-     -> リスクに応じた reviewer -> Gatekeeper verdict
-            READY / FIX REQUIRED / NOT READY -> 必要なら repair loop へ
+Dev flow       タスク -> 要件理解 -> Plan（まだコード変更なし）-> あなたが plan + acceptance criteria を承認
+                     -> 最小限の安全な変更 -> build / test / lint / browser evidence
+                     -> リスクに応じた reviewer -> Gatekeeper verdict
+                            READY / FIX REQUIRED / NOT READY -> 必要なら repair loop へ
+
+Incident flow  アラート -> Triage -> 証拠保全 -> まず止血（可逆な操作を、decision card 1枚ずつ）
+                      -> 診断 -> red repro -> 上の dev flow 経由で修正（--lite）
+                      -> 本番への再投入 + 観察期間 -> postmortem
+
+学習ループ      incident postmortem -> FAILURE_MEMORY -> 次の dev flow の planning がそれを読む
 ```
+
+## 同梱されているもの
+
+4つの skill があり、うち2つは自動で起動します：
+
+| Skill | 用途 | 詳細 |
+|---|---|---|
+| `universal-dev-flow` | dev flow。非瑣末な開発作業で自動的に起動：plan-gate 方式の実装 → 検証 → リスクに応じたレビュー → verdict。手動開始：`/udflow:run`。 | 「仕組み」の節を参照 |
+| `incident-response` | incident flow。本番インシデントの言葉づかいで自動的に起動：まず止血し、修正は dev flow に渡す。手動：`/udflow:incident-response`、加えて `prepare` モードあり。 | 「インシデントフロー」の節を参照 |
+| `run` | dev flow の手動スターター（`/udflow:run <task>`）；自動では起動しない。 | 「クイックスタート」の節を参照 |
+| `doctor` | hooks + 環境のローカルなヘルスセルフチェック（`/udflow:doctor`）；telemetry なし。 | 「クイックスタート」の節を参照 |
+
+2つのフローは互いに供給し合います：インシデントの正式な修正は、「インシデントの reproduction がグリーンになる」を主要な acceptance criterion として `--lite` run で dev flow に渡され、インシデントの postmortem は prevention rule を `FAILURE_MEMORY.md` に書き込みます——dev flow の planning は次の変更の前にそれを読みます。
+
+### プロジェクトレイアウト
+
+udflow が対象プロジェクト内に保持するものは、すべて1つのルートフォルダの下にまとまります：
+
+```text
+udflowOp/
+  memory/     # FAILURE_MEMORY.md — 次の plan が読む教訓（committed）
+  design/     # design.md — UI の design contract（committed）
+  ops/        # OPS_PROFILE.md — incident-response の平時マップ（committed）
+  incidents/  # INCIDENT-<date>-<slug>.md journals — 監査証跡（committed）
+  output/     # 実行ごとのスクラッチ：contract.md、evidence、review diffs（run scratch — 決して commit しない、自前の gitignore 付き）
+```
+
+0.42.0 より前のレイアウト（`ai/FAILURE_MEMORY.md`、リポジトリ直下の `design.md`、`output/udflow/`）は一度だけ自動移行されます：workflow が各ファイルを新しい置き場所へ移動し、旧ファイルを削除し、その実行の中で移行を開示します。
 
 ## 30秒で理解する
 
@@ -24,6 +58,15 @@ udflow がすることは3つです：
 | **コーディング前** | Claude が要件を re-state し、plan と acceptance criteria にまとめ、あなたの承認を待ちます。 |
 | **コーディング中** | `implementer` は最小限の安全な変更のみを行い、自己承認はしません。 |
 | **納品前** | リスクに応じて選ばれた reviewer があなたの意図に照らして変更を検査し、最後に `gatekeeper` が `READY` / `FIX REQUIRED` / `NOT READY` を判定します。 |
+
+本番インシデントの最中は、`incident-response` が同じ規律を火中でも守らせます：
+
+| タイミング | udflow が加えるもの |
+|---|---|
+| **最初の数分** | 証拠スナップショット（約1分、スキップ不可）、その後に可逆な止血策——decision card 1枚ずつ；あなたは承認か却下だけで、コードを読む必要はありません。 |
+| **安定した後** | fault domain で診断し、どんな修正の前にも red→green の reproduction ゲートを通します。 |
+| **正式な修正** | 上の dev flow に渡されます——incident skill が本番に hot-patch を当てることはありません。 |
+| **クローズ後** | postmortem が failure memory に供給され、次の dev flow の plan は最初からそれを知っています。 |
 
 「完了」が「リリース可能」を意味しなければならないときに udflow を使ってください：`main` へのマージ、ユーザー向け変更のリリース、あるいは authentication、data、contracts、migrations、production behavior、高リスクな UI flow に触れる場合など。
 
@@ -45,6 +88,12 @@ typo 修正、純粋なフォーマット、低リスクの小さな変更、単
 
 # タスクを渡す：
 /udflow:run ログインフローを修正し、期限切れの access token を、失敗した request をリトライする前に一度だけ refresh するようにして。
+
+# 必要になる前に：インシデント用の ops マップを作る（ログの場所、rollback 経路、kill switch）
+/udflow:incident-response prepare
+
+# インシデントの最中は、普通の言葉で十分です——skill はインシデントの言葉づかいで自動的に起動します：
+本番が落ちてる——直近の deploy 以降、checkout が 500 を返し続けてる
 ```
 
 > udflow は初めてですか？[最初の実行を最初から最後まで](docs/tutorial-first-run.md)たどってみましょう。
@@ -99,6 +148,13 @@ udflow は次のものではありません：
 - 網羅的な mechanical scanner
 - あらゆる些細な変更に使うべきツール
 
+incident flow にも独自の非ゴールがあります——次のものではありません：
+
+- paging や on-call ローテーション、status-page の自動化
+- SLO 管理スイート、完全な RBAC/権限管理レイヤー
+- DFIR フォレンジックラボ（分類し、封じ込め、専門家を推奨するまで）
+- マルチリポジトリのインシデント指揮
+
 udflow は次と組み合わせて使ってください：
 
 - unit / integration tests
@@ -111,17 +167,47 @@ Linters は機械的な問題を捕まえます。Tests は既知の期待され
 
 ## 仕組み
 
+1回の実行を、フェーズごとに（the dev flow）：
+
 | フェーズ | 何が起きるか |
 |---|---|
 | **Understand** | 要件を re-state する；曖昧さが behavior、contracts、destructive operations、security、UX を左右する場合のみ質問する。 |
 | **Plan** | 読み取り専用のまま、repo の実態にアプローチを紮根させ、acceptance criteria をまとめる。 |
 | **Approval** | あなたが plan と criteria を承認するまで、コードは変更しない。 |
-| **Implement** | `implementer` が最小限の安全な変更を適用し、今回の実行分の task contract（`output/udflow/contract.md`）を書き出す。 |
+| **Implement** | `implementer` が最小限の安全な変更を適用し、今回の実行分の task contract（`udflowOp/output/contract.md`）を書き出す。 |
 | **Verify** | 必要に応じて build / test / lint / typecheck / browser evidence を実行する；command の exit status が権威となる。 |
 | **Review** | リスクに関係する reviewer だけが実行され、thread 全体の履歴ではなく、焦点を絞った Review Packet を使う。 |
 | **Gatekeeper** | findings を集約し、impact に応じて再評価し、acceptance criteria を1つずつ確認し、`READY` / `FIX REQUIRED` / `NOT READY` を判定する。 |
 
 Verdicts は release-readiness の判断であり、絶対的な真実ではありません。詳しくは [`docs/how-to-read-verdicts.md`](docs/how-to-read-verdicts.md)（英語）を参照してください。
+
+## インシデントフロー（incident-response）
+
+本番が壊れているのに、キーボードの前の人はそのコードを書いていない——AI が書いたシステムでは、それが普通のケースです。`incident-response` は dev flow の反転です：**まず止血、次に診断、正式な修正は最後。** インシデントの言葉づかい（「production is down」「ユーザー全員がブロックされている」）で自動的に起動し、`/udflow:incident-response` で手動でも起動できます。人とのやり取りはすべて decision card で行われ、インシデント対応であなたがコードを読む必要は決してありません。
+
+| ステージ | 何が起きるか |
+|---|---|
+| **1 · Triage** | 証拠駆動で、質問攻めにはしない：health/error チェックを実行して、深刻度（SEV1–3）、影響範囲、データが現在進行形で壊れていないか、そして「これは侵入では？」という明示的な確認を1つ行う。 |
+| **2 · 証拠保全** | 何かが再起動される*前に*、約1分のスナップショット（ログ、タイムスタンプ、稼働中のバージョン）——どれほど切迫していてもスキップ不可。 |
+| **3 · Mitigate（ループ）** | 可逆で、新しいコードを書かない操作——rollback（migration 互換性の事前チェック後）、feature flag オフ、degrade、スケールアップ、メンテナンスモード——を1つずつ、それぞれ検証してから次へ。「レビューされていないコードを本番に hot-patch する」ことは、古典的な二次災害として名指しで拒否されます。 |
+| **4 · 診断** | まず fault domain を分類：code、config/環境、インフラ、外部依存、data。reproduction に進むのは code と data のみ；それ以外は直接の是正措置と、事前に宣言された fixed-check で対応。 |
+| **5 · Reproduce** | どんな修正よりも先に red reproduction——失敗する出力を journal に記録。一度も赤くならなかったチェックは何も証明しません。 |
+| **6 · Fix** | dev flow に渡します：「インシデントの repro がグリーンになる」を主要な acceptance criterion とする `universal-dev-flow --lite` の run。`--lite` は、本物の高リスクシグナルがあるときは直接関連する safety reviewer を維持します——インシデントの修正はたいていそのシグナルを帯びています。 |
+| **— データ修復** *（破損が起きた場合）* | コードの修正は新たな破損を止めるだけで、既に生じた損害は直せません。破損ウィンドウ → 影響レコード数 → 修復スクリプトを抽出したコピー上で red→green で証明 → 人間の承認を得てから本番に適用。 |
+| **— 本番への再投入** | 通常の deploy 経路でデプロイし、宣言済みの fixed-check を検証し、観察期間を置いてから、止血策を1つずつ解除します。 |
+| **7 · クローズ + postmortem** | クローズのチェックリスト（止血策の全解除、データ修復の完了、抽出データの削除、journal のクローズ）に加え、短く、誰も責めない postmortem。 |
+
+**必要になる前に準備する。** `/udflow:incident-response prepare` は `udflowOp/ops/OPS_PROFILE.md` を作ります——戦時を30分ではなく30秒から始められるようにする平時マップです：agent-runnable か human-only かを明記したアクセス一覧、schema-migration 互換性の情報付き rollback 手順、feature flags、バックアップ、observability。各エントリには信頼マーカー——`verified: <date>` または `UNVERIFIED`——が付き、未検証の rollback コマンドはそれに依存する decision card 上で明示され、黙って信頼されることはありません。prepare モードはギャップを正直に報告します（「バックアップが見つからない——今日 restore は不可能」）。
+
+**Decision cards。** 1枚ずつ：推奨案、コスト/トレードオフ、可逆性、そして承認したら正確に何が実行されるか。破壊的または本番に影響する操作は必ず card で止まります——以前に承認済みの plan に紛れ込ませることはありません。`destructive-guard.js` hook は、狭く絞った破壊的コマンドの前にさらに確認を挟みます；それは想定どおりの動作で、決して迂回しません。
+
+**インシデント journal。** すべてのステージが `udflowOp/incidents/INCIDENT-<date>-<slug>.md` に追記します——committed な監査証跡（タイムライン、各操作と承認者、証拠、red→green の記録）です。書く前にサニタイズ：journal に入る前に PII と secrets はマスクされます。
+
+**本番データの安全ゲート。** reproduction に実データが必要なとき：最小限の抽出（証拠が指すレコードだけ、決して全 dump しない）、データが AI のコンテキストに入る*前*に PII/secrets をマスク、組織のポリシーが本番データを禁じる場合は synthetic data で代替、抽出データは一時的なもの——決して commit せず、クローズ時に削除します。
+
+**学習ループ。** postmortem には gate-gap 分析——*dev flow のどのゲートが出荷前にこれを捕まえるべきだったか？*——が含まれ、具体的な prevention rule で答えて failure-memory エントリとして提案されます；dev flow の planning は次の変更の前にそれを読みます。
+
+非ゴールを一言で：paging/on-call なし、status-page 自動化なし、SLO スイートなし、完全な RBAC なし、DFIR 級のフォレンジックなし、マルチリポジトリのインシデント指揮なし（「非ゴール」の節を参照）。各ステージの完全な契約は skill の references（`udflow/skills/incident-response/references/`）にあります：`wartime.md`、`repro-and-fix.md`、`closure.md`、`ops-profile.md`。
 
 ## 10個の subagent
 
@@ -168,14 +254,14 @@ plugin が有効な間は、依存関係ゼロの Node hooks が6つ、すべて
 |---|---|---|
 | `plan-gate.js` | `PreToolUse` | plan mode 中に edit tools と明らかな Bash write を拒否する。 |
 | `destructive-guard.js` | `PreToolUse` | `rm -rf`、`git reset --hard`、`git push --force`、PowerShell の `Remove-Item -Recurse` など、狭く絞った復元不能な destructive command の前に確認を挟む。 |
-| `contract-guard.js` | `PreToolUse` | Write/Edit/MultiEdit が既存の `output/udflow/contract.md` の acceptance criterion、`mustNotChange` 項目、scope path を削除・緩和する、`risk` を格下げする、または `design.md` の section をまるごと削除する前に確認を挟む。 |
-| `load-failure-memory.js` | `SessionStart` | プロジェクトの `ai/FAILURE_MEMORY.md` またはグローバルの `~/.claude/FAILURE_MEMORY.md` を読み込み、nonce で囲んだ untrusted な digest を注入する。 |
+| `contract-guard.js` | `PreToolUse` | Write/Edit/MultiEdit が既存の contract の acceptance criterion、`mustNotChange` 項目、scope path を削除・緩和する、`risk` を格下げする、または `design.md` の section をまるごと削除する前に確認を挟む。`udflowOp/output/contract.md` と旧レイアウトの `output/udflow/contract.md` の両方を監視する。 |
+| `load-failure-memory.js` | `SessionStart` | プロジェクトの `udflowOp/memory/FAILURE_MEMORY.md`（旧レイアウトの `ai/FAILURE_MEMORY.md` は読み取り専用のフォールバック）、なければグローバルの `~/.claude/FAILURE_MEMORY.md` を読み込み、nonce で囲んだ untrusted な digest を注入する。 |
 | `compact-fidelity.js` | `SessionStart` · `compact` | context compaction の直後に、簡潔な workflow-continuity のリマインダーを再注入する。 |
 | `orchestration-check.js` | `Stop` | delivery の主張が、missing panel、blocking verdict、failed/unrun verification、missing live-run evidence と矛盾している場合に警告する。 |
 
 確認や制限を行う各 hook は、プロジェクト単位に opt-out できます——完全なリストは下記の「設定リファレンス」を参照してください。
 
-これらの hooks は、ファイルの削除、システム設定の変更、権限の変更、subprocess の実行、コードのダウンロード、コードや transcript の送信を一切行いません。あくまで guardrail であり、sandbox ではありません。詳細は [`SECURITY.md`](SECURITY.md) と [`ARCHITECTURE.md`](ARCHITECTURE.md) を参照してください。
+これらの hooks は、ファイルの削除、システム設定の変更、権限の変更、subprocess の実行、コードのダウンロード、コードや transcript の送信を一切行いません。あくまで guardrail であり、sandbox ではありません。詳細は [`SECURITY.md`](SECURITY.md) と [`ARCHITECTURE.md`](ARCHITECTURE.md) を参照してください。hooks が udflow のプロジェクトファイルを移行・書き込み・削除することも決してありません——旧レイアウトの一度きりの移行は、workflow 自身があなたの session 内で目に見える tool 操作として実行します。
 
 ## 設定リファレンス
 
@@ -187,7 +273,7 @@ plugin が有効な間は、依存関係ゼロの Node hooks が6つ、すべて
 |---|---|
 | `planGate` | `plan-gate.js` —— plan mode 中に強制される編集ブロック |
 | `destructiveGuard` | `destructive-guard.js` —— 狭く絞った復元不能な destructive command 実行前の確認 |
-| `contractGuard` | `contract-guard.js` —— Write/Edit/MultiEdit が `output/udflow/contract.md` を弱める、または `design.md` の section を削除する前の確認 |
+| `contractGuard` | `contract-guard.js` —— Write/Edit/MultiEdit が `udflowOp/output/contract.md`（または旧レイアウトの `output/udflow/contract.md`）を弱める、または `design.md` の section を削除する前の確認 |
 | `preserveOnCompact` | `compact-fidelity.js` —— context compaction 後の workflow-continuity リマインダー |
 
 設定ファイルが壊れている、または読み込めない場合は「無効化されていない」として扱われます（fail-safe：guard はそのまま動作し続けます）。例——特定のプロジェクトで `contract-guard.js` を無効化する：
@@ -278,6 +364,8 @@ trust model については [`SECURITY.md`](SECURITY.md)（英語）を、releas
 | 軽量 | `--lite`、core のみ | ~0.5-2M | 数分 |
 | 典型 | 3-5 reviewers + repair 1回 | ~2-7M | ~5-15分 |
 | 深掘り | `--deep`、repair 複数回 | >10M | ~20-40分 |
+
+incident flow は要所で安く済みます：戦時のターンは短く（decision card 1枚ずつ、長文なし）、正式な修正にかかるのは通常の udflow run 1回分（`--lite`）、`prepare` は一度きりのリポジトリスキャンです。
 
 コストを抑えたいときは `/udflow:run --lite`、最大限の精査が必要なときは `--deep`、per-agent の詳細な activity と cost が必要なときは `--report full` を使ってください。小さな低/中リスクの変更では、自動の **fast lane** がさらに一歩進みます：実行エビデンスがすでに reviewer の問いに答えている場合（behavior-changing な基準すべてに red→green テストがあり、full required suite がグリーン）、`test-reviewer` はエビデンスで代替され、`udflow:panel=substituted:test-reviewer` として開示されます — 同じエビデンスでより少ない agents。高リスク / deep run には適用されません。
 

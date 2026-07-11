@@ -876,6 +876,48 @@ test("design.md A2: a whole section removed from a differently-cased basename (D
   assert.match(r.reason, /## Do's and Don'ts/, "the ask must name the removed section");
 });
 
+// --- contract-guard: udflowOp/output/contract.md (0.42.0 layout) is guarded alongside the legacy path ---
+
+function newContractPath(dir) { return path.join(dir, "udflowOp", "output", "contract.md"); }
+function writeNewContract(dir, markdown) {
+  fs.mkdirSync(path.join(dir, "udflowOp", "output"), { recursive: true });
+  fs.writeFileSync(newContractPath(dir), markdown, "utf8");
+}
+
+test("contract-guard 0.42.0: a weakening Write to the NEW udflowOp/output/contract.md path asks", () => {
+  // Discriminating: the pre-0.42.0 guard root-anchored ONLY output/udflow/contract.md, so this exact
+  // input was silently ALLOWED — reverting the both-paths match turns this red.
+  const dir = mkCGuardProject();
+  writeNewContract(dir, contractMd());
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: newContractPath(dir), content: contractMd({ mustNotChange: [] }) } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ASK", "the new-layout contract path must be guarded (a guard watching only the legacy path allows this)");
+  assert.match(r.reason, /udflowOp\/output\/contract\.md/, "the ask label must name the matched (new) path");
+});
+
+test("contract-guard 0.42.0: the same weakening Write at the LEGACY output/udflow/contract.md path still asks (control)", () => {
+  const dir = mkCGuardProject();
+  writeContract(dir, contractMd());
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: contractPath(dir), content: contractMd({ mustNotChange: [] }) } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ASK", "pre-migration runs still write the legacy path; it must stay guarded");
+  assert.match(r.reason, /output\/udflow\/contract\.md/, "the ask label must name the matched (legacy) path");
+});
+
+test("contract-guard 0.42.0: design.md at its new udflowOp/design/ home is guarded by basename (whole-section deletion asks)", () => {
+  // The basename match is location-independent by design, so this is a regression pin for the new
+  // documented home (references/design-spec.md), not a behavior change.
+  const dir = mkCGuardProject();
+  const designPath = path.join(dir, "udflowOp", "design", "design.md");
+  fs.mkdirSync(path.dirname(designPath), { recursive: true });
+  fs.writeFileSync(designPath, DESIGN_MD, "utf8");
+  const withoutSection = DESIGN_MD.replace("\n## Do's and Don'ts\nNever use pure black on white.\n", "\n");
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: designPath, content: withoutSection } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ASK");
+  assert.match(r.reason, /## Do's and Don'ts/, "the basename design.md guard must cover the udflowOp/design/ home");
+});
+
 // --- contract-guard: wiring ---
 
 test("hooks.json wires contract-guard.js under PreToolUse with a matcher covering Write/Edit/MultiEdit", () => {

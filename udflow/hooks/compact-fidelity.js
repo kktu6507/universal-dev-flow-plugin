@@ -12,7 +12,7 @@
 // while a scary error is shown on every compaction. The ONLY supported context-injection path around a
 // compaction is SessionStart with source="compact", which fires in the NEW post-compaction window and
 // accepts `hookSpecificOutput.additionalContext` (the same shape load-failure-memory.js uses). The
-// `output/udflow/progress.md` ledger remains the durable persistence layer; this is the in-context nudge.
+// `udflowOp/output/progress.md` ledger remains the durable persistence layer; this is the in-context nudge.
 //
 // This emits ONLY instructions (no repo file content), so it carries no untrusted-data surface; it is
 // still nonce-fenced + role-neutralized for symmetry with load-failure-memory.js. Fail-OPEN: any problem
@@ -45,7 +45,7 @@ const PRESERVE_BODY = [
   "- The Run Card / verification numbers (per-check command, ran?, real exit status, the udflow:verify= and udflow:delivery= sentinels).",
   "- Subagent (reviewer) findings — treat these as PRIMARY EVIDENCE: they were expensive to produce and must not be re-derived from scratch after the summary.",
   "- Any requirement or open question that is still UNANSWERED, so it is not lost as 'already handled'.",
-  "Before redoing anything, re-read the progress ledger (output/udflow/progress.md) and git log so finished, committed work is not repeated."
+  "Before redoing anything, re-read the progress ledger (udflowOp/output/progress.md) and git log so finished, committed work is not repeated."
 ].join("\n");
 
 // Neutralize any line that could read as a conversational role marker or instruction-block tag, mirroring

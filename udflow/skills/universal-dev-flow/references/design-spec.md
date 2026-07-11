@@ -27,13 +27,15 @@ Machine-readable tokens (a YAML front-matter block of colors / typography / spac
 
 ## Where it lives (committed contract, not scratch)
 
-`design.md` is a **committed** repository artifact (project root, or a documented path) — it travels with the repo like source, unlike the gitignored run scratch under `output/udflow/`. It is owned by the consuming project; udflow drafts and updates it but the project commits it.
+`design.md` is a **committed** repository artifact at `udflowOp/design/design.md` — it travels with the repo like source, unlike the gitignored run scratch under `udflowOp/output/`. It is owned by the consuming project; udflow drafts and updates it but the project commits it. A repo-root `design.md` is the **legacy pre-0.42.0 location**: still detected (and guarded by `hooks/contract-guard.js`, which matches `design.md` by basename anywhere), but one-time-migrated on first consume (below).
+
+**One-time migration (workflow main thread, at the detect/consume step — hooks never move files).** It runs **only** when detection finds a legacy root `design.md` and no `udflowOp/design/design.md`; move it before consuming: git-tracked (the normal case for this committed artifact) — create the destination directory, then `git mv design.md udflowOp/design/design.md` (`git mv` does not create it; the rename preserves history and the project commits it with the PR); untracked via copy → verify the copy is readable → delete the legacy file. Disclose one line to the user (e.g. "migrated design.md to udflowOp/design/"). When **both** locations exist, use `udflowOp/design/design.md`, move or overwrite nothing, and disclose once that a legacy root `design.md` remains for manual cleanup/merge. After migration, never read or write the root location again — all `design.md` reads and writes use `udflowOp/design/design.md` only.
 
 ## Detect → Use → Else-Disclose
 
 Follow `references/external-capabilities.md`.
 
-1. **Detect** — does a `design.md` exist in the repo, and is the task UI / design-system / interaction scope? (`planner-creator` does this during planning, `references/plan-grounding.md` Stage A.)
+1. **Detect** — does a `design.md` exist (`udflowOp/design/design.md`, else the legacy root location — a legacy hit is one-time-migrated at consume, per *Where it lives*), and is the task UI / design-system / interaction scope? (`planner-creator` does this during planning, `references/plan-grounding.md` Stage A.)
 2. **Use** — when a `design.md` exists, it is the **consistency contract**: the planner grounds the UI plan against it, the implementer follows it, and `ui-ux-reviewer` judges the change against it (citing the violated token/section). Hand reviewers the **path** (a Review Packet pointer, `references/review-packet.md`), never the re-pasted content.
 3. **Else** — when it is absent: do the UI work against the internal `ui-ux-reviewer` baseline and **disclose** that no `design.md` contract was used. If the scope warrants one, **recommend** establishing one (below) — never a hard dependency, never an error.
 
@@ -56,7 +58,7 @@ Resolution: when a relevant pattern already exists in `design.md`, **`design.md`
 1. **Detect** *(plan, read-only)* — presence + scope (above).
 2. **Draft** *(plan, read-only)* — when bootstrapping, derive the contract **descriptively from the existing UI** (role split: *Invariants* below) — read the real token sources and map them to the 10 sections per the *Extraction guide* below. The goal is to **preserve the existing design** (reuse the visual system), not to impose an external standard. A drafted `design.md` is **descriptive** — it can codify existing design debt, which is exactly why it must be blessed.
 3. **Bless** *(ExitPlanMode)* — present the draft for the user's approval at the plan gate. A persistent design contract must be a deliberate, human-signed decision, never a silent side-effect of an unrelated task.
-4. **Write** *(post-approval implementation)* — write `design.md` to the repo; the `implementer` does it post-approval so plan mode stays read-only.
+4. **Write** *(post-approval implementation)* — write `design.md` to `udflowOp/design/design.md`; the `implementer` does it post-approval so plan mode stays read-only.
 5. **Update** *(supersede / expire)* — when a change alters the design system, update `design.md` in the **same PR** as the code, with the same supersede/expire discipline failure memory uses (`references/verification-gate.md`) so a stale contract does not outlive the design it described. A stale `design.md` is worse than none (the reviewer judges against the wrong contract). `hooks/contract-guard.js` asks for confirmation only when a Write/Edit/MultiEdit would remove an entire `## ` section wholesale — it never flags a normal section-body rewrite, expansion, or reduction to an "n/a" placeholder, so it is compatible with this sanctioned implementer-rewrite workflow, not in conflict with it.
 
 ## Bootstrap (establishing a contract for an existing UI)

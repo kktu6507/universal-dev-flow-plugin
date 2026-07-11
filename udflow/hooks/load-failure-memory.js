@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 // udflow SessionStart: inject a compact FAILURE_MEMORY *digest* into context.
-// Prefer project ai/FAILURE_MEMORY.md, else global ~/.claude/FAILURE_MEMORY.md.
+// Read priority: project udflowOp/memory/FAILURE_MEMORY.md (0.42.0 layout), else the legacy project
+// ai/FAILURE_MEMORY.md, else global ~/.claude/FAILURE_MEMORY.md. READ-ONLY fallback only — this hook
+// never writes, moves, or deletes a file (documented safety promise); the one-time legacy→new
+// migration is the workflow main thread's job (references/verification-gate.md, Failure Memory).
 // The digest is a condensed index (entry title + tags, capped) — NOT the whole file,
 // and NOT the prevention-rule prose (that is read on demand during planning). Entries
 // are ranked by intrinsic importance — recurrence first (a lesson that keeps biting),
@@ -25,7 +28,7 @@ function debug(msg) {
 
 // Containment guard: returns the RESOLVED realpath of `file` iff it is a REGULAR file whose realpath stays
 // inside `rootDir`'s realpath, else null. This blocks a hostile repo from redirecting the SessionStart
-// auto-read to an out-of-tree file via a symlink/junction at `ai/` (or a symlinked `ai/FAILURE_MEMORY.md`)
+// auto-read to an out-of-tree file via a symlink/junction at `udflowOp/` or `ai/` (or a symlinked memory file)
 // — the read would otherwise follow the link and inject an arbitrary file's content. Mirrors plan-gate.js's
 // realpath containment. Realpath BOTH sides so a legitimately symlinked root (a symlinked home, or macOS
 // /var -> /private/var) still matches; a benign in-tree symlink resolves and is allowed. The caller reads
@@ -57,21 +60,23 @@ process.stdin.on("end", () => {
   try {
     // Resolve the project root the SAME way plan-gate.js does (CLAUDE_PROJECT_DIR first, then the
     // event cwd, then process.cwd()), so the plan gate and failure-memory injection anchor to one
-    // root — e.g. a session launched from a subdirectory still finds the project's
-    // ai/FAILURE_MEMORY.md instead of a subdir that has none.
+    // root — e.g. a session launched from a subdirectory still finds the project's memory file
+    // instead of a subdir that has none.
     let cwd = process.env.CLAUDE_PROJECT_DIR || process.cwd();
     try { const i = JSON.parse(raw || "{}"); if (!process.env.CLAUDE_PROJECT_DIR && i.cwd) cwd = i.cwd; } catch (e) {}
 
-    const projectPath = path.join(cwd, "ai", "FAILURE_MEMORY.md");
+    const newPath = path.join(cwd, "udflowOp", "memory", "FAILURE_MEMORY.md"); // 0.42.0 layout, wins when present
+    const legacyPath = path.join(cwd, "ai", "FAILURE_MEMORY.md");              // pre-0.42.0 layout, read-only fallback
     const globalRoot = path.join(os.homedir(), ".claude");
     const globalPath = path.join(globalRoot, "FAILURE_MEMORY.md");
 
-    // Only inject from a regular file whose realpath stays within its intended root (project `ai/` under
-    // the project root; the global file under ~/.claude). containedRegularFile returns the validated
-    // realpath (or null when the path is missing / escapes / is not a regular file — subsuming the previous
-    // existsSync check), and `chosen` is THAT realpath, so readCapped reads the inode we validated rather
-    // than re-resolving the symlink a second time. Symlink/junction escapes are silently skipped (fail-open).
-    const chosen = containedRegularFile(projectPath, cwd) || containedRegularFile(globalPath, globalRoot);
+    // Only inject from a regular file whose realpath stays within its intended root (both project
+    // candidates under the project root; the global file under ~/.claude). containedRegularFile returns
+    // the validated realpath (or null when the path is missing / escapes / is not a regular file —
+    // subsuming the previous existsSync check), and `chosen` is THAT realpath, so readCapped reads the
+    // inode we validated rather than re-resolving the symlink a second time. Symlink/junction escapes
+    // are silently skipped (fail-open). Priority: new path → legacy path → global.
+    const chosen = containedRegularFile(newPath, cwd) || containedRegularFile(legacyPath, cwd) || containedRegularFile(globalPath, globalRoot);
     if (!chosen) return process.exit(0);
 
     const content = readCapped(chosen);              // only reads the first MAX_READ bytes of a huge file

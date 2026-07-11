@@ -6,14 +6,48 @@
 
 **udflow makes Claude Code behave like a cautious release engineer:** plan first, change only after approval, verify with evidence, then decide `READY` / `FIX REQUIRED` / `NOT READY`.
 
-udflow is a plan-gated code-review and release-readiness workflow for Claude Code. It is not a bug scanner, linter, static analyzer, CI replacement, or zero-bug guarantee. Its job is to make AI-made changes traceable: stated intent, acceptance criteria, smallest safe implementation, real verification evidence, risk-selected review, and a gatekeeper verdict.
+udflow covers development through production with two flows. The **dev flow** is a plan-gated code-review and release-readiness workflow: plan → approve → implement → verify → risk-selected review → verdict. The **incident flow** is that flow inverted for live production emergencies: mitigate first, diagnose second, hand the formal fix back to the dev flow, then close with a postmortem. udflow is not a bug scanner, linter, static analyzer, CI replacement, or zero-bug guarantee. Its job is to make AI-made changes traceable: stated intent, acceptance criteria, smallest safe implementation, real verification evidence, risk-selected review, and a gatekeeper verdict.
 
 ```text
-Task -> Understand -> Plan (no code yet) -> YOU APPROVE plan + acceptance criteria
-     -> smallest safe change -> build / test / lint / browser evidence
-     -> risk-selected reviewers -> Gatekeeper verdict
-            READY / FIX REQUIRED / NOT READY -> repair loop when needed
+Dev flow       Task -> Understand -> Plan (no code yet) -> YOU APPROVE plan + acceptance criteria
+                    -> smallest safe change -> build / test / lint / browser evidence
+                    -> risk-selected reviewers -> Gatekeeper verdict
+                           READY / FIX REQUIRED / NOT READY -> repair loop when needed
+
+Incident flow  Alert -> Triage -> preserve evidence -> MITIGATE FIRST (reversible, one decision card at a time)
+                     -> diagnose -> red repro -> fix via the dev flow above (--lite)
+                     -> production re-entry + observation window -> postmortem
+
+Learning loop  incident postmortem -> FAILURE_MEMORY -> the next dev-flow planning reads it
 ```
+
+## What's inside
+
+Four skills, two of which engage on their own:
+
+| Skill | Purpose | Details |
+|---|---|---|
+| `universal-dev-flow` | The dev flow. Auto-engages on non-trivial dev work: plan-gated implement → verify → risk-selected review → verdict. Manual start: `/udflow:run`. | [How it works](#how-it-works) |
+| `incident-response` | The incident flow. Auto-engages on production-incident language: mitigate first, then hand the fix to the dev flow. Manual: `/udflow:incident-response`, plus a `prepare` mode. | [The incident flow](#the-incident-flow-incident-response) |
+| `run` | Manual starter for the dev flow (`/udflow:run <task>`); never auto-engages. | [Quick start](#quick-start) |
+| `doctor` | Local health self-check of the hooks + environment (`/udflow:doctor`); no telemetry. | [Quick start](#quick-start) |
+
+The two flows feed each other: an incident's formal fix is handed to the dev flow as a `--lite` run with the incident reproduction as its primary acceptance criterion, and the incident postmortem writes a prevention rule into `FAILURE_MEMORY.md` — which dev-flow planning reads before the next change.
+
+### Project layout
+
+Everything udflow keeps in a consuming project lives under one root folder:
+
+```text
+udflowOp/
+  memory/     # FAILURE_MEMORY.md — lessons the next plan reads (committed)
+  design/     # design.md — the UI design contract (committed)
+  ops/        # OPS_PROFILE.md — the incident-response peacetime map (committed)
+  incidents/  # INCIDENT-<date>-<slug>.md journals — the audit trail (committed)
+  output/     # per-run scratch: contract.md, evidence, review diffs (run scratch — never committed, self-gitignored)
+```
+
+Pre-0.42.0 layouts (`ai/FAILURE_MEMORY.md`, a repo-root `design.md`, `output/udflow/`) are auto-migrated one time: the workflow moves each file to its new home, deletes the legacy one, and discloses the move in-run.
 
 ## 30-second version
 
@@ -24,6 +58,15 @@ udflow does three things:
 | **Before coding** | Claude restates the requirement, turns it into a plan and acceptance criteria, and waits for approval. |
 | **During coding** | `implementer` makes the smallest safe change and does not self-certify. |
 | **Before delivery** | Risk-selected reviewers inspect the change against your intent, then `gatekeeper` decides `READY` / `FIX REQUIRED` / `NOT READY`. |
+
+During a production incident, `incident-response` adds the same discipline under fire:
+
+| Moment | What udflow adds |
+|---|---|
+| **First minutes** | An evidence snapshot (~1 minute, non-skippable), then reversible mitigations — one decision card at a time; you approve or reject, and never have to read code. |
+| **After stable** | Diagnose by fault domain, then a red→green reproduction gate before any fix. |
+| **The fix** | Handed to the dev flow above — the incident skill never hot-patches production. |
+| **After closure** | The postmortem feeds failure memory, so the next dev-flow plan already knows. |
 
 Use udflow when "done" must mean release-ready: merging to `main`, shipping a user-facing change, or touching authentication, data, contracts, migrations, production behavior, or high-risk UI flow.
 
@@ -45,6 +88,12 @@ Prerequisites: **Claude Code** + `node` on `PATH`. The hooks are Node scripts; w
 
 # hand it a task:
 /udflow:run Fix the login flow so expired access tokens are refreshed once before retrying the failed request.
+
+# before you need it: build the incident ops map (where logs live, rollback paths, kill switches)
+/udflow:incident-response prepare
+
+# during an incident, plain language is enough — the skill auto-engages on incident language:
+production is down — checkout returns 500s since the last deploy
 ```
 
 > New to udflow? Walk through [your first run, end to end](docs/tutorial-first-run.md).
@@ -99,6 +148,13 @@ udflow is not:
 - a tool for exhaustive mechanical scanning
 - meant for every tiny edit
 
+The incident flow has its own non-goals — it is not:
+
+- a paging or on-call rotation, nor status-page automation
+- an SLO management suite or a full RBAC/permission layer
+- a DFIR forensics lab (it classifies, contains, and recommends professionals)
+- a multi-repo incident commander
+
 Use udflow with:
 
 - unit and integration tests
@@ -111,17 +167,47 @@ Linters catch mechanical issues. Tests catch known expected behavior. Static ana
 
 ## How it works
 
+One run, phase by phase (the dev flow):
+
 | Phase | What happens |
 |---|---|
 | **Understand** | Restate the requirement; ask only when ambiguity changes behavior, contracts, destructive operations, security, or UX. |
 | **Plan** | Stay read-only, ground the approach in the repo, and produce acceptance criteria. |
 | **Approval** | No code changes before you approve the plan and criteria. |
-| **Implement** | `implementer` applies the smallest safe change and writes the per-run task contract (`output/udflow/contract.md`). |
+| **Implement** | `implementer` applies the smallest safe change and writes the per-run task contract (`udflowOp/output/contract.md`). |
 | **Verify** | Run build / test / lint / typecheck / browser evidence as applicable; command exit status is authority. |
 | **Review** | Only risk-relevant reviewers run, using a focused Review Packet instead of full thread history. |
 | **Gatekeeper** | Aggregate findings, re-rate by impact, check each acceptance criterion, and decide `READY` / `FIX REQUIRED` / `NOT READY`. |
 
 Verdicts are release-readiness decisions, not absolute truths. See [`docs/how-to-read-verdicts.md`](docs/how-to-read-verdicts.md).
+
+## The incident flow (incident-response)
+
+Production is broken and the person at the keyboard did not write the code — the normal case for AI-written systems. `incident-response` is the dev flow inverted: **mitigate first, diagnose second, formal fix last.** It engages automatically on incident language ("production is down", "users are blocked") or manually via `/udflow:incident-response`. Every human interaction is a decision card; running an incident never requires you to read code.
+
+| Stage | What happens |
+|---|---|
+| **1 · Triage** | Evidence-driven, not an interview: run health/error checks to establish severity (SEV1–3), blast radius, whether data is actively corrupting, and one explicit "could this be an intrusion?" check. |
+| **2 · Preserve evidence** | The ~1-minute snapshot (logs, timestamps, running version) *before* anything restarts — non-skippable, even under pressure. |
+| **3 · Mitigate (loop)** | Reversible, no-new-code actions — rollback (after a migration-compatibility pre-check), feature-flag off, degrade, scale, maintenance mode — one at a time, each verified before the next. Hot-patching unreviewed code into production is named as the classic second disaster and refused. |
+| **4 · Diagnose** | Fault-domain classification first: code, config/environment, infrastructure, external dependency, or data. Only code and data continue to a reproduction; the others get direct remediation plus a declared fixed-check. |
+| **5 · Reproduce** | A red reproduction — the failing output recorded in the journal — before any fix. An always-green check proves nothing. |
+| **6 · Fix** | Handed to the dev flow: a `universal-dev-flow --lite` run with "the incident repro turns green" as the primary acceptance criterion. `--lite` still keeps a directly-relevant safety reviewer on genuine high-risk signals — incident fixes usually carry them. |
+| **— Data repair** *(when corruption occurred)* | The code fix stops new corruption; it does not repair the damage. Corruption window → affected-record counts → repair script proven red→green on an extracted copy → human-approved production run. |
+| **— Production re-entry** | Deploy through the normal path, verify the declared fixed-check, hold an observation window, then restore mitigations one at a time. |
+| **7 · Closure + postmortem** | A closure checklist (mitigations restored, data repaired, extracted data deleted, journal closed) plus a short, blame-free postmortem. |
+
+**Prepare before you need it.** `/udflow:incident-response prepare` builds `udflowOp/ops/OPS_PROFILE.md` — the peacetime map that makes wartime start at 30 seconds instead of 30 minutes: an access inventory marked agent-runnable vs human-only, rollback steps with schema-migration compatibility intel, feature flags, backups, and observability. Every entry carries a trust marker — `verified: <date>` or `UNVERIFIED` — and an unverified rollback command is flagged on the decision card that relies on it, never silently trusted. Prepare mode reports gaps honestly ("no backups found — a restore is impossible today").
+
+**Decision cards.** One at a time: the recommendation, cost/tradeoff, reversibility, and exactly what will run on approval. Destructive or production-affecting actions always stop at a card — never batched into a previously approved plan. The `destructive-guard.js` hook will additionally ask before narrowly destructive commands; that is expected, never routed around.
+
+**Incident journal.** Every stage appends to `udflowOp/incidents/INCIDENT-<date>-<slug>.md` — a committed audit trail (timeline, actions with who approved each, evidence, the red→green record). Sanitize-before-write: PII and secrets are masked before anything enters the journal.
+
+**Production-data safety gate.** When a reproduction needs real data: minimal extraction (only the implicated records, never a dump), PII/secrets masked *before* the data enters the AI context, a synthetic-data fallback when policy forbids production data, and extracted data is ephemeral — never committed, deleted at closure.
+
+**The learning loop.** The postmortem includes a gate-gap analysis — *which dev-flow gate should have caught this before ship?* — answered with a concrete prevention rule and proposed as a failure-memory entry, which dev-flow planning reads before the next change.
+
+Non-goals, briefly: no paging/on-call, no status-page automation, no SLO suite, no full RBAC, no DFIR-grade forensics, no multi-repo incident command (see [Anti-goals](#anti-goals)). The full stage contracts live in the skill's references (`udflow/skills/incident-response/references/`): `wartime.md`, `repro-and-fix.md`, `closure.md`, `ops-profile.md`.
 
 ## The 10 subagents
 
@@ -168,14 +254,14 @@ Six dependency-free Node hooks run in every enabled session. They are local-only
 |---|---|---|
 | `plan-gate.js` | `PreToolUse` | Denies edit tools and obvious Bash writes while in plan mode. |
 | `destructive-guard.js` | `PreToolUse` | Asks before narrow, unrecoverable destructive commands such as `rm -rf`, `git reset --hard`, `git push --force`, and PowerShell `Remove-Item -Recurse`. |
-| `contract-guard.js` | `PreToolUse` | Asks before a Write/Edit/MultiEdit would remove/loosen a previously recorded `output/udflow/contract.md` acceptance criterion, `mustNotChange` entry, or scope path, downgrade `risk`, or wholesale-delete a `design.md` section. |
-| `load-failure-memory.js` | `SessionStart` | Reads project `ai/FAILURE_MEMORY.md` or global `~/.claude/FAILURE_MEMORY.md` and injects a nonce-fenced, untrusted digest. |
+| `contract-guard.js` | `PreToolUse` | Asks before a Write/Edit/MultiEdit would remove/loosen a previously recorded contract acceptance criterion, `mustNotChange` entry, or scope path, downgrade `risk`, or wholesale-delete a `design.md` section. Watches `udflowOp/output/contract.md` plus the legacy `output/udflow/contract.md`. |
+| `load-failure-memory.js` | `SessionStart` | Reads project `udflowOp/memory/FAILURE_MEMORY.md` (legacy `ai/FAILURE_MEMORY.md` as a read-only fallback), else global `~/.claude/FAILURE_MEMORY.md`, and injects a nonce-fenced, untrusted digest. |
 | `compact-fidelity.js` | `SessionStart` · `compact` | Re-injects a concise workflow-continuity reminder after compaction. |
 | `orchestration-check.js` | `Stop` | Advises when delivery claims contradict missing panel, blocking verdict, failed/unrun verification, or missing live-run evidence. |
 
 Each hook that can prompt or restrict has a per-project opt-out — see [Configuration reference](#configuration-reference) below.
 
-These hooks never delete files, change system settings, alter permissions, run subprocesses, download code, or transmit code/transcripts. They are guardrails, not a sandbox. See [`SECURITY.md`](SECURITY.md) and [`ARCHITECTURE.md`](ARCHITECTURE.md).
+These hooks never delete files, change system settings, alter permissions, run subprocesses, download code, or transmit code/transcripts. They are guardrails, not a sandbox. See [`SECURITY.md`](SECURITY.md) and [`ARCHITECTURE.md`](ARCHITECTURE.md). Hooks also never migrate, write, or delete udflow's project files — the one-time legacy-layout migration is performed by the workflow itself, as visible tool actions in your session.
 
 ## Configuration reference
 
@@ -187,7 +273,7 @@ Everything below is optional. udflow's default behavior needs no configuration a
 |---|---|
 | `planGate` | `plan-gate.js` — the edit-block enforced while in plan mode |
 | `destructiveGuard` | `destructive-guard.js` — the ask before narrow, unrecoverable destructive commands |
-| `contractGuard` | `contract-guard.js` — the ask before a Write/Edit/MultiEdit would weaken `output/udflow/contract.md` or delete a `design.md` section |
+| `contractGuard` | `contract-guard.js` — the ask before a Write/Edit/MultiEdit would weaken `udflowOp/output/contract.md` (or the legacy `output/udflow/contract.md`) or delete a `design.md` section |
 | `preserveOnCompact` | `compact-fidelity.js` — the post-compaction workflow-continuity reminder |
 
 A malformed or unreadable settings file is treated as "not disabled" (fail-safe: the guard keeps running). Example — disable `contract-guard.js` for one project:
@@ -278,6 +364,8 @@ Typical real-app runs cost more than a one-shot AI review because udflow plans, 
 | Light | `--lite`, core only | ~0.5-2M | a few minutes |
 | Typical | 3-5 reviewers + one repair pass | ~2-7M | ~5-15 minutes |
 | Deep | `--deep`, several repair loops | >10M | ~20-40 minutes |
+
+The incident flow is cheap where it matters: wartime turns are short (one decision card at a time, no essays), the formal fix costs one normal udflow run (`--lite`), and `prepare` is a one-off repo scan.
 
 Use `/udflow:run --lite` for cheaper runs, `--deep` for maximum scrutiny, and `--report full` when you need detailed per-agent activity and cost. An automatic **fast lane** goes one step further on small low/medium-risk changes: when execution evidence already answers the reviewer's question (every behavior-changing criterion has a red→green test and the full required suite is green), `test-reviewer` is evidence-substituted and disclosed via `udflow:panel=substituted:test-reviewer` — fewer agents on the same evidence, never on high-risk / deep runs.
 

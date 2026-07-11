@@ -3,6 +3,7 @@
 // Split 2026-07-10 from test/hooks.test.mjs (test bodies preserved).
 import { test } from "node:test";
 import assert from "node:assert";
+import cp from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { copyRepoTree, runValidator } from "./helpers.mjs";
@@ -456,4 +457,67 @@ test("validate-structure: garden 9e FAILS on a bare plugin-script invocation mis
     assert.notStrictEqual(code, 0, "a bare plugin-script invocation in a shipped .md must fail the build");
     assert.match(out, /garden 9e: .*verification-gate\.md:\d+ invokes a plugin script without the plugin root/, "the failure must name the file:line and the fix");
   } finally { fs.rmSync(tree, { recursive: true, force: true }); }
+});
+
+// --- 0.42.0 §6b udflowOp hygiene: the /udflowOp/ gitignore line + the tracked-content git guard ---
+
+test("validate-structure: 6b FAILS when .gitignore loses the /udflowOp/ line", () => {
+  // Discriminating: without the 6b check the validator passes this tree (nothing else reads .gitignore).
+  const tree = copyRepoTree();
+  try {
+    const gi = path.join(tree, ".gitignore");
+    fs.writeFileSync(gi, fs.readFileSync(gi, "utf8").split(/\r?\n/).filter((l) => l.trim() !== "/udflowOp/").join("\n"), "utf8");
+    const { code, out } = runValidator(tree);
+    assert.notStrictEqual(code, 0, "dropping the /udflowOp/ gitignore line must fail the build");
+    assert.match(out, /udflowOp hygiene: \.gitignore has no "\/udflowOp\/" line/, "the failure must name the missing gitignore line");
+  } finally { fs.rmSync(tree, { recursive: true, force: true }); }
+});
+
+test("validate-structure: 6b FAILS when the .gitignore FILE itself is missing", () => {
+  // Sibling branch to the line-drop negative above: a tree with no .gitignore at all must hit 6b's
+  // file-missing arm (not silently pass), since without the file the /udflowOp/ line cannot exist either.
+  const tree = copyRepoTree();
+  try {
+    fs.rmSync(path.join(tree, ".gitignore"), { force: true });
+    const { code, out } = runValidator(tree);
+    assert.notStrictEqual(code, 0, "a tree with no .gitignore must fail the build");
+    assert.match(out, /udflowOp hygiene: \.gitignore is missing/, "the failure must name the missing .gitignore file");
+  } finally { fs.rmSync(tree, { recursive: true, force: true }); }
+});
+
+test("validate-structure: 6b FAILS on tracked content under udflowOp/ (git-index guard), naming the path", (t) => {
+  // The temp copy is not a git work tree (the guard skips silently there — that is the fail-open half),
+  // so make it one: git init + stage a planted runtime file, then the ls-files guard must bite.
+  const tree = copyRepoTree();
+  try {
+    const init = cp.spawnSync("git", ["init", "-q"], { cwd: tree, encoding: "utf8" });
+    if (init.error || init.status !== 0) return t.skip("git unavailable here: cannot exercise the ls-files guard");
+    fs.mkdirSync(path.join(tree, "udflowOp", "memory"), { recursive: true });
+    fs.writeFileSync(path.join(tree, "udflowOp", "memory", "FAILURE_MEMORY.md"), "# leaked runtime output\n", "utf8");
+    const add = cp.spawnSync("git", ["add", "-f", "udflowOp/memory/FAILURE_MEMORY.md"], { cwd: tree, encoding: "utf8" });
+    if (add.error || add.status !== 0) return t.skip("git add failed here: cannot stage the planted leak");
+    const { code, out } = runValidator(tree);
+    assert.notStrictEqual(code, 0, "a tracked udflowOp/ path must fail the build");
+    assert.match(out, /udflowOp hygiene: tracked path\(s\) under udflowOp\//, "the failure must name the tracked-content guard");
+    assert.match(out, /udflowOp\/memory\/FAILURE_MEMORY\.md/, "the failure must name the offending path");
+  } finally {
+    // .git object files are read-only on Windows; never let cleanup failure mask the verdict.
+    try { fs.rmSync(tree, { recursive: true, force: true, maxRetries: 3 }); } catch (e) {}
+  }
+});
+
+test("validate-structure: 6b control — an UNTRACKED udflowOp/ tree in a git work tree still passes", (t) => {
+  // The guard forbids TRACKED content only; a normal dogfood run's untracked udflowOp/ output (plus the
+  // /udflowOp/ gitignore line) is the sanctioned state and must stay green.
+  const tree = copyRepoTree();
+  try {
+    const init = cp.spawnSync("git", ["init", "-q"], { cwd: tree, encoding: "utf8" });
+    if (init.error || init.status !== 0) return t.skip("git unavailable here: cannot exercise the ls-files guard");
+    fs.mkdirSync(path.join(tree, "udflowOp", "output"), { recursive: true });
+    fs.writeFileSync(path.join(tree, "udflowOp", "output", "contract.md"), "# run scratch\n", "utf8");
+    const { code, out } = runValidator(tree);
+    assert.strictEqual(code, 0, "untracked udflowOp/ content must not fail the build: " + out);
+  } finally {
+    try { fs.rmSync(tree, { recursive: true, force: true, maxRetries: 3 }); } catch (e) {}
+  }
 });

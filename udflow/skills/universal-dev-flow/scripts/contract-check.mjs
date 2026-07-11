@@ -1,11 +1,14 @@
 #!/usr/bin/env node
-// udflow contract-check: deterministic scope-diff + AC-coverage over output/udflow/contract.md.
+// udflow contract-check: deterministic scope-diff + AC-coverage over the run's task contract
+// (udflowOp/output/contract.md — 0.42.0 layout — falling back to the legacy output/udflow/contract.md).
 // Session-time helper (NOT a Claude Code hook, NOT CI-only): the orchestrator runs it at the verify /
 // gatekeeper step and feeds its report to the gatekeeper as evidence. Dependency-free (Node built-ins
 // only). Fail-open: an absent/unparseable contract yields a no-claim report; the CLI always exits 0 and
 // never throws to its caller. Exposes pure functions (extract / glob / scopeDiff / acCoverage /
-// formatReport) for the test suite; main() wraps them over git under the import.meta.url guard.
+// formatReport / resolveContractPath) for the test suite; main() wraps them over git under the
+// import.meta.url guard.
 import fs from "node:fs";
+import path from "node:path";
 import cp from "node:child_process";
 import { fileURLToPath } from "node:url";
 
@@ -70,8 +73,8 @@ export function acCoverage(contract) {
 // emitted (the guarded-literal surface stays as-is, by design) — this is plain evidence text.
 export function formatReport({ contractFound, scope, coverage }) {
   if (!contractFound) {
-    return "udflow contract-check: no machine-readable contract found (output/udflow/contract.md absent " +
-      "or no ```json block) — NO deterministic scope/AC claim; gatekeeper uses prose judgment.";
+    return "udflow contract-check: no machine-readable contract found (udflowOp/output/contract.md — and the " +
+      "legacy output/udflow/contract.md — absent or no ```json block) — NO deterministic scope/AC claim; gatekeeper uses prose judgment.";
   }
   const lines = ["udflow contract-check (deterministic):"];
   if (scope.forbiddenHits && scope.forbiddenHits.length) lines.push("  forbidden-path hits: " + scope.forbiddenHits.join(", "));
@@ -97,10 +100,25 @@ function changedPathsFromGit(base) {
   } catch (e) { return []; }
 }
 
+// Default contract discovery (READ priority only — this helper never writes): the 0.42.0
+// udflowOp/output/contract.md when it exists, else the legacy output/udflow/contract.md, else the new
+// path (so the no-claim report names where the contract SHOULD live). An explicit --contract CLI arg
+// keeps precedence over this discovery (main() only calls it when the flag is absent).
+export function resolveContractPath(cwd) {
+  const candidates = [
+    path.join(cwd, "udflowOp", "output", "contract.md"),
+    path.join(cwd, "output", "udflow", "contract.md"),
+  ];
+  for (const f of candidates) {
+    try { if (fs.statSync(f).isFile()) return f; } catch (e) {}
+  }
+  return candidates[0];
+}
+
 function main(argv) {
   const args = argv.slice(2);
   const get = (flag, def) => { const i = args.indexOf(flag); return (i >= 0 && args[i + 1]) ? args[i + 1] : def; };
-  const contractPath = get("--contract", "output/udflow/contract.md");
+  const contractPath = get("--contract", "") || resolveContractPath(process.cwd());
   const base = get("--base", "");
   let markdown = "";
   try { markdown = fs.readFileSync(contractPath, "utf8"); } catch (e) { markdown = ""; }

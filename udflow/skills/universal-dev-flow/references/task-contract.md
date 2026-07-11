@@ -1,4 +1,4 @@
-# Task Contract (`output/udflow/contract.md` — the per-run, persisted plan contract)
+# Task Contract (`udflowOp/output/contract.md` — the per-run, persisted plan contract)
 
 The contract externalizes the constructs udflow already produces at the plan gate (sharpened
 intent, acceptance criteria, scope, implied edge checklist) into one re-runnable, diff-able
@@ -8,9 +8,12 @@ ceremony — the content is what the plan already contains; this just writes it 
 
 ## Where it lives (per-run scratch, gitignored — NOT committed)
 
-`output/udflow/contract.md`, under the top-level `output/udflow/.gitignore` (`*` then `!.gitignore`,
-`references/verification-gate.md`, Artifact Hygiene). Unlike `design.md` (a committed cross-task
-contract), this is one run's scratch — it must never be committed into the consuming repo.
+`udflowOp/output/contract.md`, under the top-level `udflowOp/output/.gitignore` (`*` then `!.gitignore`,
+`references/verification-gate.md`, Artifact Hygiene). The legacy pre-0.42.0 home was `output/udflow/contract.md`
+— `contract-check.mjs` still discovers it and `hooks/contract-guard.js` still guards it until the run's
+first scratch write migrates the whole legacy tree (Artifact Hygiene, one-time migration); new writes
+always target the new path. Unlike `design.md` (a committed cross-task contract), this is one run's
+scratch — it must never be committed into the consuming repo.
 
 ## Machine block (JSON — dependency-free, parsed by contract-check.mjs)
 
@@ -64,7 +67,7 @@ Open decisions · Assumptions (defaulted interpretations). On high-risk work the
 
 1. **Detect / draft** *(plan, read-only)* — assembled from the plan + `plan-grounding` outputs.
 2. **Bless** *(ExitPlanMode)* — approved as part of the plan; no separate approval step.
-3. **Write** *(post-approval implementation)* — the `implementer` writes `output/udflow/contract.md`
+3. **Write** *(post-approval implementation)* — the `implementer` writes `udflowOp/output/contract.md`
    so plan mode stays read-only (`hooks/plan-gate.js` still applies). `hooks/contract-guard.js` asks for
    confirmation before a later Write/Edit/MultiEdit would remove or loosen a previously recorded acceptance
    criterion, `mustNotChange` entry, scope path, or downgrade `risk`.

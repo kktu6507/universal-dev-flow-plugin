@@ -205,3 +205,36 @@ test("eval/failure-memory: every seeded case surfaces the expected lesson (recal
     }
   }
 });
+
+// --- 0.42.0 udflowOp discovery: resolveMemoryFile (new → legacy → global) + ledger siblinghood ---
+import os from "node:os";
+import { resolveMemoryFile, defaultLedgerPath } from "../udflow/skills/universal-dev-flow/scripts/failure-retrieve.mjs";
+
+function mkMemTree({ newMem, legacyMem } = {}) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "udflow-fr-"));
+  if (newMem != null) {
+    fs.mkdirSync(path.join(dir, "udflowOp", "memory"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "udflowOp", "memory", "FAILURE_MEMORY.md"), newMem, "utf8");
+  }
+  if (legacyMem != null) {
+    fs.mkdirSync(path.join(dir, "ai"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "ai", "FAILURE_MEMORY.md"), legacyMem, "utf8");
+  }
+  return dir;
+}
+
+test("resolveMemoryFile: both project tiers present -> udflowOp/memory wins", () => {
+  // Discriminating: the pre-0.42.0 resolver's first candidate was ai/FAILURE_MEMORY.md, which this
+  // exact tree would return — reverting the candidate order turns this red.
+  const dir = mkMemTree({ newMem: "# FM", legacyMem: "# FM" });
+  assert.strictEqual(resolveMemoryFile(dir), path.join(dir, "udflowOp", "memory", "FAILURE_MEMORY.md"));
+});
+
+test("resolveMemoryFile: legacy-only -> ai/ fallback, and the usage ledger stays a sibling of the SELECTED file", () => {
+  const dir = mkMemTree({ legacyMem: "# FM" });
+  const chosen = resolveMemoryFile(dir);
+  assert.strictEqual(chosen, path.join(dir, "ai", "FAILURE_MEMORY.md"), "a not-yet-migrated project keeps resolving to the legacy tier");
+  assert.strictEqual(defaultLedgerPath(chosen), path.join(dir, "ai", ".failure-memory-usage.jsonl"), "ledger sits next to the legacy file while it is the selected one");
+  const newDir = mkMemTree({ newMem: "# FM" });
+  assert.strictEqual(defaultLedgerPath(resolveMemoryFile(newDir)), path.join(newDir, "udflowOp", "memory", ".failure-memory-usage.jsonl"), "after migration the ledger follows the selected file into the new layout");
+});

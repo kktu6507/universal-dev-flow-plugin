@@ -164,10 +164,15 @@ function readCapped(file) {
   } catch (e) { return ""; }
 }
 
-// Default source: project `ai/FAILURE_MEMORY.md` (anchored on CLAUDE_PROJECT_DIR, like the hook), else
-// the global `~/.claude/FAILURE_MEMORY.md`. Returns null when neither is a readable regular file.
+// Default source (READ priority only — this helper never migrates): project
+// `udflowOp/memory/FAILURE_MEMORY.md` (0.42.0 layout, anchored on CLAUDE_PROJECT_DIR like the hook),
+// else the legacy project `ai/FAILURE_MEMORY.md`, else the global `~/.claude/FAILURE_MEMORY.md` —
+// the same 3-tier order hooks/load-failure-memory.js reads. Returns null when none is a readable
+// regular file. failure-consolidate.mjs imports this, so both helpers share one discovery order, and
+// defaultLedgerPath() below keeps the usage ledger a sibling of whichever file was selected.
 export function resolveMemoryFile(cwd) {
   const candidates = [
+    path.join(cwd, "udflowOp", "memory", "FAILURE_MEMORY.md"),
     path.join(cwd, "ai", "FAILURE_MEMORY.md"),
     path.join(os.homedir(), ".claude", "FAILURE_MEMORY.md"),
   ];

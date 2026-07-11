@@ -3,6 +3,39 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.42.0] - 2026-07-11
+
+### Added
+- **`incident-response` skill** (`udflow/skills/incident-response/`, SKILL.md + 4 stage references): the dev
+  flow inverted for live production incidents — mitigate first via reversible actions (one decision card per
+  turn; destructive/prod-affecting actions always stop at a card), diagnose by fault domain, red→green
+  reproduction gated by a production-data safety gate (minimal extraction, PII/secret masking before AI
+  context, synthetic fallback, ephemeral deletion at closure), the formal fix handed to
+  `universal-dev-flow --lite`, a committed incident-journal audit trail
+  (`udflowOp/incidents/INCIDENT-<date>-<slug>.md`, sanitize-before-write), and a postmortem gate-gap
+  analysis feeding FAILURE_MEMORY. Peacetime `prepare` mode builds `udflowOp/ops/OPS_PROFILE.md` (access
+  inventory marked agent-runnable vs human-only; rollback + migration-compatibility intel; per-entry
+  `verified:`/`UNVERIFIED` trust markers). Manual: `/udflow:incident-response` (+ `prepare`).
+- README (EN / zh-TW / ja): new "What's inside" 4-skill overview with the `udflowOp/` project-layout block,
+  and "The incident flow (incident-response)" walkthrough; intro repositioned to the two flows with the
+  closed learning loop (incident postmortem → FAILURE_MEMORY → next dev-flow planning reads it).
+
+### Changed
+- **Consuming-project layout: everything udflow keeps in a target repo now lives under `udflowOp/`** —
+  `memory/FAILURE_MEMORY.md`, `design/design.md`, `ops/OPS_PROFILE.md`, `incidents/INCIDENT-*.md`
+  (committed) and `output/` (run scratch, self-gitignored). Legacy `ai/FAILURE_MEMORY.md` / repo-root
+  `design.md` / `output/udflow/` are read as fallback, then one-time auto-migrated by the **workflow main
+  thread** (moved fully to the new path, legacy file deleted, disclosed in-run); hooks never write/move/
+  delete — read-only fallback only.
+- `load-failure-memory.js`: 3-tier read priority — `udflowOp/memory/FAILURE_MEMORY.md` → legacy
+  `ai/FAILURE_MEMORY.md` → global `~/.claude/FAILURE_MEMORY.md`.
+- `contract-guard.js`: watches both contract paths — `udflowOp/output/contract.md` + legacy
+  `output/udflow/contract.md`.
+- Scripts' default discovery follows the new layout (`contract-check.mjs`, `failure-retrieve.mjs`, each with
+  legacy fallback); `doctor` probe path updated.
+- validate-structure §6b guard (repo hygiene): this repo's `.gitignore` must carry a literal `/udflowOp/`
+  line, and tracked `udflowOp/` content fails CI — dogfood-run residue can never be committed here.
+
 ## [0.41.0] - 2026-07-11
 
 ### Added

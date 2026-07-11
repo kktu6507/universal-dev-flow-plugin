@@ -26,10 +26,12 @@ yourself — they are short, dependency-free, readable scripts in `udflow/hooks/
   narrow deny-list of unrecoverable commands and a content-based diff showing a contract/design.md
   weakening — never a `deny`, never a delete.
 - **Read scope.** Hooks read only bounded local files needed for their guardrails:
-  `load-failure-memory` reads project `ai/FAILURE_MEMORY.md` or global
+  `load-failure-memory` reads project `udflowOp/memory/FAILURE_MEMORY.md` (with legacy pre-0.42.0
+  `ai/FAILURE_MEMORY.md` as a read-only fallback) or global
   `~/.claude/FAILURE_MEMORY.md`; `plan-gate`, `destructive-guard`, `contract-guard`, and
   `compact-fidelity` read project `.claude/settings*.json` for opt-outs; `contract-guard` additionally
-  reads the current on-disk content of the one `output/udflow/contract.md` path and any file whose
+  reads the current on-disk content of the two fixed contract paths (`udflowOp/output/contract.md`
+  plus the legacy pre-0.42.0 `output/udflow/contract.md`) and any file whose
   basename is `design.md`, only to simulate the tool's proposed edit locally (the tool is never actually
   invoked); `orchestration-check` reads the transcript path supplied by the hook event with a size cap.
   Reviewer subagents are separate from hooks: they have no editor-specific tool grants, but their grant
@@ -77,7 +79,8 @@ release commit) when the release workflow runs. Reduce trust risk by:
 
 ## Untrusted-input surface (one, mitigated)
 
-`load-failure-memory` reads project `ai/FAILURE_MEMORY.md` and, when present, user-controlled
+`load-failure-memory` reads project `udflowOp/memory/FAILURE_MEMORY.md` (with legacy pre-0.42.0
+`ai/FAILURE_MEMORY.md` as a read-only fallback) or, when neither is present, user-controlled
 global `~/.claude/FAILURE_MEMORY.md`, then injects a digest of entry titles into every session. A
 hostile repository could therefore place crafted content in the project file — a prompt-injection
 vector. Mitigations (defense-in-depth, in the hook source): the digest is

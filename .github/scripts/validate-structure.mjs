@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // Structural validation for the udflow plugin. Auth-free, deterministic.
 // Exits non-zero with a clear message on the first failure.
+import cp from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -395,6 +396,28 @@ const forbidden = [
 ];
 for (const rel of forbidden) {
   if (fs.existsSync(path.join(root, rel))) fail(`distribution hygiene: "${rel}" must not exist (runtime/dev artifact in the shipped tree)`);
+}
+
+// 6b. udflowOp/ hygiene — the 0.42.0 consuming-project runtime root (memory/design/ops/incidents/output).
+// For THIS tool repo it is dogfood-run residue, exactly like the root ai/FAILURE_MEMORY.md stance above:
+// (a) the repo .gitignore must carry a literal `/udflowOp/` line so run output can never be committed by
+// accident; (b) when git is available, no path under udflowOp/ may already be tracked. A git spawn
+// failure (git absent, or the tree under validation is not a git work tree — e.g. the test suite's temp
+// copies) skips (b) silently; the .gitignore-line check still applies everywhere.
+{
+  const gitignorePath = path.join(root, ".gitignore");
+  if (!fs.existsSync(gitignorePath)) {
+    fail(`udflowOp hygiene: .gitignore is missing — it must contain a "/udflowOp/" line so the consuming-project runtime root is never committed into this repo`);
+  } else if (!fs.readFileSync(gitignorePath, "utf8").split(/\r?\n/).some((l) => l.trim() === "/udflowOp/")) {
+    fail(`udflowOp hygiene: .gitignore has no "/udflowOp/" line — add it so udflow's own run output (udflowOp/) is never committed into this repo`);
+  }
+  try {
+    const r = cp.spawnSync("git", ["ls-files", "--", "udflowOp"], { cwd: root, encoding: "utf8" });
+    if (r && r.status === 0 && typeof r.stdout === "string") {
+      const tracked = r.stdout.split(/\r?\n/).filter(Boolean);
+      if (tracked.length) fail(`udflowOp hygiene: tracked path(s) under udflowOp/ must not be committed (git rm --cached them): ${tracked.join(", ")}`);
+    }
+  } catch (e) {} // other throw paths only — git ABSENCE does not throw (spawnSync returns {error, status:null}, which the status guard above already skips)
 }
 function scanScratch(dir) {
   const abs = path.join(root, dir);

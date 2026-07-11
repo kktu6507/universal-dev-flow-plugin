@@ -60,7 +60,7 @@ Then it stops and waits for **you**. This is the gate that makes udflow differen
 
 ## 5. Watch the smallest change get made
 
-Once you approve, the `implementer` makes the **smallest safe change** that satisfies the plan — here, a one-line guard so an empty string returns `[]`. It does not refactor the file, rename things, or "improve" unrelated code. It also writes a small per-run contract to `output/udflow/contract.md` recording the criteria and scope. Importantly, the implementer never certifies its own work as correct — that is deliberately someone else's job.
+Once you approve, the `implementer` makes the **smallest safe change** that satisfies the plan — here, a one-line guard so an empty string returns `[]`. It does not refactor the file, rename things, or "improve" unrelated code. It also writes a small per-run contract to `udflowOp/output/contract.md` recording the criteria and scope. Importantly, the implementer never certifies its own work as correct — that is deliberately someone else's job.
 
 ## 6. Watch it get verified
 

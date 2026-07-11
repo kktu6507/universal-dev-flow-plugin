@@ -3,6 +3,10 @@
 /ai/
 **/ai/FAILURE_MEMORY.md
 
+# udflow's consuming-project runtime root (0.42.0 layout: memory/design/ops/incidents/output).
+# For this tool repo it is dogfood-run residue — never commit it (validate-structure enforces this line).
+/udflowOp/
+
 # One-off verification scaffolding / scratch / process files
 _*.js
 _*.mjs

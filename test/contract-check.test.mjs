@@ -110,3 +110,63 @@ test("acCoverage names an uncovered, id-less criterion '(unnamed)'", () => {
   assert.deepStrictEqual(acCoverage(c).uncovered, ["(unnamed)"]);
   assert.strictEqual(acCoverage(c).total, 1);
 });
+
+// --- 0.42.0 udflowOp discovery: default contract path (new → legacy; explicit --contract wins) ---
+import cp from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { resolveContractPath } from "../udflow/skills/universal-dev-flow/scripts/contract-check.mjs";
+
+const SCRIPT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..",
+  "udflow", "skills", "universal-dev-flow", "scripts", "contract-check.mjs");
+
+// A minimal contract whose uncovered AC id proves WHICH file the checker read.
+function contractWithUncoveredAc(id) {
+  return "# C\n\n```json\n" + JSON.stringify({ udflowContract: 1, acceptanceCriteria: [{ id, behaviorChanging: true, verification: "" }] }) + "\n```\n";
+}
+function mkContractTree({ newMd, legacyMd } = {}) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "udflow-cc-"));
+  if (newMd != null) {
+    fs.mkdirSync(path.join(dir, "udflowOp", "output"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "udflowOp", "output", "contract.md"), newMd, "utf8");
+  }
+  if (legacyMd != null) {
+    fs.mkdirSync(path.join(dir, "output", "udflow"), { recursive: true });
+    fs.writeFileSync(path.join(dir, "output", "udflow", "contract.md"), legacyMd, "utf8");
+  }
+  return dir;
+}
+function runCli(cwd, args = []) {
+  return cp.execFileSync("node", [SCRIPT, ...args], { cwd, encoding: "utf8" });
+}
+
+test("resolveContractPath: both present -> new wins; legacy-only -> legacy; neither -> the new default", () => {
+  const both = mkContractTree({ newMd: "n", legacyMd: "l" });
+  assert.strictEqual(resolveContractPath(both), path.join(both, "udflowOp", "output", "contract.md"));
+  const legacyOnly = mkContractTree({ legacyMd: "l" });
+  assert.strictEqual(resolveContractPath(legacyOnly), path.join(legacyOnly, "output", "udflow", "contract.md"));
+  const neither = mkContractTree({});
+  assert.strictEqual(resolveContractPath(neither), path.join(neither, "udflowOp", "output", "contract.md"),
+    "absent everywhere -> default to the new path so the no-claim report names where it should live");
+});
+
+test("contract-check CLI: with BOTH contract files, the report reads the NEW path", () => {
+  // Discriminating: the pre-0.42.0 default was the literal legacy path, which would name AC-LEGACY here.
+  const dir = mkContractTree({ newMd: contractWithUncoveredAc("AC-NEW"), legacyMd: contractWithUncoveredAc("AC-LEGACY") });
+  const out = runCli(dir);
+  assert.match(out, /AC missing verification mapping: AC-NEW/, "the uncovered AC id proves the NEW file was read");
+  assert.ok(!out.includes("AC-LEGACY"), "the legacy contract must not be the one reported when the new path exists");
+});
+
+test("contract-check CLI: a legacy-only tree still resolves (fallback tier control)", () => {
+  const dir = mkContractTree({ legacyMd: contractWithUncoveredAc("AC-LEGACY") });
+  assert.match(runCli(dir), /AC missing verification mapping: AC-LEGACY/, "pre-migration runs must keep working off the legacy path");
+});
+
+test("contract-check CLI: an explicit --contract arg keeps precedence over the udflowOp discovery", () => {
+  const dir = mkContractTree({ newMd: contractWithUncoveredAc("AC-NEW"), legacyMd: contractWithUncoveredAc("AC-LEGACY") });
+  const out = runCli(dir, ["--contract", path.join("output", "udflow", "contract.md")]);
+  assert.match(out, /AC missing verification mapping: AC-LEGACY/, "an explicit path must win over discovery");
+});

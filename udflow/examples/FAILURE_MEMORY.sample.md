@@ -3,7 +3,7 @@
 Reusable failure lessons. Newest first. Keep entries concise and prevention-oriented.
 
 > This is a **sample** file showing the expected shape. It is not a real incident log.
-> Copy this structure to `ai/FAILURE_MEMORY.md` (project) or `~/.claude/FAILURE_MEMORY.md` (global)
+> Copy this structure to `udflowOp/memory/FAILURE_MEMORY.md` (project) or `~/.claude/FAILURE_MEMORY.md` (global)
 > the first time an entry is needed. See `skills/universal-dev-flow/references/verification-gate.md`
 > for the read/write rules.
 >

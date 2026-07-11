@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // udflow contract guard (PreToolUse, Write/Edit/MultiEdit only). Protects the two contract-level
 // artifacts a run depends on from being silently weakened by the SAME tool call that is supposed to
-// be extending them: the per-run machine contract (output/udflow/contract.md, references/task-contract.md)
+// be extending them: the per-run machine contract (udflowOp/output/contract.md — 0.42.0 layout — or the
+// legacy output/udflow/contract.md; references/task-contract.md)
 // and, for design.md, whole-section deletion (references/design-spec.md). This is content-based, NOT
 // actor-based: PreToolUse only ever sees tool_name/tool_input/cwd/permission_mode — never who or what
 // agent is driving the call — so this hook cannot and does not distinguish "the implementer editing its
@@ -29,16 +30,21 @@ function debug(msg) {
 
 // Is `file_path` the run's task contract? Path-normalized relative to CLAUDE_PROJECT_DIR, falling back
 // to the event's cwd — same root-resolution precedence plan-gate.js/destructive-guard.js use. Root-anchored
-// deliberately: contract.md always lives at this one path (references/task-contract.md), unlike design.md.
-function isTaskContractPath(targetPath, input) {
-  if (!targetPath) return false;
+// deliberately: contract.md lives at one of exactly two fixed paths — udflowOp/output/contract.md (the
+// 0.42.0 layout) or output/udflow/contract.md (legacy, pre-migration runs; references/task-contract.md) —
+// unlike design.md. Returns the matched repo-relative path (used as the ask label), or "" when the
+// target is neither (same falsy semantics as the previous boolean).
+function matchTaskContractPath(targetPath, input) {
+  if (!targetPath) return "";
   try {
     const root = process.env.CLAUDE_PROJECT_DIR || (input && input.cwd) || "";
-    if (!root) return false;
-    const want = path.resolve(root, "output", "udflow", "contract.md").replace(/\\/g, "/").toLowerCase();
+    if (!root) return "";
     const got = path.resolve(String(targetPath)).replace(/\\/g, "/").toLowerCase();
-    return got === want;
-  } catch (e) { return false; }
+    for (const rel of [["udflowOp", "output", "contract.md"], ["output", "udflow", "contract.md"]]) {
+      if (got === path.resolve(root, ...rel).replace(/\\/g, "/").toLowerCase()) return rel.join("/");
+    }
+    return "";
+  } catch (e) { return ""; }
 }
 
 // Is `file_path` a design.md contract? Matched by BASENAME only, anywhere — design-spec.md sanctions a
@@ -242,7 +248,8 @@ process.stdin.on("end", () => {
     const targetPath = ti.file_path || "";
     if (!targetPath) return process.exit(0);
 
-    const isContract = isTaskContractPath(targetPath, input);
+    const contractLabel = matchTaskContractPath(targetPath, input); // matched rel path, or ""
+    const isContract = contractLabel !== "";
     const isDesign = !isContract && isDesignMdPath(targetPath); // mutually exclusive by construction
     if (!isContract && !isDesign) return process.exit(0); // the overwhelming majority of edits: no-op
 
@@ -278,7 +285,7 @@ process.stdin.on("end", () => {
       return process.exit(0);
     }
 
-    const label = isContract ? "output/udflow/contract.md" : "design.md";
+    const label = isContract ? contractLabel : "design.md";
     const out = {
       hookSpecificOutput: {
         hookEventName: "PreToolUse",
