@@ -3,6 +3,18 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.42.1] - 2026-07-11
+
+### Fixed
+- `contract-guard.js`: a fresh write to one watched contract path is now diffed against a populated
+  contract at the OTHER watched path (sibling baseline, both directions — `udflowOp/output/contract.md`
+  ↔ legacy `output/udflow/contract.md`), closing the migration-window gap where a weakened rewrite at the
+  still-empty path silently shadowed the recorded contract; the ask names the lost entries and the sibling
+  baseline path; true first writes (no populated sibling) and unparseable siblings stay allowed (fail-open).
+- `compact-fidelity.js`: the post-compaction re-read nudge now also names any open incident journal
+  (`udflowOp/incidents/INCIDENT-*.md`), not just the dev-flow progress ledger, so a mid-incident compaction
+  doesn't lose the pointer back to it.
+
 ## [0.42.0] - 2026-07-11
 
 ### Added

@@ -409,6 +409,8 @@ test("compact-fidelity: a post-compaction SessionStart emits a nonce-fenced pres
   // the pre-0.42.0 nudge said `output/udflow/progress.md`, which does not contain this substring.
   assert.ok(ctx.includes("udflowOp/output/progress.md"),
     "the re-read nudge must point at the 0.42.0 ledger home udflowOp/output/progress.md, not the legacy output/udflow/ path");
+  assert.ok(ctx.includes("udflowOp/incidents/INCIDENT-*.md"),
+    "the re-read nudge must also point at any open incident journal, not just the dev-flow progress ledger");
   // Negative pin: "udflowOp/output/progress.md" does NOT contain "output/udflow/progress.md" as a
   // substring, so this fails ONLY if a legacy pointer is re-added alongside (or instead of) the new one.
   assert.ok(!ctx.includes("output/udflow/progress.md"),

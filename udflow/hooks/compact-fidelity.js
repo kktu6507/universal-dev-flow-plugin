@@ -45,7 +45,7 @@ const PRESERVE_BODY = [
   "- The Run Card / verification numbers (per-check command, ran?, real exit status, the udflow:verify= and udflow:delivery= sentinels).",
   "- Subagent (reviewer) findings — treat these as PRIMARY EVIDENCE: they were expensive to produce and must not be re-derived from scratch after the summary.",
   "- Any requirement or open question that is still UNANSWERED, so it is not lost as 'already handled'.",
-  "Before redoing anything, re-read the progress ledger (udflowOp/output/progress.md) and git log so finished, committed work is not repeated."
+  "Before redoing anything, re-read the progress ledger (udflowOp/output/progress.md), any open incident journal (udflowOp/incidents/INCIDENT-*.md), and git log so finished, committed work is not repeated."
 ].join("\n");
 
 // Neutralize any line that could read as a conversational role marker or instruction-block tag, mirroring

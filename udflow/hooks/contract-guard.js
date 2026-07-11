@@ -3,7 +3,10 @@
 // artifacts a run depends on from being silently weakened by the SAME tool call that is supposed to
 // be extending them: the per-run machine contract (udflowOp/output/contract.md — 0.42.0 layout — or the
 // legacy output/udflow/contract.md; references/task-contract.md)
-// and, for design.md, whole-section deletion (references/design-spec.md). This is content-based, NOT
+// and, for design.md, whole-section deletion (references/design-spec.md). A FRESH write to one watched
+// contract path is diffed against a populated contract at the OTHER watched path (sibling baseline), so
+// the migration window between the two layouts can't shadow a recorded contract with a weakened rewrite;
+// a true first write (no populated sibling) stays unconditionally allowed. This is content-based, NOT
 // actor-based: PreToolUse only ever sees tool_name/tool_input/cwd/permission_mode — never who or what
 // agent is driving the call — so this hook cannot and does not distinguish "the implementer editing its
 // own contract" from any other Write/Edit/MultiEdit that happens to target these two files. It compares
@@ -45,6 +48,21 @@ function matchTaskContractPath(targetPath, input) {
     }
     return "";
   } catch (e) { return ""; }
+}
+
+// Resolve the OTHER watched contract path (the sibling) for a matched rel path — the counterpart entry
+// of the two-path table in matchTaskContractPath above, under the same root-resolution precedence (a
+// match implies a resolvable root, but keep the guard). Returns { abs, rel } for the sibling, or null
+// when it cannot be resolved (caller fails open).
+function siblingContractPath(matchedRel, input) {
+  try {
+    const root = process.env.CLAUDE_PROJECT_DIR || (input && input.cwd) || "";
+    if (!root) return null;
+    const rel = matchedRel === "udflowOp/output/contract.md"
+      ? ["output", "udflow", "contract.md"]
+      : ["udflowOp", "output", "contract.md"];
+    return { abs: path.resolve(root, ...rel), rel: rel.join("/") };
+  } catch (e) { return null; }
 }
 
 // Is `file_path` a design.md contract? Matched by BASENAME only, anywhere — design-spec.md sanctions a
@@ -258,13 +276,25 @@ process.stdin.on("end", () => {
     if (proposed === null) { debug("cannot confidently simulate the result; allowing"); return process.exit(0); }
 
     let reasons = [];
+    let baselineNote = ""; // set only when the diff baseline is the SIBLING contract, not the target itself
     if (isContract) {
-      const oldJson = extractContractJson(current);
+      let oldJson = extractContractJson(current);
       if (oldJson == null) {
-        // No parseable old JSON block (file absent, unreadable, or no old block): ALWAYS allow,
-        // unconditionally — this is the sanctioned first-ever write case (references/task-contract.md).
-        debug("contract.md: no prior JSON block; first-write case, allowing unconditionally");
-        return process.exit(0);
+        // No parseable old JSON block at the TARGET (file absent, unreadable, or no old block). Before
+        // treating this as a first write, consult the OTHER watched path: a fresh contract written while
+        // a populated contract sits at the sibling path would silently shadow or diverge from it (the
+        // migration window between the two layouts), so that sibling becomes the diff baseline instead.
+        const sib = siblingContractPath(contractLabel, input);
+        const sibJson = sib ? extractContractJson(readCurrent(sib.abs)) : null;
+        if (sibJson == null) {
+          // No populated sibling either: ALWAYS allow, unconditionally — this is the sanctioned
+          // first-ever write case (references/task-contract.md).
+          debug("contract.md: no prior JSON block; first-write case, allowing unconditionally");
+          return process.exit(0);
+        }
+        oldJson = sibJson;
+        debug("fresh contract target; using populated sibling at " + sib.rel + " as diff baseline");
+        baselineNote = ` (baseline: the populated sibling contract at ${sib.rel}, which this fresh write would shadow or silently diverge from)`;
       }
       const newJson = extractContractJson(proposed);
       if (newJson == null) {
@@ -292,7 +322,7 @@ process.stdin.on("end", () => {
         permissionDecision: "ask",
         permissionDecisionReason:
           `udflow contract guard: this ${tool} to ${label} would remove or weaken previously recorded ` +
-          "contract content:\n- " + reasons.join("\n- ") +
+          "contract content" + baselineNote + ":\n- " + reasons.join("\n- ") +
           "\nConfirm this is intentional (a legitimate supersede/rewrite) before proceeding. This is a " +
           "content-based check (it cannot tell WHO is making the edit) and only ever asks, never denies. " +
           "Disable for this project with \"udflow\": { \"contractGuard\": false } in .claude/settings.json."

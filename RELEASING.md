@@ -107,7 +107,10 @@ In a throwaway/clean Claude Code profile, from a scratch project directory:
    Claude to edit it in a way that removes the `mustNotChange` entry; confirm `contract-guard.js` **asks**
    before the edit, naming the entry that would be lost. Confirm a pure-append edit (adding a new AC,
    leaving everything else intact) is allowed with no prompt. Confirm `"udflow": { "contractGuard": false }`
-   in the project's `.claude/settings.json` suppresses the ask for the same removal.
+   in the project's `.claude/settings.json` suppresses the ask for the same removal. Sibling probe: seed a
+   populated legacy `output/udflow/contract.md` (no `udflowOp/output/contract.md` present), then ask Claude
+   to write a FRESH weakened contract at `udflowOp/output/contract.md`; confirm the guard asks, naming the
+   lost entry and the sibling baseline path.
 6. **Stop / orchestration-check** — end a session that asserts a `READY` verdict without running the
    panel; confirm the advisory `systemMessage` appears (and that an honest run stays silent).
 7. **Compaction fidelity (SessionStart·`compact`)** — with `udflow` enabled, trigger a compaction

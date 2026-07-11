@@ -639,14 +639,14 @@ test("contract-guard M1: a non-canonical-cased risk downgrade (high->\"Low\") st
   assert.match(r.reason, /risk would be downgraded \("high" -> "Low"\)/, "the ask must quote the risk values exactly as written, unnormalized");
 });
 
-test("contract-guard: contract.md first-ever write (no prior file) always allows regardless of content", () => {
+test("contract-guard: contract.md first-ever write (no prior file, no populated sibling) allows regardless of content", () => {
   const dir = mkCGuardProject(); // no output/udflow/contract.md written at all
   const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: contractPath(dir), content: contractMd({ risk: "low", mustNotChange: [] }) } };
   const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
   assert.strictEqual(r.decision, "ALLOW", "the sanctioned first-ever write (references/task-contract.md) must never be flagged");
 });
 
-test("contract-guard: contract.md whose prior content has no parseable JSON block also always allows", () => {
+test("contract-guard: contract.md whose prior content has no parseable JSON block also allows (no populated sibling)", () => {
   const dir = mkCGuardProject();
   writeContract(dir, "# Task contract\n\nNo machine block yet, just prose.\n");
   const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: contractPath(dir), content: contractMd({ risk: "low" }) } };
@@ -916,6 +916,84 @@ test("contract-guard 0.42.0: design.md at its new udflowOp/design/ home is guard
   const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
   assert.strictEqual(r.decision, "ASK");
   assert.match(r.reason, /## Do's and Don'ts/, "the basename design.md guard must cover the udflowOp/design/ home");
+});
+
+// --- contract-guard 0.42.1: a FRESH write to one watched path is diffed against a populated sibling ---
+// For a first write the target is ABSENT, so Edit/MultiEdit fail open (no current content to apply
+// old_string against — simulateResult returns null) and only Write reaches the fresh-target branch;
+// an Edit/MultiEdit on an EXISTING prose-only target also reaches this branch and correctly asks
+// (block-lost vs the sibling), so Write is the sufficient and representative case used below.
+
+test("contract-guard 0.42.1 (a): fresh weakened Write to the NEW path with a populated LEGACY sibling asks, naming the lost entry and the sibling path", () => {
+  // Discriminating (op F2): the pre-0.42.1 first-write branch allowed ANY fresh write unconditionally,
+  // so during the migration window a weakened contract at the preferred udflowOp path could silently
+  // shadow the populated legacy one. Reverting the sibling check turns this red.
+  const dir = mkCGuardProject();
+  writeContract(dir, contractMd()); // populated LEGACY output/udflow/contract.md
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: newContractPath(dir), content: contractMd({ mustNotChange: [] }) } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ASK", "a fresh write shadowing a populated sibling contract must ask (an unconditional first-write allow lets this through)");
+  assert.match(r.reason, /public signature of AuthService\.request/, "the ask must name the mustNotChange entry the fresh write would lose vs the sibling baseline");
+  assert.match(r.reason, /output\/udflow\/contract\.md/, "the ask must name the sibling baseline path");
+});
+
+test("contract-guard 0.42.1 (b): fresh weakened Write to the LEGACY path with a populated NEW sibling asks (reverse direction)", () => {
+  const dir = mkCGuardProject();
+  writeNewContract(dir, contractMd()); // populated NEW udflowOp/output/contract.md
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: contractPath(dir), content: contractMd({ mustNotChange: [] }) } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ASK", "the sibling check must be symmetric — a fresh legacy-path write diverging from the populated udflowOp contract must ask");
+  assert.match(r.reason, /public signature of AuthService\.request/, "the ask must name the mustNotChange entry the fresh write would lose vs the sibling baseline");
+  assert.match(r.reason, /udflowOp\/output\/contract\.md/, "the ask must name the sibling baseline path");
+});
+
+test("contract-guard 0.42.1 (c): a TRUE first write (no sibling anywhere) stays allowed at both watched paths", () => {
+  // Control: the sanctioned first-ever write case must survive the sibling check — an empty project
+  // gets no ask even for a minimal, hostile-looking contract (nothing exists to have been weakened).
+  const minimal = "# Task contract\n\n```json\n" + JSON.stringify({ udflowContract: 1, risk: "low", acceptanceCriteria: [], mustNotChange: [] }) + "\n```\n";
+  for (const target of [newContractPath, contractPath]) {
+    const dir = mkCGuardProject();
+    const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: target(dir), content: minimal } };
+    const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+    assert.strictEqual(r.decision, "ALLOW", `a true first write at ${path.relative(dir, target(dir))} must stay allowed (no sibling baseline exists)`);
+  }
+});
+
+test("contract-guard 0.42.1 (d): a fresh Write that is a strict SUPERSET of the populated sibling stays allowed", () => {
+  // Control: the sibling is a diff BASELINE, not a freeze — extending the contract at the new path
+  // (add one AC, keep every recorded item) must not ask, or every legitimate migration would prompt.
+  const dir = mkCGuardProject();
+  writeContract(dir, contractMd()); // populated LEGACY sibling
+  const superset = contractMd({
+    acceptanceCriteria: [
+      { id: "AC-1", text: "expired token refreshed once", behaviorChanging: true, verification: "test/auth.test.mjs::refreshes once" },
+      { id: "AC-2", text: "a second criterion added on top", behaviorChanging: false, verification: "command: node --test" },
+    ],
+  });
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: newContractPath(dir), content: superset } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ALLOW", "a pure-superset fresh write vs the sibling baseline must not ask");
+});
+
+test("contract-guard 0.42.1 (e): a prose-only sibling (no ```json block) does not become a baseline — fresh write stays allowed (fail-open)", () => {
+  const dir = mkCGuardProject();
+  writeContract(dir, "# Task contract\n\nProse only — no machine block was ever recorded here.\n"); // unparseable LEGACY sibling
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: newContractPath(dir), content: contractMd({ mustNotChange: [] }) } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ALLOW", "an unparseable sibling has no recorded contract content to lose — the fresh write must fail open");
+});
+
+test("contract-guard 0.42.1 (f): project opt-out udflow.contractGuard=false suppresses the sibling-baseline ask too", () => {
+  // Pins the README-documented opt-out contract over the NEW ask path: the sibling finding flows
+  // through the same shared opt-out gate — a refactor emitting the sibling ask before that gate
+  // would break the opt-out with no other test noticing (panel finding, 0.42.1 review).
+  const dir = mkCGuardProject();
+  writeContract(dir, contractMd()); // populated LEGACY sibling
+  fs.mkdirSync(path.join(dir, ".claude"), { recursive: true });
+  fs.writeFileSync(path.join(dir, ".claude", "settings.json"), JSON.stringify({ udflow: { contractGuard: false } }), "utf8");
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: newContractPath(dir), content: contractMd({ mustNotChange: [] }) } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ALLOW", "the documented opt-out must suppress the sibling-baseline ask exactly like the target-based ask");
 });
 
 // --- contract-guard: wiring ---

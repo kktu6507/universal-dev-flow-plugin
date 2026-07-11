@@ -37,7 +37,7 @@ project. If a step can't run, say why and continue.
    `$R` = the resolved root):
    - `printf '{"tool_name":"Write","tool_input":{},"permission_mode":"plan"}' | UDFLOW_HOOK_DEBUG=1 node "$R/hooks/plan-gate.js"` — expect a `permissionDecision` of `deny` (a plan-mode write).
    - `printf '{"tool_name":"Bash","tool_input":{"command":"git reset --hard"}}' | UDFLOW_HOOK_DEBUG=1 node "$R/hooks/destructive-guard.js"` — expect `permissionDecision: "ask"`.
-   - `printf '{"tool_name":"Write","tool_input":{"file_path":"udflowOp/output/contract.md","content":"x"}}' | UDFLOW_HOOK_DEBUG=1 node "$R/hooks/contract-guard.js"` — expect exit 0 and a `[contract-guard] …` debug line (no prior file ⇒ first-write case, always allowed).
+   - `printf '{"tool_name":"Write","tool_input":{"file_path":"udflowOp/output/contract.md","content":"x"}}' | UDFLOW_HOOK_DEBUG=1 node "$R/hooks/contract-guard.js"` — expect exit 0 and a `[contract-guard] …` debug line (no prior file ⇒ first-write case, always allowed unless a populated contract sits at the other watched path — then it asks).
    - `printf '{"source":"compact"}' | UDFLOW_HOOK_DEBUG=1 node "$R/hooks/compact-fidelity.js"` — expect **valid JSON** with `hookSpecificOutput.additionalContext` (the exact shape that broke under `PreCompact`), and a `[compact-fidelity] emitted preservation block` line.
    - `printf '{}' | UDFLOW_HOOK_DEBUG=1 node "$R/hooks/load-failure-memory.js"` — exit 0; emits a digest only if a `FAILURE_MEMORY.md` exists.
    - `printf '{}' | UDFLOW_HOOK_DEBUG=1 node "$R/hooks/orchestration-check.js"` — exit 0 (advisory/silent on an empty event).
