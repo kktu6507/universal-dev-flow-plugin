@@ -256,3 +256,41 @@ a substitute for full `git log` because this checkout is shallow. If a future se
 re-deriving Finding 2's table directly from `git log --follow` (rather than "first-added date in this
 shallow checkout") would be strictly more rigorous, though it should agree with the CHANGELOG-derived
 version above except at the very edges of the shallow boundary (pre-2026-06-28).
+
+---
+
+## Addendum — self-check: do Part 1's own recommendations drift from core?
+
+**Prompt:** after reading the Part 2 verdict, the user asked the fair follow-up question Part 2 did not
+ask of itself — do the 12 recommendations Part 1 proposed for udflow themselves risk pulling udflow away
+from its own core axis? Re-review below, same yardstick as Part 2 (plan-gated, risk-proportional,
+machine-checked over prose-only, single gatekept verdict, evidence-based, and the explicit anti-goal of
+not becoming a process-owning framework — the exact category `mattpocock/skills`'s own README positions
+itself against).
+
+The original Part 1 recommendation list above is left unmodified; this addendum qualifies it for anyone
+deciding whether to actually implement any of the 12.
+
+| # | Recommendation | Alignment | Why |
+|---|---|---|---|
+| 1 | Technical guard on `.claude/settings*.json` | Aligned | Closes a gap in the existing `contract-guard.js` pattern; adds no new philosophy — structurally identical to the 0.33.0 precedent Part 2 Finding 4 already validated as non-drifting. |
+| 2 | Lower friction for "Verified udflow run" reports | Aligned | Directly serves the priority `docs/consolidation.md` names as the actual next lever ("adoption + evidence, not capability"). |
+| 3 | Shared project-vocabulary artifact for the Review Packet | **Caution** | Solves a terminology-consistency problem, not udflow's stated question ("is this change release-ready"). Would need its own artifact lifecycle (detect/draft/bless/write/update, à la `design.md`) — new surface area for a concern udflow has never claimed to own. |
+| 4 | `wayfinder`-style multi-run task map | **Highest risk** | Pushes udflow from "release-readiness judge for one change" toward "multi-run project/backlog manager" — the same "owns the process" territory `mattpocock/skills`'s own README explicitly rejects (naming GSD/BMAD/Spec-Kit). Implementing this as proposed would move udflow's center of gravity, not just extend it. |
+| 5 | Non-gated "explore" / prototype mode | **High risk, concrete contradiction** | The plan-gate *is* udflow's defining mechanism. An officially-sanctioned path that skips verify/panel/gatekeeper is, definitionally, a sanctioned bypass of that mechanism — the same failure category as the `.claude/settings*.json` self-authored bypass in Part 1's Finding 1. Recommending this without a *technical* backstop (e.g. a hook that refuses to let explore-mode output enter the final diff) would mean shipping a new hole in the same breath as recommendation #1 closes one. |
+| 6 | Tautological-test check in `test-reviewer` | Aligned | Pure extension of an existing reviewer's existing checklist; zero new surface area. |
+| 7 | expand→migrate→contract reference | Aligned | Methodology guidance within `implementer`/`architecture-reviewer`'s existing mandate; a reference addition, not a new primitive — same shape as `plan-grounding.md`. |
+| 8 | Fold `diagnosing-bugs`'s 6-phase method in | Aligned (net reduction) | Substantially overlaps already-shipped `repro-and-fix.md` content; a consolidation, not an addition. |
+| 9 | Formal audit using `writing-great-skills` vocabulary | Aligned | Pure governance, touches no shipped-tree behavior; itself an anti-drift mechanism. |
+| 10 | `.out-of-scope/`-style per-decision files | Aligned | Pure documentation; reinforces scope boundaries rather than expanding them. |
+| 11 | Lightweight "two parallel sub-agents, no merge" review shape | **Self-contradictory as stated** | A genuinely unmerged, non-gatekept shape reproduces the exact weakness Part 1 listed as a `mattpocock/skills` con ("no unified verdict — the human must reconcile"), and contradicts `EVIDENCE.md`'s own measured finding that recall gains come from the panel *converging through a gatekeeper*, not from parallel unreconciled opinions. Only stays core-aligned if revised to keep a lightweight gatekeeper convergence step. |
+| 12 | User-triggered `handoff`-style command | Aligned | Session-continuity UX only; does not touch the judgment mechanism. |
+
+**Net read:** 8 of 12 recommendations are low-risk extensions of existing primitives or pure governance/UX
+and would not move udflow's center of gravity. Two (#4, #11) import a structural idea from
+`mattpocock/skills` that is a direct product of *that* project's opposite philosophy (no owned process, no
+gatekept verdict) and would sit awkwardly grafted onto udflow's philosophy without real revision. One (#5)
+is the sharpest case: it proposes solving a real UX gap (plan-gate is unfriendly to open-ended
+exploration) by adding an escape hatch from udflow's own defining discipline, which needs a *technical*
+containment answer, not a prose-scoped one, or it should not ship at all. One (#3) is a lower-stakes but
+real instance of "borrowed feature solves a problem udflow never claimed to own."
