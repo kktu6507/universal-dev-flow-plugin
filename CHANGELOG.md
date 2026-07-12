@@ -3,7 +3,7 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [UNRELEASED]
+## [0.44.0] - 2026-07-13
 
 ### Added
 - **`contract-guard.js` now also protects its own (and its three sibling hooks') on/off switches.** A
