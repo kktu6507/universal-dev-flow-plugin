@@ -2,9 +2,9 @@
 
 udflow is a Claude Code plugin whose **hooks auto-execute in every enabled session**. That makes
 its trust model worth stating plainly. This file covers what the hooks can and cannot do, the
-supply-chain posture (and its current gaps), the one untrusted-input surface, and how to report a
-problem. Architecture context: [`ARCHITECTURE.md`](ARCHITECTURE.md), *Boundaries & external
-dependencies*.
+supply-chain posture (and its current gaps), the one surface udflow's own hooks inject content
+from, and how to report a problem. Architecture context: [`ARCHITECTURE.md`](ARCHITECTURE.md),
+*Boundaries & external dependencies*.
 
 ## Reporting a vulnerability
 
@@ -24,7 +24,8 @@ yourself — they are short, dependency-free, readable scripts in `udflow/hooks/
 - **Non-destructive.** They never change system/security settings, alter file permissions, or delete
   anything. `destructive-guard` and `contract-guard` only return `ask` (a prompt) — on, respectively, a
   narrow deny-list of unrecoverable commands and a content-based diff showing a contract/design.md
-  weakening — never a `deny`, never a delete.
+  weakening or one of `contract-guard`'s own four guard flags being turned off in
+  `.claude/settings*.json` — never a `deny`, never a delete.
 - **Read scope.** Hooks read only bounded local files needed for their guardrails:
   `load-failure-memory` reads project `udflowOp/memory/FAILURE_MEMORY.md` (with legacy pre-0.42.0
   `ai/FAILURE_MEMORY.md` as a read-only fallback) or global
@@ -37,9 +38,17 @@ yourself — they are short, dependency-free, readable scripts in `udflow/hooks/
   Reviewer subagents are separate from hooks: they have no editor-specific tool grants, but their grant
   still includes `Bash` (`Read`/`Grep`/`Glob`/`Bash`), so review-only behavior is a workflow/prompt
   discipline rather than a hard capability boundary.
+- **Settings-flag simulation.** `contract-guard` also reads both `.claude/settings.json` and
+  `.claude/settings.local.json` to simulate a proposed Write/Edit/MultiEdit's EFFECTIVE
+  (precedence-resolved) value for its own four `udflow.*` guard flags before vs. after — again only to
+  simulate the result locally, the tool is never invoked — and asks when a flag would flip from
+  enabled/default-on to disabled (`false`), including via a brand-new settings file that never existed
+  before.
 
 Per-project opt-outs exist for each guarding hook (`planGate` / `destructiveGuard` / `contractGuard` /
-`preserveOnCompact` in `.claude/settings.json`), and the whole plugin ships **disabled** — you opt in.
+`preserveOnCompact` in `.claude/settings.json`), and the whole plugin ships **disabled** — you opt in. A
+bare-false or malformed `"udflow"` value in either settings file is read as no explicit configuration,
+not a full opt-out — only an explicit `"udflow": { "<flag>": false }` disables that specific guard.
 
 ## Recommended safe install
 
@@ -77,7 +86,7 @@ release commit) when the release workflow runs. Reduce trust risk by:
 - **Run [`/udflow:doctor`](udflow/skills/doctor/SKILL.md)** after install to confirm the hooks behave
   as documented (fires + fails open) in your environment.
 
-## Untrusted-input surface (one, mitigated)
+## Untrusted-input surface (the one udflow's hooks inject from, mitigated)
 
 `load-failure-memory` reads project `udflowOp/memory/FAILURE_MEMORY.md` (with legacy pre-0.42.0
 `ai/FAILURE_MEMORY.md` as a read-only fallback) or, when neither is present, user-controlled

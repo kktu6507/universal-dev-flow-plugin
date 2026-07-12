@@ -13,11 +13,29 @@ A fix without a pre-declared check ends in "it seems fine now" — which is how 
 
 ## Stage 5 — Reproduce (code and data domains)
 
+Keep trigger vs root cause distinct from the start, not only in the postmortem: the deploy that
+exposed the bug is not necessarily what actually caused it (`references/closure.md`, *Trigger vs root
+cause*). Diagnosing toward the trigger and stopping there fixes the symptom, not the disease.
+
 Three fidelity tiers — prefer the cheapest one that captures the bug:
 
 1. **Function/unit-level repro** with the failing input (fastest; the default).
 2. **Local app run**, using the profile's run-in-isolation recipe.
 3. **Staging**, when the bug needs real infrastructure shape.
+
+**Isolate the cause before fixing.** A reproduction proves the bug exists; it does not by itself show
+why. Narrow from the repro to the specific cause:
+
+- **Bisect** — `git bisect` (or an equivalent binary search over recent history) when a range of
+  changes is suspect, to the commit that introduced the bug.
+- **Narrow the input/log space** — binary-search the failing input (which field, which record) or the
+  log/request window (which request, which timestamp) down to the smallest case that still reproduces.
+- **Single-variable instrumentation** — change or log ONE variable at a time and observe; changing
+  several at once cannot tell you which one mattered.
+
+**Hypothesize, then test the hypothesis before fixing.** From the narrowed evidence, propose 3–5
+falsifiable candidate causes, then verify the leading one (a targeted log, an instrumented run, a
+bisect step) BEFORE writing the fix — a fix aimed at the wrong cause reopens the incident.
 
 **Red evidence is mandatory.** Run the repro BEFORE the fix and record the failing output in the journal. A repro that was never seen red proves nothing — an always-green check is a known trap. This mirrors the dev flow's red→green discipline; the incident journal is where the red gets recorded.
 
