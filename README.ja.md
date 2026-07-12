@@ -254,7 +254,7 @@ plugin が有効な間は、依存関係ゼロの Node hooks が6つ、すべて
 |---|---|---|
 | `plan-gate.js` | `PreToolUse` | plan mode 中に edit tools と明らかな Bash write を拒否する。 |
 | `destructive-guard.js` | `PreToolUse` | `rm -rf`、`git reset --hard`、`git push --force`、PowerShell の `Remove-Item -Recurse` など、狭く絞った復元不能な destructive command の前に確認を挟む。 |
-| `contract-guard.js` | `PreToolUse` | Write/Edit/MultiEdit が既存の contract の acceptance criterion、`mustNotChange` 項目、scope path を削除・緩和する、`risk` を格下げする、または `design.md` の section をまるごと削除する前に確認を挟む。`udflowOp/output/contract.md` と旧レイアウトの `output/udflow/contract.md` の両方を監視する。 |
+| `contract-guard.js` | `PreToolUse` | Write/Edit/MultiEdit が既存の contract の acceptance criterion、`mustNotChange` 項目、scope path を削除・緩和する、`risk` を格下げする、または `design.md` の section をまるごと削除する前に確認を挟む。`udflowOp/output/contract.md` と旧レイアウトの `output/udflow/contract.md` の両方を監視する。また、`.claude/settings.json` または `.claude/settings.local.json` への Write/Edit/MultiEdit が、下記の4つの guard flag のいずれかを有効から無効へ、実効値（優先順位解決後の値）で切り替える場合にも確認を挟む——新規作成された settings ファイル経由でも同様。 |
 | `load-failure-memory.js` | `SessionStart` | プロジェクトの `udflowOp/memory/FAILURE_MEMORY.md`（旧レイアウトの `ai/FAILURE_MEMORY.md` は読み取り専用のフォールバック）、なければグローバルの `~/.claude/FAILURE_MEMORY.md` を読み込み、nonce で囲んだ untrusted な digest を注入する。 |
 | `compact-fidelity.js` | `SessionStart` · `compact` | context compaction の直後に、簡潔な workflow-continuity のリマインダーを再注入する。 |
 | `orchestration-check.js` | `Stop` | delivery の主張が、missing panel、blocking verdict、failed/unrun verification、missing live-run evidence と矛盾している場合に警告する。 |
@@ -273,7 +273,7 @@ plugin が有効な間は、依存関係ゼロの Node hooks が6つ、すべて
 |---|---|
 | `planGate` | `plan-gate.js` —— plan mode 中に強制される編集ブロック |
 | `destructiveGuard` | `destructive-guard.js` —— 狭く絞った復元不能な destructive command 実行前の確認 |
-| `contractGuard` | `contract-guard.js` —— Write/Edit/MultiEdit が `udflowOp/output/contract.md`（または旧レイアウトの `output/udflow/contract.md`）を弱める、または `design.md` の section を削除する前の確認 |
+| `contractGuard` | `contract-guard.js` —— Write/Edit/MultiEdit が `udflowOp/output/contract.md`（または旧レイアウトの `output/udflow/contract.md`）を弱める、または `design.md` の section を削除する前の確認；また、`.claude/settings.json` / `.claude/settings.local.json` への Write/Edit/MultiEdit がこれら4つの guard flag のいずれかを無効化する前の確認 |
 | `preserveOnCompact` | `compact-fidelity.js` —— context compaction 後の workflow-continuity リマインダー |
 
 設定ファイルが壊れている、または読み込めない場合は「無効化されていない」として扱われます（fail-safe：guard はそのまま動作し続けます）。例——特定のプロジェクトで `contract-guard.js` を無効化する：

@@ -254,7 +254,7 @@ Six dependency-free Node hooks run in every enabled session. They are local-only
 |---|---|---|
 | `plan-gate.js` | `PreToolUse` | Denies edit tools and obvious Bash writes while in plan mode. |
 | `destructive-guard.js` | `PreToolUse` | Asks before narrow, unrecoverable destructive commands such as `rm -rf`, `git reset --hard`, `git push --force`, and PowerShell `Remove-Item -Recurse`. |
-| `contract-guard.js` | `PreToolUse` | Asks before a Write/Edit/MultiEdit would remove/loosen a previously recorded contract acceptance criterion, `mustNotChange` entry, or scope path, downgrade `risk`, or wholesale-delete a `design.md` section. Watches `udflowOp/output/contract.md` plus the legacy `output/udflow/contract.md`. |
+| `contract-guard.js` | `PreToolUse` | Asks before a Write/Edit/MultiEdit would remove/loosen a previously recorded contract acceptance criterion, `mustNotChange` entry, or scope path, downgrade `risk`, or wholesale-delete a `design.md` section. Watches `udflowOp/output/contract.md` plus the legacy `output/udflow/contract.md`. Also asks before a Write/Edit/MultiEdit to `.claude/settings.json` or `.claude/settings.local.json` would flip any of the four guard flags below from enabled to disabled in their effective, precedence-resolved value — including via a brand-new settings file. |
 | `load-failure-memory.js` | `SessionStart` | Reads project `udflowOp/memory/FAILURE_MEMORY.md` (legacy `ai/FAILURE_MEMORY.md` as a read-only fallback), else global `~/.claude/FAILURE_MEMORY.md`, and injects a nonce-fenced, untrusted digest. |
 | `compact-fidelity.js` | `SessionStart` · `compact` | Re-injects a concise workflow-continuity reminder after compaction. |
 | `orchestration-check.js` | `Stop` | Advises when delivery claims contradict missing panel, blocking verdict, failed/unrun verification, or missing live-run evidence. |
@@ -273,7 +273,7 @@ Everything below is optional. udflow's default behavior needs no configuration a
 |---|---|
 | `planGate` | `plan-gate.js` — the edit-block enforced while in plan mode |
 | `destructiveGuard` | `destructive-guard.js` — the ask before narrow, unrecoverable destructive commands |
-| `contractGuard` | `contract-guard.js` — the ask before a Write/Edit/MultiEdit would weaken `udflowOp/output/contract.md` (or the legacy `output/udflow/contract.md`) or delete a `design.md` section |
+| `contractGuard` | `contract-guard.js` — the ask before a Write/Edit/MultiEdit would weaken `udflowOp/output/contract.md` (or the legacy `output/udflow/contract.md`) or delete a `design.md` section; also the ask before a Write/Edit/MultiEdit to `.claude/settings.json` / `.claude/settings.local.json` would turn any of these four guard flags off |
 | `preserveOnCompact` | `compact-fidelity.js` — the post-compaction workflow-continuity reminder |
 
 A malformed or unreadable settings file is treated as "not disabled" (fail-safe: the guard keeps running). Example — disable `contract-guard.js` for one project:

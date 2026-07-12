@@ -40,6 +40,7 @@ Keep `SKILL.md` as the lightweight entry point. Read these references only when 
 - `references/reviewer-selection.md`: before selecting or re-running a review panel.
 - `references/plan-grounding.md`: before presenting the plan on high-risk work (the conditional plan-grounding / intent-sharpening step; its Stage A grounding runs via the `planner-creator` agent, else `Explore`).
 - `references/design-spec.md`: before planning or reviewing UI / design-system / interaction work — the `design.md` design contract (detect / consume / draft lifecycle + the three-layer arbitration with `ui-ux-pro-max` and the `ui-ux-reviewer` baseline).
+- `references/expand-migrate-contract.md`: before planning or reviewing a large/breaking schema, API, or interface change — the expand → migrate → contract staging pattern.
 - `references/runtime-policy.md`: before using subagents, waiting on agents, or closing agents.
 - `references/verification-gate.md`: before verification or failure-memory updates.
 - `references/final-report.md`: at final delivery, for the end-of-run report format (compact by default; `--report full` for the detailed tables).

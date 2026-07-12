@@ -107,7 +107,7 @@ function readGuardFlag(file) {
     try { size = fs.statSync(file).size; } catch (e) { return undefined; } // not present / unstatable
     if (size > 1024 * 1024) return undefined;
     const cfg = JSON.parse(fs.readFileSync(file, "utf8"));
-    const v = cfg && cfg.udflow && cfg.udflow.destructiveGuard;
+    const v = cfg?.udflow?.destructiveGuard; // ?. (not &&): a bare-false "udflow" must read as no claim, not collapse to false
     return v === false ? false : (v === true ? true : undefined);
   } catch (e) { return undefined; }
 }

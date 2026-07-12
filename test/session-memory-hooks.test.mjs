@@ -452,6 +452,25 @@ for (const row of [
   });
 }
 
+// readPreserveFlag / preserveDisabledForProject reader-alignment: a bare-false "udflow" value (or a
+// bare-false document root) must not collapse into an accidental preserveOnCompact:false opt-out via
+// `cfg && cfg.udflow && cfg.udflow.preserveOnCompact`'s falsy short-circuit --
+// `cfg?.udflow?.preserveOnCompact` only short-circuits on null/undefined, so it correctly reads no
+// explicit claim instead.
+test("compact-fidelity: a bare {\"udflow\":false} settings.json on disk does not suppress the preservation block (readPreserveFlag must not misread it as preserveOnCompact:false)", () => {
+  const dir = mkProjectWithSettings({ udflow: false });
+  const env = { ...process.env, CLAUDE_PROJECT_DIR: dir };
+  const r = compactFidelity(COMPACT_START, env);
+  assert.ok(r && r.hookSpecificOutput, "a bare-false udflow value must be a genuine no-op for the opt-out check -- the preservation block must still emit");
+});
+
+test("compact-fidelity: a bare root-level `false` settings.json document also does not suppress the preservation block", () => {
+  const dir = mkProjectWithSettings("false");
+  const env = { ...process.env, CLAUDE_PROJECT_DIR: dir };
+  const r = compactFidelity(COMPACT_START, env);
+  assert.ok(r && r.hookSpecificOutput);
+});
+
 test("compact-fidelity: opt-out is honored via the event cwd when CLAUDE_PROJECT_DIR is unset (the normal path)", () => {
   // The normal Claude Code path has no CLAUDE_PROJECT_DIR in env, so the hook resolves the project from the
   // event's own `cwd` (compact-fidelity.js preserveDisabledForProject:

@@ -301,6 +301,20 @@ test("plan-gate P2.2: the opt-out resolves from the event cwd when CLAUDE_PROJEC
   assert.strictEqual(gate({ ...PLAN_WRITE, cwd: dir }, env), "ALLOW", "the cwd fallback must locate the project opt-out");
 });
 
+// readPlanGateFlag / planGateDisabledForProject reader-alignment: a bare-false "udflow" value (or a
+// bare-false document root) must not collapse into an accidental planGate:false opt-out via
+// `cfg && cfg.udflow && cfg.udflow.planGate`'s falsy short-circuit -- `cfg?.udflow?.planGate` only
+// short-circuits on null/undefined, so it correctly reads no explicit claim instead.
+test("plan-gate: a bare {\"udflow\":false} settings.json on disk does not suppress plan-mode enforcement (readPlanGateFlag must not misread it as planGate:false)", () => {
+  const dir = mkProjectWithSettings({ udflow: false });
+  assert.strictEqual(gateInProject(PLAN_WRITE, dir), "DENY", "a bare-false udflow value must be a genuine no-op for the opt-out check -- it must not silently disable the plan gate");
+});
+
+test("plan-gate: a bare root-level `false` settings.json document also does not suppress plan-mode enforcement", () => {
+  const dir = mkProjectWithSettings("false");
+  assert.strictEqual(gateInProject(PLAN_WRITE, dir), "DENY");
+});
+
 // --- destructive-guard: all-modes "ask" on unrecoverable Bash commands (item 11) ---
 
 test("destructive-guard: ASKS on unrecoverable commands in ANY mode (incl. default — the gap plan-gate misses)", () => {
@@ -370,6 +384,22 @@ for (const row of [
     assert.strictEqual(dguard({ tool_name: "Bash", permission_mode: "default", tool_input: { command: row.command } }, env), row.expected, row.msg);
   });
 }
+
+// readGuardFlag / destructiveGuardDisabledForProject reader-alignment: a bare-false "udflow" value (or
+// a bare-false document root) must not collapse into an accidental destructiveGuard:false opt-out via
+// `cfg && cfg.udflow && cfg.udflow.destructiveGuard`'s falsy short-circuit -- `cfg?.udflow?.destructiveGuard`
+// only short-circuits on null/undefined, so it correctly reads no explicit claim instead.
+test("destructive-guard: a bare {\"udflow\":false} settings.json on disk does not suppress the destructive-command ask (readGuardFlag must not misread it as destructiveGuard:false)", () => {
+  const dir = mkProjectWithSettings({ udflow: false });
+  const env = { ...process.env, CLAUDE_PROJECT_DIR: dir };
+  assert.strictEqual(dguard({ tool_name: "Bash", permission_mode: "default", tool_input: { command: "git reset --hard" } }, env), "ASK", "a bare-false udflow value must be a genuine no-op for the opt-out check");
+});
+
+test("destructive-guard: a bare root-level `false` settings.json document also does not suppress the ask", () => {
+  const dir = mkProjectWithSettings("false");
+  const env = { ...process.env, CLAUDE_PROJECT_DIR: dir };
+  assert.strictEqual(dguard({ tool_name: "Bash", permission_mode: "default", tool_input: { command: "git reset --hard" } }, env), "ASK");
+});
 
 test("destructive-guard: the ASK reason warns an AI agent against self-authoring the destructiveGuard opt-out reactively", () => {
   // 0.42.2: a live smoke found the model self-authoring the opt-out to defeat contract-guard's ASK under
@@ -786,6 +816,43 @@ for (const row of [
   });
 }
 
+// readGuardFlag / contractGuardDisabledForProject reader-alignment: a bare-false "udflow" value (or a
+// bare-false document root) must not collapse into an accidental contractGuard:false opt-out via
+// `cfg && cfg.udflow && cfg.udflow.contractGuard`'s falsy short-circuit -- `cfg?.udflow?.contractGuard`
+// only short-circuits on null/undefined, so it correctly reads no explicit claim instead.
+test("contract-guard: a bare {\"udflow\":false} settings.json on disk does not suppress a genuine contract.md-weakening ask (readGuardFlag must not misread it as contractGuard:false)", () => {
+  const dir = mkCGuardProject();
+  writeContract(dir, contractMd());
+  fs.mkdirSync(path.join(dir, ".claude"), { recursive: true });
+  fs.writeFileSync(path.join(dir, ".claude", "settings.json"), JSON.stringify({ udflow: false }), "utf8");
+  const newMd = contractMd({ mustNotChange: [] });
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: contractPath(dir), content: newMd } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ASK", "a bare-false udflow value must be a genuine no-op for the opt-out check -- it must not silently disable contract-guard's own protection");
+});
+
+test("contract-guard: a bare root-level `false` settings.json document also does not suppress a genuine ask", () => {
+  const dir = mkCGuardProject();
+  writeContract(dir, contractMd());
+  fs.mkdirSync(path.join(dir, ".claude"), { recursive: true });
+  fs.writeFileSync(path.join(dir, ".claude", "settings.json"), "false", "utf8");
+  const newMd = contractMd({ mustNotChange: [] });
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: contractPath(dir), content: newMd } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ASK");
+});
+
+test("contract-guard control: {\"udflow\":0} (not the literal boolean false) behaves identically before/after this fix -- isolates literal `false` as the specific value ever misread", () => {
+  const dir = mkCGuardProject();
+  writeContract(dir, contractMd());
+  fs.mkdirSync(path.join(dir, ".claude"), { recursive: true });
+  fs.writeFileSync(path.join(dir, ".claude", "settings.json"), JSON.stringify({ udflow: 0 }), "utf8");
+  const newMd = contractMd({ mustNotChange: [] });
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: contractPath(dir), content: newMd } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ASK", "udflow:0 was never the buggy value (0 !== false strictly) -- both && and ?. already read this as no claim, so behavior here is unaffected by the fix");
+});
+
 test("contract-guard: the ASK reason warns an AI agent against self-authoring the contractGuard opt-out reactively", () => {
   // 0.42.2: a live smoke had haiku hit this exact ASK (mustNotChange removal), reason that a "do not ask
   // for confirmation" task phrase authorized bypassing it, and self-author a NEW .claude/settings.json with
@@ -1052,6 +1119,292 @@ test("contract-guard 0.42.1 (f): project opt-out udflow.contractGuard=false supp
   assert.strictEqual(r.decision, "ALLOW", "the documented opt-out must suppress the sibling-baseline ask exactly like the target-based ask");
 });
 
+// --- contract-guard: settings-file guard-flag protection (Phase 1, new) ---------------------------
+// Extends the same content-based tripwire to the guard hooks' own on/off switches: a Write/Edit/
+// MultiEdit to .claude/settings.json or .claude/settings.local.json that would flip the EFFECTIVE,
+// precedence-resolved value of any of the four udflow.* guard flags from enabled/default-on to
+// disabled asks — including via a brand-new settings file (the 0.42.2 incident shape: a fresh file
+// defeating a block, which a same-path diff would miss since the target has no "old" to compare).
+
+function localSettingsPath(dir) { return path.join(dir, ".claude", "settings.local.json"); }
+function projectSettingsPath(dir) { return path.join(dir, ".claude", "settings.json"); }
+
+test("contract-guard settings-guard (a): a FRESH .claude/settings.json Write introducing contractGuard:false, where NEITHER settings file existed before, asks (0.42.2 regression pin)", () => {
+  const dir = mkCGuardProject(); // no .claude/ directory at all yet — the real exploit shape
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: projectSettingsPath(dir), content: JSON.stringify({ udflow: { contractGuard: false } }) } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ASK", "a fresh settings.json write flipping a guard flag off must ask even though the file itself never existed before — a same-path diff would wrongly allow this (the target has no 'old' to compare), which is exactly how the real 0.42.2 incident defeated a block");
+  assert.match(r.reason, /udflow\.contractGuard would become disabled/, "the ask must name the flipped key");
+  assert.match(r.reason, /\.claude\/settings\.json/, "the ask must name the settings file being written");
+});
+
+test("contract-guard settings-guard (b): settings.local.json already has contractGuard:false; an unrelated Edit sets the SAME key false again in settings.json (redundant, no effective change) does not ask", () => {
+  const dir = mkCGuardProject();
+  fs.mkdirSync(path.join(dir, ".claude"), { recursive: true });
+  fs.writeFileSync(localSettingsPath(dir), JSON.stringify({ udflow: { contractGuard: false } }), "utf8");
+  const oldContent = JSON.stringify({ permissions: { allow: [] } });
+  fs.writeFileSync(projectSettingsPath(dir), oldContent, "utf8");
+  const newContent = JSON.stringify({ permissions: { allow: [] }, udflow: { contractGuard: false } });
+  const input = { tool_name: "Edit", cwd: dir, tool_input: { file_path: projectSettingsPath(dir), old_string: oldContent, new_string: newContent } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ALLOW", "settings.local.json already pins contractGuard:false at higher precedence, so writing the same value into the lower-precedence file changes nothing EFFECTIVE — must not false-ask");
+});
+
+test("contract-guard settings-guard (c): a flag flip false -> true (re-enabling protection) does not ask", () => {
+  const dir = mkCGuardProject();
+  fs.mkdirSync(path.join(dir, ".claude"), { recursive: true });
+  const oldContent = JSON.stringify({ udflow: { destructiveGuard: false } });
+  fs.writeFileSync(projectSettingsPath(dir), oldContent, "utf8");
+  const newContent = JSON.stringify({ udflow: { destructiveGuard: true } });
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: projectSettingsPath(dir), content: newContent } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ALLOW", "re-enabling a guard flag must never be flagged");
+});
+
+test("contract-guard settings-guard (d): an edit touching only unrelated keys (e.g. permissions.allow) does not ask (no-op)", () => {
+  const dir = mkCGuardProject();
+  fs.mkdirSync(path.join(dir, ".claude"), { recursive: true });
+  const oldContent = JSON.stringify({ permissions: { allow: ["Bash(git status)"] } });
+  fs.writeFileSync(projectSettingsPath(dir), oldContent, "utf8");
+  const newContent = JSON.stringify({ permissions: { allow: ["Bash(git status)", "Bash(git diff)"] } });
+  const input = { tool_name: "Edit", cwd: dir, tool_input: { file_path: projectSettingsPath(dir), old_string: oldContent, new_string: newContent } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ALLOW", "an edit that never touches any of the four udflow.* guard keys must be a pure no-op");
+});
+
+test("contract-guard settings-guard (e): the existing udflow.contractGuard:false opt-out also suppresses this NEW settings-file ask", () => {
+  const dir = mkCGuardProject();
+  fs.mkdirSync(path.join(dir, ".claude"), { recursive: true });
+  fs.writeFileSync(localSettingsPath(dir), JSON.stringify({ udflow: { contractGuard: false } }), "utf8");
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: projectSettingsPath(dir), content: JSON.stringify({ udflow: { planGate: false } }) } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ALLOW", "the standing udflow.contractGuard=false opt-out must suppress the settings-file ask exactly like it already suppresses the contract.md/design.md asks");
+});
+
+test("contract-guard settings-guard (f1): malformed JSON in the SIBLING settings file does not mask a real flip in the file actually being written", () => {
+  const dir = mkCGuardProject();
+  fs.mkdirSync(path.join(dir, ".claude"), { recursive: true });
+  fs.writeFileSync(localSettingsPath(dir), "{ not valid json", "utf8");
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: projectSettingsPath(dir), content: JSON.stringify({ udflow: { contractGuard: false } }) } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ASK", "a malformed sibling contributes no explicit value (fail-open for ITS OWN read only) but must not mask a real flip in the target being written");
+});
+
+test("contract-guard settings-guard (f2): malformed JSON in the TARGET's proposed content fails open (no ask, no crash)", () => {
+  const dir = mkCGuardProject();
+  fs.mkdirSync(path.join(dir, ".claude"), { recursive: true });
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: projectSettingsPath(dir), content: "{ not valid json" } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ALLOW", "a proposed write that is not parseable JSON cannot be confidently read for a flag flip — fail open");
+});
+
+test("contract-guard settings-guard: settings.local.json itself is also watched (not just settings.json) — a fresh local-only write flipping a flag asks", () => {
+  const dir = mkCGuardProject();
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: localSettingsPath(dir), content: JSON.stringify({ udflow: { destructiveGuard: false } }) } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ASK", "settings.local.json is one of the two watched paths, symmetric with settings.json");
+  assert.match(r.reason, /udflow\.destructiveGuard would become disabled/);
+});
+
+test("contract-guard settings-guard: an unrelated file write (not either settings path) is never affected (no-op)", () => {
+  const dir = mkCGuardProject();
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: path.join(dir, "src", "app.ts"), content: "console.log('hi')" } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ALLOW");
+});
+
+// --- contract-guard settings-guard: gatekeeper repair round (deep-mode Tier 2, adversarially confirmed) ---
+// BLOCKER: simulateResult ignored replace_all on Edit/MultiEdit, always doing first-occurrence-only
+// replacement. A real replace_all:true Edit genuinely replaces EVERY occurrence -- if an earlier
+// same-text boolean token precedes the guard flag's own occurrence, a first-occurrence-only simulation
+// under-reports the proposed content and silently misses the flip.
+
+test("contract-guard settings-guard BLOCKER-fix: an Edit with replace_all:true genuinely flips a guard flag when an earlier same-text boolean token precedes it in the file (real replace_all semantics, not first-occurrence-only simulation)", () => {
+  const dir = mkCGuardProject();
+  fs.mkdirSync(path.join(dir, ".claude"), { recursive: true });
+  const oldContent = JSON.stringify({ includeCoAuthoredBy: true, udflow: { contractGuard: true } });
+  fs.writeFileSync(projectSettingsPath(dir), oldContent, "utf8");
+  const input = {
+    tool_name: "Edit", cwd: dir,
+    tool_input: { file_path: projectSettingsPath(dir), old_string: "true", new_string: "false", replace_all: true },
+  };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ASK", "a replace_all:true Edit that flips EVERY 'true' occurrence (including the guard flag's own, via an earlier unrelated boolean token) must be simulated with real replace_all semantics, not first-occurrence-only");
+  assert.match(r.reason, /udflow\.contractGuard would become disabled/);
+});
+
+test("contract-guard settings-guard BLOCKER-fix: a MultiEdit step with its OWN replace_all:true also genuinely flips the guard flag (per-step semantics)", () => {
+  const dir = mkCGuardProject();
+  fs.mkdirSync(path.join(dir, ".claude"), { recursive: true });
+  const oldContent = JSON.stringify({ a: true, b: true, udflow: { destructiveGuard: true } });
+  fs.writeFileSync(projectSettingsPath(dir), oldContent, "utf8");
+  const input = {
+    tool_name: "MultiEdit", cwd: dir,
+    tool_input: { file_path: projectSettingsPath(dir), edits: [{ old_string: "true", new_string: "false", replace_all: true }] },
+  };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ASK", "a MultiEdit step's own replace_all:true must also be honored");
+  assert.match(r.reason, /udflow\.destructiveGuard would become disabled/);
+});
+
+test("contract-guard settings-guard BLOCKER-fix control: the SAME earlier-boolean-token Edit WITHOUT replace_all stays first-occurrence-only (does not ask) -- proves the fix is replace_all-gated, not a behavior change for the default case", () => {
+  const dir = mkCGuardProject();
+  fs.mkdirSync(path.join(dir, ".claude"), { recursive: true });
+  const oldContent = JSON.stringify({ includeCoAuthoredBy: true, udflow: { contractGuard: true } });
+  fs.writeFileSync(projectSettingsPath(dir), oldContent, "utf8");
+  const input = {
+    tool_name: "Edit", cwd: dir,
+    tool_input: { file_path: projectSettingsPath(dir), old_string: "true", new_string: "false" }, // no replace_all
+  };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ALLOW", "without replace_all, only the FIRST 'true' (includeCoAuthoredBy's, not the guard flag's) is simulated as replaced -- unchanged prior semantics");
+});
+
+// MAJOR #1: extractGuardFlags's `u && u.key` short-circuited to literal `false` for EVERY key whenever
+// `u` (cfg.udflow, or cfg itself) was the bare boolean `false` -- masking a genuine flip in the OTHER
+// file whenever the degenerate file supplies the higher-precedence (local) value. The target explicitly
+// sets contractGuard:true so the contractGuardDisabledForProject/readGuardFlag opt-out check -- which
+// always reads settings.local.json first for its OWN purposes -- resolves and short-circuits on that
+// first read, never touching the degenerate sibling -- isolating this test to extractGuardFlags's own
+// fix.
+
+test("contract-guard settings-guard MAJOR1-fix: a sibling settings file where 'udflow' itself is the bare boolean false does not mask a fresh guard-flag introduction in the target", () => {
+  const dir = mkCGuardProject();
+  fs.mkdirSync(path.join(dir, ".claude"), { recursive: true });
+  fs.writeFileSync(projectSettingsPath(dir), JSON.stringify({ udflow: false }), "utf8"); // degenerate sibling
+  const oldLocal = JSON.stringify({ udflow: { contractGuard: true } }); // avoids the opt-out confound; no destructiveGuard yet
+  fs.writeFileSync(localSettingsPath(dir), oldLocal, "utf8");
+  const newLocal = JSON.stringify({ udflow: { contractGuard: true, destructiveGuard: false } });
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: localSettingsPath(dir), content: newLocal } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ASK", "a degenerate {udflow:false} sibling must resolve to NO explicit value (not a false positive that masks the target's own fresh false introduction)");
+  assert.match(r.reason, /udflow\.destructiveGuard would become disabled/);
+});
+
+test("contract-guard settings-guard MAJOR1-fix: a sibling settings file whose ENTIRE content is the bare boolean false (root-level, not wrapped in an object) also does not mask a fresh guard-flag introduction", () => {
+  const dir = mkCGuardProject();
+  fs.mkdirSync(path.join(dir, ".claude"), { recursive: true });
+  fs.writeFileSync(projectSettingsPath(dir), "false", "utf8"); // whole document is the literal `false`
+  const oldLocal = JSON.stringify({ udflow: { contractGuard: true } });
+  fs.writeFileSync(localSettingsPath(dir), oldLocal, "utf8");
+  const newLocal = JSON.stringify({ udflow: { contractGuard: true, planGate: false } });
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: localSettingsPath(dir), content: newLocal } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ASK", "a root-level bare `false` sibling document must also resolve to NO explicit value, not a masking false positive");
+  assert.match(r.reason, /udflow\.planGate would become disabled/);
+});
+
+// MAJOR #2: coverage gap -- only contractGuard/destructiveGuard reached an ASK+reason assertion;
+// planGate's own ASK path and preserveOnCompact were never independently exercised (mutation-testable:
+// a typo on either hand-typed extractGuardFlags line would silently and permanently disable protection
+// for that flag while the suite stayed green). Plus the gatekeeper's explicit additional cases.
+
+test("contract-guard settings-guard MAJOR2: a fresh settings.json Write introducing planGate:false, where neither settings file existed before, asks (planGate's own ASK path, not just inside an opt-out-suppressed ALLOW test)", () => {
+  const dir = mkCGuardProject();
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: projectSettingsPath(dir), content: JSON.stringify({ udflow: { planGate: false } }) } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ASK");
+  assert.match(r.reason, /udflow\.planGate would become disabled/);
+});
+
+test("contract-guard settings-guard MAJOR2: a fresh settings.json Write introducing preserveOnCompact:false, where neither settings file existed before, asks (preserveOnCompact's own ASK path)", () => {
+  const dir = mkCGuardProject();
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: projectSettingsPath(dir), content: JSON.stringify({ udflow: { preserveOnCompact: false } }) } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ASK");
+  assert.match(r.reason, /udflow\.preserveOnCompact would become disabled/);
+});
+
+test("contract-guard settings-guard MAJOR2: a settings-file MultiEdit whose later step's old_string is not found fails open for the WHOLE call", () => {
+  const dir = mkCGuardProject();
+  fs.mkdirSync(path.join(dir, ".claude"), { recursive: true });
+  const oldContent = JSON.stringify({ udflow: { contractGuard: true } });
+  fs.writeFileSync(projectSettingsPath(dir), oldContent, "utf8");
+  const input = {
+    tool_name: "MultiEdit", cwd: dir,
+    tool_input: {
+      file_path: projectSettingsPath(dir),
+      edits: [
+        { old_string: '"contractGuard":true', new_string: '"contractGuard":false' }, // this step WOULD match and WOULD be a finding
+        { old_string: "this later step does not exist in the file", new_string: "x" }, // but this step never matches
+      ],
+    },
+  };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ALLOW", "any MultiEdit step failing to match must fail open for the entire call, no crash");
+});
+
+test("contract-guard settings-guard MAJOR2: a single Write flipping 2+ guard flags at once names ALL of them in the ask reason (and never names a flag that was enabled, not disabled)", () => {
+  const dir = mkCGuardProject();
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: projectSettingsPath(dir), content: JSON.stringify({ udflow: { contractGuard: false, destructiveGuard: false, planGate: true } }) } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ASK");
+  assert.match(r.reason, /udflow\.contractGuard would become disabled/);
+  assert.match(r.reason, /udflow\.destructiveGuard would become disabled/);
+  assert.ok(!/udflow\.planGate would become disabled/.test(r.reason), "planGate was set to true (enabling), not disabled -- must not be named as a disable");
+});
+
+test("contract-guard settings-guard MAJOR2: a proposed settings content that is valid JSON but not an object (e.g. an array) does not ask, no crash", () => {
+  const dir = mkCGuardProject();
+  fs.mkdirSync(path.join(dir, ".claude"), { recursive: true });
+  fs.writeFileSync(projectSettingsPath(dir), JSON.stringify({ udflow: { contractGuard: true } }), "utf8");
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: projectSettingsPath(dir), content: JSON.stringify([1, 2, 3]) } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ALLOW", "a non-object-but-valid-JSON proposed content (e.g. an array) must not crash and must not false-ask");
+});
+
+// MINOR 1: the settings branch's two on-disk reads (target + sibling) are now size-capped at 1MB,
+// mirroring readGuardFlag's own established cap on this file class ("so a pathological settings file
+// can't stall the hook"). Discriminating construction: the on-disk file for real ALREADY says
+// contractGuard:false and the proposed write says the same (a true no-op IF the old value could be
+// verified) -- capped, the guard cannot verify that anymore and conservatively treats it like a fresh
+// introduction. This is an intentional precision-for-safety tradeoff on a pathological (>1MB) settings
+// file, matching the existing readGuardFlag precedent, not a "bug" in the BLOCKER/MAJOR sense.
+
+test("contract-guard settings-guard MINOR1: an oversized (>1MB) on-disk settings file's real prior value is no longer read once capped -- a proposed value matching what the file may already (unverifiably) say still asks, where the same input was correctly a no-op before the cap existed", () => {
+  const dir = mkCGuardProject();
+  fs.mkdirSync(path.join(dir, ".claude"), { recursive: true });
+  const big = JSON.stringify({ udflow: { contractGuard: false }, pad: "x".repeat(2 * 1024 * 1024) });
+  fs.writeFileSync(projectSettingsPath(dir), big, "utf8");
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: projectSettingsPath(dir), content: JSON.stringify({ udflow: { contractGuard: false } }) } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ASK", "capped, the guard cannot confirm the old value already matched -- it conservatively asks rather than trusting an unread, oversized file (matching readGuardFlag's own cap discipline)");
+});
+
+// --- contract-guard settings-guard: bare-false "udflow" is a genuine no-op (root cause lives in the 4
+// runtime opt-out readers, not in this detector) ---
+// A prior investigation into this detector found it treating a bare-false "udflow" value (or a bare-
+// false document root) inconsistently depending on whether it appeared in the target or the sibling
+// file. The root cause was NOT in this detector: the four RUNTIME opt-out readers (this hook's own
+// readGuardFlag; the identical pattern in plan-gate.js / destructive-guard.js / compact-fidelity.js)
+// used to read `cfg && cfg.udflow && cfg.udflow.KEY` (short-circuits on ANY falsy value, including the
+// literal boolean `false`) instead of `cfg?.udflow?.KEY` (short-circuits only on null/undefined), so a
+// bare-false "udflow" value collapsed each reader into seeing an explicit `false` for its own key,
+// silently disabling protection. All four readers are now aligned to `?.` (see each hook's own
+// readGuardFlag/readPlanGateFlag/readPreserveFlag and their dedicated tests below / in
+// session-memory-hooks.test.mjs), which makes a bare-false "udflow" value a genuine no-op EVERYWHERE —
+// it disables nothing at runtime — so extractGuardFlags' `cfg?.udflow?.key` resolution (used uniformly
+// for target and sibling reads alike, no role-based special-casing) correctly does not ask about it either.
+
+test("contract-guard settings-guard: an edit that leaves an already-degenerate udflow:false value untouched (only an unrelated key changes) stays a no-op (ALLOW)", () => {
+  const dir = mkCGuardProject();
+  fs.mkdirSync(path.join(dir, ".claude"), { recursive: true });
+  const oldContent = JSON.stringify({ udflow: false, unrelated: "old" });
+  fs.writeFileSync(projectSettingsPath(dir), oldContent, "utf8");
+  const input = { tool_name: "Edit", cwd: dir, tool_input: { file_path: projectSettingsPath(dir), old_string: '"old"', new_string: '"new"' } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ALLOW", "an edit that never touches the udflow key must not manufacture a new ask -- before and after both resolve to no explicit claim (a bare-false udflow value reads as undefined, not false), so there is no transition either way");
+});
+
+test("contract-guard settings-guard: re-proposing an unchanged root-level bare `false` document stays a no-op (ALLOW)", () => {
+  const dir = mkCGuardProject();
+  fs.mkdirSync(path.join(dir, ".claude"), { recursive: true });
+  fs.writeFileSync(projectSettingsPath(dir), "false", "utf8");
+  const input = { tool_name: "Write", cwd: dir, tool_input: { file_path: projectSettingsPath(dir), content: "false" } };
+  const r = cguard(input, { ...process.env, CLAUDE_PROJECT_DIR: dir });
+  assert.strictEqual(r.decision, "ALLOW", "re-proposing the identical bare-false content must not ask -- both before and after resolve to no explicit claim");
+});
+
 // --- contract-guard: wiring ---
 
 test("hooks.json wires contract-guard.js under PreToolUse with a matcher covering Write/Edit/MultiEdit", () => {
@@ -1061,4 +1414,20 @@ test("hooks.json wires contract-guard.js under PreToolUse with a matcher coverin
   for (const tool of ["Write", "Edit", "MultiEdit"]) {
     assert.ok(new RegExp(`^(?:${entry.matcher})$`).test(tool), `${tool} must be covered by contract-guard.js's matcher`);
   }
+});
+
+test("contract-guard settings-guard (g): the settings-file guard rides the EXISTING contract-guard.js wiring — hooks.json still has exactly one contract-guard.js entry and the hook count stays 6", () => {
+  const hj = JSON.parse(fs.readFileSync(path.join(HOOKS, "hooks.json"), "utf8"));
+  const cguardEntries = (hj.hooks.PreToolUse || []).filter((e) => (e.hooks || []).some((x) => /contract-guard\.js/.test(x.command || "")));
+  assert.strictEqual(cguardEntries.length, 1, "the settings-file guard must ride the existing contract-guard.js PreToolUse entry, not add a second one");
+  const allHookFiles = new Set();
+  for (const eventEntries of Object.values(hj.hooks)) {
+    for (const entry of eventEntries) {
+      for (const h of entry.hooks || []) {
+        const m = /hooks\/([\w.-]+\.js)/.exec(h.command || "");
+        if (m) allHookFiles.add(m[1]);
+      }
+    }
+  }
+  assert.strictEqual(allHookFiles.size, 6, "hook count must stay 6 — no new hook file was wired for the settings-file guard");
 });

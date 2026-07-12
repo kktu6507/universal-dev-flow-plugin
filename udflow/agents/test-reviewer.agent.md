@@ -30,7 +30,7 @@ Severity vocabulary, scope discipline, and the base output contract are shared a
 - Live browser evidence and changed-UI screenshots, when present, arrive via the **Review Packet** from the main-thread browser drive (`references/browser-evidence.md`); you **assess** that captured evidence and do **not** drive the user's Chrome (reviewers stay read-only and isolated). In `--deep` + UI in scope, a missing live browser drive is a disclosed verification gap.
 
 ## Review lens
-Input validation, success/failure path coverage, boundary conditions, duplicate/retry/idempotency, state transitions, partial failure, error propagation, mock-heavy tests that hide real behavior, missing assertions. For UI: browser verification evidence (target, scenario, observed outcome, tool used, screenshot reference or reason none needed, or exact blocker plus fallback and remaining uncertainty).
+Input validation, success/failure path coverage, boundary conditions, duplicate/retry/idempotency, state transitions, partial failure, error propagation, mock-heavy tests that hide real behavior, missing assertions, tautological tests (an assertion that only echoes back its own mock's configured return value, or that re-derives its "expected" value using the same logic/formula as the code under test, so a bug shared by both never surfaces). For UI: browser verification evidence (target, scenario, observed outcome, tool used, screenshot reference or reason none needed, or exact blocker plus fallback and remaining uncertainty).
 
 ## How to think
 - Assume the first bug happens outside the happy path; assume regressions happen where coverage is thin or behavior is coupled.

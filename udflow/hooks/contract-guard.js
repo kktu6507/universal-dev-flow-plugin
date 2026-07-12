@@ -3,8 +3,15 @@
 // artifacts a run depends on from being silently weakened by the SAME tool call that is supposed to
 // be extending them: the per-run machine contract (udflowOp/output/contract.md — 0.42.0 layout — or the
 // legacy output/udflow/contract.md; references/task-contract.md)
-// and, for design.md, whole-section deletion (references/design-spec.md). A FRESH write to one watched
-// contract path is diffed against a populated contract at the OTHER watched path (sibling baseline), so
+// and, for design.md, whole-section deletion (references/design-spec.md). It also protects ITSELF (and
+// its three sibling guard hooks): a Write/Edit/MultiEdit to `.claude/settings.json` or
+// `.claude/settings.local.json` that would flip any of the four `udflow.*` guard flags
+// (planGate/destructiveGuard/contractGuard/preserveOnCompact) from enabled/default-on to disabled also
+// asks — compared by EFFECTIVE, precedence-resolved value across BOTH settings files, not a same-path
+// diff, so a brand-new settings file introducing the flip (the 0.42.2 incident: a fresh
+// `.claude/settings.json` defeating a block) is caught too, and a redundant/no-op write to the
+// lower-precedence file never false-asks. A FRESH write to one watched contract path is diffed against a
+// populated contract at the OTHER watched path (sibling baseline), so
 // the migration window between the two layouts can't shadow a recorded contract with a weakened rewrite;
 // a true first write (no populated sibling) stays unconditionally allowed. This is content-based, NOT
 // actor-based: PreToolUse only ever sees tool_name/tool_input/cwd/permission_mode — never who or what
@@ -101,7 +108,10 @@ function simulateResult(tool, ti, current) {
     if (typeof current !== "string") return null; // no old content to apply against
     if (typeof ti.old_string !== "string" || typeof ti.new_string !== "string") return null;
     if (!current.includes(ti.old_string)) return null; // old_string not found -> don't guess
-    // Real Edit replaces only the FIRST occurrence by default (this hook never reads replace_all).
+    // Real Edit replaces every occurrence when replace_all is true, else only the FIRST by default.
+    // split/join (not String#replace) so a literal "$" in new_string is never mis-treated as a
+    // replacement pattern token — same rationale as replaceFirstLiteral above.
+    if (ti.replace_all === true) return current.split(ti.old_string).join(ti.new_string);
     return replaceFirstLiteral(current, ti.old_string, ti.new_string);
   }
   if (tool === "MultiEdit") {
@@ -111,9 +121,9 @@ function simulateResult(tool, ti, current) {
     for (const e of ti.edits) {
       if (!e || typeof e.old_string !== "string" || typeof e.new_string !== "string") return null;
       if (!running.includes(e.old_string)) return null; // any step failing -> fail open for the WHOLE call
-      // Same first-occurrence-only semantics as the Edit branch above (real MultiEdit steps default
-      // to replacing only the first match unless replace_all is set, which this hook never reads).
-      running = replaceFirstLiteral(running, e.old_string, e.new_string);
+      // Same first-occurrence-vs-replace_all semantics as the Edit branch above, decided per step
+      // (each MultiEdit step carries its own independent replace_all).
+      running = e.replace_all === true ? running.split(e.old_string).join(e.new_string) : replaceFirstLiteral(running, e.old_string, e.new_string);
     }
     return running;
   }
@@ -214,6 +224,80 @@ function diffDesignHeadings(oldContent, newContent) {
   return reasons;
 }
 
+// Is `file_path` one of this hook's own two guard-settings files? Root-anchored (mirrors
+// matchTaskContractPath's two-path style): `.claude/settings.json` and `.claude/settings.local.json`
+// are each exactly one fixed path relative to the project root, unlike design.md's basename match.
+// Returns the matched repo-relative path (used as the ask label), or "" when the target is neither.
+function matchGuardSettingsPath(targetPath, input) {
+  if (!targetPath) return "";
+  try {
+    const root = process.env.CLAUDE_PROJECT_DIR || (input && input.cwd) || "";
+    if (!root) return "";
+    const got = path.resolve(String(targetPath)).replace(/\\/g, "/").toLowerCase();
+    for (const rel of [[".claude", "settings.local.json"], [".claude", "settings.json"]]) {
+      if (got === path.resolve(root, ...rel).replace(/\\/g, "/").toLowerCase()) return rel.join("/");
+    }
+    return "";
+  } catch (e) { return ""; }
+}
+
+// Read a settings file's content with the SAME 1MB size cap readGuardFlag already enforces on this file
+// class ("so a pathological settings file can't stall the hook") — readGuardFlag's own cap only protects
+// its separate opt-out check; this applies the identical discipline to the settings-guard branch's own
+// two on-disk reads (target + sibling). Oversized or unstatable -> null, same "no old content" semantics
+// readCurrent already uses for absence.
+function readCurrentCapped(targetPath) {
+  try {
+    if (fs.statSync(targetPath).size > 1024 * 1024) return null;
+  } catch (e) { return null; }
+  return readCurrent(targetPath);
+}
+
+// Extract this hook's four own guard flags from a settings file's CONTENT (a string already obtained via
+// readCurrent/simulateResult — this function never touches a path itself). Same tri-state mapping the
+// runtime opt-out readers use (true/false/undefined) — used UNIFORMLY for all three settings-guard read
+// sites below (target-before, target-after/proposed, and sibling-before; no target/sibling asymmetry).
+// Empty object on any parse failure or non-object shape — "no explicit value read here" (mirrors
+// extractContractJson's null-on-failure convention, adapted to an object so callers can read any key
+// without a null check at every use; an absent key stays `undefined` via the same tri-state mapping).
+// `cfg?.udflow?.key` (NOT `cfg && cfg.udflow && cfg.udflow.key`) is deliberate, and matches the four
+// RUNTIME opt-out readers (this hook's own readGuardFlag below; the identical pattern in plan-gate.js /
+// destructive-guard.js / compact-fidelity.js — all four aligned to `?.` for the same reason): when the
+// parsed JSON's "udflow" value (or the whole parsed document) is itself the bare boolean `false`, `&&`
+// would short-circuit to that `false` and `tri()` would then misread it as an explicit `false` reading
+// for EVERY key — optional chaining short-circuits only on null/undefined, so a non-null-non-undefined-
+// but-falsy value (false, 0, "") anywhere in the chain resolves the property read to `undefined` instead.
+// Because all four runtime readers now use this same `?.` resolution, a bare-false "udflow" value is a
+// genuine no-op EVERYWHERE it appears — it disables nothing at runtime — so this detector correctly does
+// not ask about it either, whether it appears in the target or the sibling.
+function extractGuardFlags(content) {
+  if (typeof content !== "string") return {};
+  try {
+    const cfg = JSON.parse(content);
+    const tri = (v) => (v === false ? false : (v === true ? true : undefined));
+    return {
+      planGate: tri(cfg?.udflow?.planGate),
+      destructiveGuard: tri(cfg?.udflow?.destructiveGuard),
+      contractGuard: tri(cfg?.udflow?.contractGuard),
+      preserveOnCompact: tri(cfg?.udflow?.preserveOnCompact),
+    };
+  } catch (e) { return {}; }
+}
+
+// Resolve the EFFECTIVE (precedence-resolved) value of each guard flag from the two settings files'
+// already-extracted flag objects. Same local-overrides-project precedence contractGuardDisabledForProject
+// applies per FILE (whichever of the two carries an explicit value wins, local checked first), but
+// applied per KEY here: a single settings.json/settings.local.json write can leave the other three keys
+// untouched while this guard must track all four independently across both files at once.
+function resolveEffectiveFlags(localFlags, projectFlags) {
+  const out = {};
+  for (const key of ["planGate", "destructiveGuard", "contractGuard", "preserveOnCompact"]) {
+    const l = localFlags && localFlags[key];
+    out[key] = typeof l !== "undefined" ? l : (projectFlags && projectFlags[key]);
+  }
+  return out;
+}
+
 // Project opt-out: a project may disable this guard for its OWN sessions by setting
 // "udflow": { "contractGuard": false } in .claude/settings.json (or settings.local.json, which takes
 // precedence). Mirrors plan-gate.js's / destructive-guard.js's opt-out exactly, including the FAIL-SAFE:
@@ -241,7 +325,7 @@ function readGuardFlag(file) {
     try { size = fs.statSync(file).size; } catch (e) { return undefined; } // not present / unstatable
     if (size > 1024 * 1024) return undefined;
     const cfg = JSON.parse(fs.readFileSync(file, "utf8"));
-    const v = cfg && cfg.udflow && cfg.udflow.contractGuard;
+    const v = cfg?.udflow?.contractGuard; // ?. (not &&): a bare-false "udflow" must read as no claim, not collapse to false
     return v === false ? false : (v === true ? true : undefined);
   } catch (e) { return undefined; }
 }
@@ -269,9 +353,15 @@ process.stdin.on("end", () => {
     const contractLabel = matchTaskContractPath(targetPath, input); // matched rel path, or ""
     const isContract = contractLabel !== "";
     const isDesign = !isContract && isDesignMdPath(targetPath); // mutually exclusive by construction
-    if (!isContract && !isDesign) return process.exit(0); // the overwhelming majority of edits: no-op
+    // settings.json / settings.local.json is only checked once neither contract path nor design.md
+    // matched — disjoint targets by construction, same as the isDesign guard above.
+    const settingsLabel = (!isContract && !isDesign) ? matchGuardSettingsPath(targetPath, input) : "";
+    const isSettings = settingsLabel !== "";
+    if (!isContract && !isDesign && !isSettings) return process.exit(0); // the overwhelming majority of edits: no-op
 
-    const current = readCurrent(targetPath); // null = absent/unreadable (no "old" to compare)
+    // Settings targets are size-capped here too (matches readGuardFlag's own cap on this file class);
+    // contract.md/design.md keep the uncapped read, unchanged.
+    const current = isSettings ? readCurrentCapped(targetPath) : readCurrent(targetPath); // null = absent/unreadable/oversized (no "old" to compare)
     const proposed = simulateResult(tool, ti, current);
     if (proposed === null) { debug("cannot confidently simulate the result; allowing"); return process.exit(0); }
 
@@ -302,10 +392,48 @@ process.stdin.on("end", () => {
       } else {
         reasons = diffContractJson(oldJson, newJson);
       }
-    } else {
+    } else if (isDesign) {
       // design.md: only defined when there WAS old content to compare a heading against. No old file /
       // unreadable old file has no headings to lose, so reasons stays empty (allow) by construction.
       if (typeof current === "string") reasons = diffDesignHeadings(current, proposed);
+    } else {
+      // settings.json / settings.local.json: compare the EFFECTIVE (precedence-resolved) value of each
+      // of this hook's own four guard flags BEFORE vs AFTER the proposed edit, across BOTH settings
+      // files — never a same-path raw diff, which would miss a brand-new settings file (the target is
+      // absent pre-edit, so "nothing to compare" would wrongly allow it — the exact 0.42.2 incident
+      // shape: a fresh .claude/settings.json defeating a block). The sibling file's on-disk content is
+      // held constant throughout, so a redundant/no-op write to the lower-precedence file (the higher-
+      // precedence file already pins the same effective value) correctly does not ask.
+      const root = process.env.CLAUDE_PROJECT_DIR || (input && input.cwd) || "";
+      const isLocal = settingsLabel === ".claude/settings.local.json";
+      const siblingRel = isLocal ? [".claude", "settings.json"] : [".claude", "settings.local.json"];
+      const siblingAbs = root ? path.resolve(root, ...siblingRel) : "";
+      // The sibling's on-disk read goes through the size-capped reader (readCurrentCapped), same as the
+      // target's `current` above (already capped for a settings path). Target and sibling reads both use
+      // the SAME extractGuardFlags — no role-based asymmetry: a bare-false "udflow" value is a genuine
+      // no-op at runtime now that the four opt-out readers are aligned to the same `?.` resolution (see
+      // extractGuardFlags's own comment), so correctly not-asking about it here is accurate, not a gap.
+      const siblingCurrent = siblingAbs ? readCurrentCapped(siblingAbs) : null;
+
+      const targetFlagsBefore = extractGuardFlags(current);
+      const siblingFlagsBefore = extractGuardFlags(siblingCurrent);
+      const before = resolveEffectiveFlags(
+        isLocal ? targetFlagsBefore : siblingFlagsBefore,
+        isLocal ? siblingFlagsBefore : targetFlagsBefore
+      );
+
+      const targetFlagsAfter = extractGuardFlags(proposed);
+      const after = resolveEffectiveFlags(
+        isLocal ? targetFlagsAfter : siblingFlagsBefore,   // sibling held constant
+        isLocal ? siblingFlagsBefore : targetFlagsAfter    // sibling held constant
+      );
+
+      debug("settings-guard: before=" + JSON.stringify(before) + " after=" + JSON.stringify(after));
+      for (const key of ["planGate", "destructiveGuard", "contractGuard", "preserveOnCompact"]) {
+        if (before[key] !== false && after[key] === false) {
+          reasons.push(`udflow.${key} would become disabled (false)`);
+        }
+      }
     }
 
     if (reasons.length === 0) { debug("no findings; allowing"); return process.exit(0); }
@@ -315,15 +443,24 @@ process.stdin.on("end", () => {
       return process.exit(0);
     }
 
-    const label = isContract ? contractLabel : "design.md";
+    const label = isContract ? contractLabel : (isDesign ? "design.md" : settingsLabel);
+    const leadText = isSettings
+      ? `this ${tool} to ${label} would flip udflow's own protection setting(s) to disabled in the ` +
+        "effective (precedence-resolved) configuration:\n- " + reasons.join("\n- ")
+      : `this ${tool} to ${label} would remove or weaken previously recorded ` +
+        "contract content" + baselineNote + ":\n- " + reasons.join("\n- ");
+    // The settings case is a boolean toggle, not a content supersede/rewrite — branch the confirm
+    // clause's parenthetical so it does not misdescribe what is actually being confirmed.
+    const confirmClause = isSettings
+      ? "\nConfirm this is intentional (a legitimate change) before proceeding. This is a "
+      : "\nConfirm this is intentional (a legitimate supersede/rewrite) before proceeding. This is a ";
     const out = {
       hookSpecificOutput: {
         hookEventName: "PreToolUse",
         permissionDecision: "ask",
         permissionDecisionReason:
-          `udflow contract guard: this ${tool} to ${label} would remove or weaken previously recorded ` +
-          "contract content" + baselineNote + ":\n- " + reasons.join("\n- ") +
-          "\nConfirm this is intentional (a legitimate supersede/rewrite) before proceeding. This is a " +
+          "udflow contract guard: " + leadText +
+          confirmClause +
           "content-based check (it cannot tell WHO is making the edit) and only ever asks, never denies. " +
           "Disable for this project with \"udflow\": { \"contractGuard\": false } in .claude/settings.json " +
           "or .claude/settings.local.json. " +

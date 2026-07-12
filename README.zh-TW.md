@@ -254,7 +254,7 @@ Verdicts 是 release-readiness decisions，不是絕對真理。請看 [`docs/ho
 |---|---|---|
 | `plan-gate.js` | `PreToolUse` | 在 plan mode 中擋下 edit tools 與明顯 Bash writes。 |
 | `destructive-guard.js` | `PreToolUse` | 對 `rm -rf`、`git reset --hard`、`git push --force`、PowerShell `Remove-Item -Recurse` 等狹義不可復原 destructive commands 先詢問。 |
-| `contract-guard.js` | `PreToolUse` | 在 Write/Edit/MultiEdit 會移除/放寬既有 contract 的 acceptance criterion、`mustNotChange` 項目、scope path，或調降 `risk`，或整段刪除 `design.md` section 之前先詢問。監看 `udflowOp/output/contract.md` 加上舊版 `output/udflow/contract.md`。 |
+| `contract-guard.js` | `PreToolUse` | 在 Write/Edit/MultiEdit 會移除/放寬既有 contract 的 acceptance criterion、`mustNotChange` 項目、scope path，或調降 `risk`，或整段刪除 `design.md` section 之前先詢問。監看 `udflowOp/output/contract.md` 加上舊版 `output/udflow/contract.md`。也會在 Write/Edit/MultiEdit 對 `.claude/settings.json` 或 `.claude/settings.local.json` 的修改，會把下方四個 guard flag 中任一個從啟用翻轉為停用（以其有效、依優先順序解析後的值判斷）之前詢問——包含透過全新建立的 settings 檔案的情況。 |
 | `load-failure-memory.js` | `SessionStart` | 讀取專案 `udflowOp/memory/FAILURE_MEMORY.md`（舊版 `ai/FAILURE_MEMORY.md` 作為唯讀 fallback），否則讀全域 `~/.claude/FAILURE_MEMORY.md`，並注入 nonce-fenced、untrusted digest。 |
 | `compact-fidelity.js` | `SessionStart` · `compact` | context compaction 後重新注入精簡 workflow-continuity reminder。 |
 | `orchestration-check.js` | `Stop` | delivery claim 與 missing panel、blocking verdict、failed/unrun verification、missing live-run evidence 矛盾時提示。 |
@@ -273,7 +273,7 @@ Verdicts 是 release-readiness decisions，不是絕對真理。請看 [`docs/ho
 |---|---|
 | `planGate` | `plan-gate.js`——plan mode 期間強制的編輯攔阻 |
 | `destructiveGuard` | `destructive-guard.js`——執行狹義不可復原 destructive commands 前的詢問 |
-| `contractGuard` | `contract-guard.js`——Write/Edit/MultiEdit 會弱化 `udflowOp/output/contract.md`（或舊版 `output/udflow/contract.md`）或刪除 `design.md` section 之前的詢問 |
+| `contractGuard` | `contract-guard.js`——Write/Edit/MultiEdit 會弱化 `udflowOp/output/contract.md`（或舊版 `output/udflow/contract.md`）或刪除 `design.md` section 之前的詢問；也包含 Write/Edit/MultiEdit 對 `.claude/settings.json` / `.claude/settings.local.json` 的修改會關閉這四個 guard flag 中任一個之前的詢問 |
 | `preserveOnCompact` | `compact-fidelity.js`——context compaction 後的 workflow-continuity 提醒 |
 
 設定檔格式錯誤或讀不到，會視為「未停用」（fail-safe：guard 照常運作）。範例——針對單一專案停用 `contract-guard.js`：

@@ -3,6 +3,45 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [UNRELEASED]
+
+### Added
+- **`contract-guard.js` now also protects its own (and its three sibling hooks') on/off switches.** A
+  Write/Edit/MultiEdit to `.claude/settings.json` or `.claude/settings.local.json` that would flip any
+  of the four `udflow.*` guard flags (`planGate`/`destructiveGuard`/`contractGuard`/`preserveOnCompact`)
+  from enabled/default-on to disabled now asks — compared by EFFECTIVE, precedence-resolved value
+  across BOTH settings files (not a same-path diff), so a brand-new settings file introducing the flip
+  is caught too (closing the same class of gap the 0.42.2 incident found), and a redundant/no-op write
+  to the lower-precedence file correctly does not ask. No new hook file; hook count stays 6.
+- **`test-reviewer`'s Review lens gains a tautological-test check**: an assertion that only echoes back
+  its own mock's configured return value, or a "duplicate-computation" assertion that re-derives its
+  expected value using the same logic/formula as the code under test, so a bug shared by both never
+  surfaces.
+- **New reference** `udflow/skills/universal-dev-flow/references/expand-migrate-contract.md`: the
+  expand → migrate → contract ("parallel change") staging pattern for large/breaking schema, API, or
+  interface changes — cited from `implementer.agent.md` and (as its first reference citation)
+  `architecture-reviewer.agent.md`, and wired into `SKILL.md`'s Reference Loading table.
+- `udflow/skills/incident-response/references/repro-and-fix.md` (Stage 5) gains an "isolate the cause"
+  addition — bisection / input-log narrowing / single-variable instrumentation, plus an explicit
+  "hypothesize, then test the hypothesis before fixing" discipline note — and a forward pointer to
+  `closure.md`'s trigger-vs-root-cause distinction at the start of the stage, so it steers diagnosis
+  instead of only surfacing at the postmortem.
+
+### Fixed
+- **The four guard hooks' own opt-out flag readers silently misread a bare-false `"udflow"` value as an
+  explicit opt-out, disabling all four guards at once with no ask or warning** — a gap already present
+  in the released v0.43.0 tag, not new-this-task behavior. `contract-guard.js`, `plan-gate.js`,
+  `destructive-guard.js`, and `compact-fidelity.js` each read their own flag via
+  `cfg && cfg.udflow && cfg.udflow.KEY` (logical AND, short-circuits on ANY falsy value, including the
+  literal boolean `false`) instead of `cfg?.udflow?.KEY` (optional chaining, short-circuits only on
+  null/undefined). A `.claude/settings.json` or `.claude/settings.local.json` whose `"udflow"` value was
+  the bare boolean `false` — either `{"udflow": false}` or the whole file being just the literal
+  `false` — therefore collapsed each reader's own key read into an explicit `false`, silently disabling
+  `planGate`/`destructiveGuard`/`contractGuard`/`preserveOnCompact` together, with no ask, no deny, no
+  visible signal. All four readers now use `cfg?.udflow?.KEY`, so a bare-false or malformed `"udflow"`
+  value is correctly read as no explicit configuration (protection stays enforced) instead of a full
+  opt-out; only an explicit `"udflow": { "<flag>": false }` still disables that specific guard.
+
 ## [0.43.0] - 2026-07-11
 
 ### Added

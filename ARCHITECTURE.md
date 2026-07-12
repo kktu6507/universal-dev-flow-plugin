@@ -46,10 +46,11 @@ Code subagent isolation), not just by prose (`references/runtime-policy.md`).
   network, Node built-ins only: `plan-gate` (PreToolUse), `destructive-guard` (PreToolUse),
   `contract-guard` (PreToolUse), `load-failure-memory` (SessionStart),
   `compact-fidelity` (SessionStart·compact), `orchestration-check` (Stop).
-- **13 references** (`udflow/skills/universal-dev-flow/references/*.md`) — lazy-loaded contracts
+- **14 references** (`udflow/skills/universal-dev-flow/references/*.md`) — lazy-loaded contracts
   for each step (Review Packet, reviewer-common, reviewer-selection, plan-grounding, design-spec,
-  runtime-policy, verification-gate, final-report, external-capabilities, deep-mode,
-  browser-evidence, app-launch, task-contract). The surface audit (2026-06-28) found these non-duplicative.
+  expand-migrate-contract, runtime-policy, verification-gate, final-report, external-capabilities,
+  deep-mode, browser-evidence, app-launch, task-contract). The surface audit (2026-06-28) found these
+  non-duplicative.
 - **5 session scripts** (`udflow/skills/universal-dev-flow/scripts/*.mjs`) — dependency-free, fail-open, not CC hooks, not CI-only: `contract-check.mjs` (scope-diff + AC-coverage over `udflowOp/output/contract.md` (legacy pre-0.42.0: `output/udflow/contract.md`), run at verify time, report read by `gatekeeper`); `pack-review-diff.mjs` (the Review-Packet packer — reorders/annotates the reviewer diff for focus, never dropping content: deletion/whitespace hunks ranked last, any `--max-lines` trim disclosed with a regenerate pointer; run once when building the packet, output shared with every reviewer); `failure-retrieve.mjs` (deterministic relevance-ranked targeted retrieval over a `FAILURE_MEMORY.md` for a task signature, run during planning; `--log` records retrieval hits to a sibling append-only ledger; recall/precision regression-guarded by the committed `eval/failure-memory/` oracle); `failure-consolidate.mjs` (aggregates that ledger into a deterministic retired/expire-candidate prune advisory for the `gatekeeper` — advisory only, never writes the memory file, so the single-writer invariant holds); and `regression-delta.mjs` (a pure differ: two captured test outputs → the newly-failing tests, gated to `--deep`/high-risk, read by the `gatekeeper`'s regression ratchet — reads each runner's native output, mandates no project-side test-id schema).
 - **Skills**: `universal-dev-flow` (the dev workflow itself; auto-engages on non-trivial work),
   `incident-response` (production incidents: mitigate-first wartime flow + `prepare` ops-profile
