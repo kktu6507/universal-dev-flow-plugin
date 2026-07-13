@@ -35,6 +35,8 @@ Write the profile with this template. Every access, rollback, flag, and backup e
 ## Breach readiness
 - Secure evidence store: <where to copy logs/evidence during a suspected intrusion — outside the compromised system, so a wipe or the attacker cannot destroy it>
 - Out-of-band comms: <channel to coordinate on if the normal one may be attacker-monitored — e.g. a phone bridge, a separate account; for coordination only, not for transmitting secrets or evidence — prefer a pre-arranged, access-controlled channel over an ad-hoc personal account>
+- Legal/privacy owner: <name/role to notify for breach/data-exposure incidents>
+- Notification threshold: <what triggers a legally-required disclosure — decided by the named owner, never by the agent>
 
 ## Observability inventory
 - <logs / metrics / alerts that exist, and the query for each>
@@ -58,7 +60,7 @@ Write the profile with this template. Every access, rollback, flag, and backup e
 2. **Read recent-change intel** from Run-Card scratch under `udflowOp/output/` when present — recent dev-flow runs show what changed lately and where risk concentrated.
    - One-time legacy migration: if legacy `output/udflow/` Run-Card scratch exists and `udflowOp/output/` is absent, move the whole tree to `udflowOp/output/` (tracked files → create the destination directory, then `git mv` — `git mv` does not create it; untracked → copy, verify the copy is readable, then delete the original), keep the directory self-gitignored, disclose the migration in one line, and never touch the legacy path again. When both trees exist, use `udflowOp/output/`, move or overwrite nothing, and disclose once that the legacy copy remains for manual cleanup/merge. Apply the same pattern to any other legacy file this skill must read (`ai/FAILURE_MEMORY.md` → `udflowOp/memory/FAILURE_MEMORY.md`, root `design.md` → `udflowOp/design/design.md`).
 3. **Draft or refresh the profile** from what was derived. A refresh updates stale entries but keeps existing `verified:` dates intact unless the underlying fact changed.
-4. **Ask only what cannot be derived**, one decision card at a time: backup location and restore-drill status, the approvals map, human-only credentials and dashboards, whether the rollback path has ever actually been exercised, and — for breach readiness (NIST Preparation) — where intrusion evidence should be copied and which out-of-band channel to use if the normal one is compromised.
+4. **Ask only what cannot be derived**, one decision card at a time: backup location and restore-drill status, the approvals map, human-only credentials and dashboards, whether the rollback path has ever actually been exercised, and — for breach readiness (NIST Preparation) — where intrusion evidence should be copied, which out-of-band channel to use if the normal one is compromised, and who the named legal/privacy owner is for breach/data-exposure notification decisions.
 5. **Write the file** to `udflowOp/ops/OPS_PROFILE.md`.
 6. **Report gaps honestly.** A missing backup, an unverified rollback, or zero observability is a named red flag in the report ("no backups found — a restore is impossible today"), never silence. Prepare mode's value is the uncomfortable list, not a reassuring one.
 

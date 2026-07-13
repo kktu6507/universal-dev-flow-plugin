@@ -254,8 +254,8 @@ if (fs.existsSync(path.join(root, hooksRel))) {
       try { return new RegExp("^(?:" + (e.matcher || "") + ")$").test(token); } catch (err) { return false; }
     });
     const WIRING = [
-      { event: "PreToolUse", hook: "plan-gate.js", tokens: ["Write", "Edit", "MultiEdit", "NotebookEdit", "Bash"] },
-      { event: "PreToolUse", hook: "destructive-guard.js", tokens: ["Bash"] }, // all-modes destructive-command safety net
+      { event: "PreToolUse", hook: "plan-gate.js", tokens: ["Write", "Edit", "MultiEdit", "NotebookEdit", "Bash", "PowerShell"] },
+      { event: "PreToolUse", hook: "destructive-guard.js", tokens: ["Bash", "PowerShell"] }, // all-modes destructive-command safety net
       { event: "PreToolUse", hook: "contract-guard.js", tokens: ["Write", "Edit", "MultiEdit"] }, // content-based contract/design.md weakening tripwire
       { event: "SessionStart", hook: "load-failure-memory.js", tokens: ["startup", "resume", "clear", "compact"] },
       { event: "Stop", hook: "orchestration-check.js", tokens: [] }, // Stop has no matcher

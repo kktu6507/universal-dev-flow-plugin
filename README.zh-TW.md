@@ -100,7 +100,7 @@ udflow 做三件事：
 
 - **安裝不等於啟用。** 啟用前，udflow 的 hooks 與 skills 都不做事。
 - **Marketplace 名稱是 `kktu`。** 安裝 id 是 `udflow@kktu`。
-- **更新：** `/plugin marketplace update kktu` 後跑 `/reload-plugins`。
+- **更新：** `/plugin marketplace update kktu`（更新 marketplace 目錄）→ `/plugin update udflow@kktu` → `/reload-plugins`。
 - **健康檢查：** gate 沒擋、hook 沒反應、或 Node 可能不存在時，跑 `/udflow:doctor`。
 
 ## 好任務長什麼樣子
@@ -240,7 +240,7 @@ Verdicts 是 release-readiness decisions，不是絕對真理。請看 [`docs/ho
 
 | Track-2 指標 | 目前狀態 |
 |---|---|
-| Type-B verified live runs | 6 / 10 |
+| Type-B verified live runs | 12 / 10 |
 | Distinct real projects | 2 / 3 |
 | Non-maintainer runs | 0 / 1 |
 
@@ -252,7 +252,7 @@ Verdicts 是 release-readiness decisions，不是絕對真理。請看 [`docs/ho
 
 | Hook 腳本 | 觸發事件 | 用途 |
 |---|---|---|
-| `plan-gate.js` | `PreToolUse` | 在 plan mode 中擋下 edit tools 與明顯 Bash writes。 |
+| `plan-gate.js` | `PreToolUse` | 在 plan mode 中擋下 edit tools 與明顯 Bash/PowerShell writes。 |
 | `destructive-guard.js` | `PreToolUse` | 對 `rm -rf`、`git reset --hard`、`git push --force`、PowerShell `Remove-Item -Recurse` 等狹義不可復原 destructive commands 先詢問。 |
 | `contract-guard.js` | `PreToolUse` | 在 Write/Edit/MultiEdit 會移除/放寬既有 contract 的 acceptance criterion、`mustNotChange` 項目、scope path，或調降 `risk`，或整段刪除 `design.md` section 之前先詢問。監看 `udflowOp/output/contract.md` 加上舊版 `output/udflow/contract.md`。也會在 Write/Edit/MultiEdit 對 `.claude/settings.json` 或 `.claude/settings.local.json` 的修改，會把下方四個 guard flag 中任一個從啟用翻轉為停用（以其有效、依優先順序解析後的值判斷）之前詢問——包含透過全新建立的 settings 檔案的情況。 |
 | `load-failure-memory.js` | `SessionStart` | 讀取專案 `udflowOp/memory/FAILURE_MEMORY.md`（舊版 `ai/FAILURE_MEMORY.md` 作為唯讀 fallback），否則讀全域 `~/.claude/FAILURE_MEMORY.md`，並注入 nonce-fenced、untrusted digest。 |

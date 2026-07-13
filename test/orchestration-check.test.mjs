@@ -962,3 +962,97 @@ test("enforce ON + stopHookActive (camelCase alias) => advisory, never blocks (l
   assert.ok(r && /gatekeeper's last verdict/.test(r.systemMessage), "still warns");
   assert.ok(!r.decision, "the camelCase stopHookActive re-entry flag must also suppress the block");
 });
+
+// --- P0.2: the Stop hook prefers the fresh last_assistant_message field over a stale transcript tail ---
+// Claude Code's Stop event can carry the orchestrator's actual final message separately from the
+// transcript file (a transcript-write race, or a summary produced after the last transcript entry was
+// written). finalIdx (and the panel/verdict-provenance scans it bounds) stays transcript-derived and
+// untouched — only finalText, the input to the sentinel/claim-detection regexes, should prefer the
+// fresh field when it is present, a string, and non-empty after trimming.
+
+test("orchestration-check P0.2: a fresh last_assistant_message overrides a stale/benign transcript tail (AC-P0.2-1, core red→green)", () => {
+  // The transcript's own last assistant entry is benign (no verdict/panel claim), so pre-fix
+  // (transcript-scan only) the hook must stay silent; last_assistant_message carries the REAL final
+  // summary (READY + shipped, no panel ran) and the fix must follow it, tripping the panel-missing advisory.
+  const tp = mkTranscript([
+    { role: "user", content: "do the thing" },
+    { role: "assistant", content: "Still investigating; will report back after further analysis." },
+  ]);
+  const r = orch({
+    transcript_path: tp,
+    last_assistant_message: "Final verdict: READY — the change is complete and ready to ship.\nudflow:delivery=shipped",
+  });
+  assert.ok(r && /none of the core review panel/.test(r.systemMessage),
+    "the hook must follow the fresh last_assistant_message field, not the stale transcript tail");
+});
+
+test("orchestration-check P0.2: no last_assistant_message field — behavior identical to the pre-fix transcript-only scan (AC-P0.2-2)", () => {
+  const tp = mkTranscript([
+    { role: "user", content: "do the thing" },
+    { role: "assistant", content: "Final verdict: READY — readiness confirmed." },
+  ]);
+  const r = orch({ transcript_path: tp });
+  assert.ok(r && /none of the core review panel/.test(r.systemMessage),
+    "omitting last_assistant_message must behave identically to the transcript-only scan");
+});
+
+test("orchestration-check P0.2: last_assistant_message present but empty/whitespace/non-string falls back to the transcript scan (AC-P0.2-2)", () => {
+  const tp = mkTranscript([
+    { role: "user", content: "do the thing" },
+    { role: "assistant", content: "Final verdict: READY — readiness confirmed." },
+  ]);
+  for (const bad of ["", "   ", null, 42, {}, []]) {
+    const r = orch({ transcript_path: tp, last_assistant_message: bad });
+    assert.ok(r && /none of the core review panel/.test(r.systemMessage),
+      `last_assistant_message=${JSON.stringify(bad)} must fall back to the transcript-derived finalText`);
+  }
+});
+
+test("orchestration-check P0.2: lastAssistantMessage (camelCase alias) is also honored", () => {
+  const tp = mkTranscript([
+    { role: "user", content: "do the thing" },
+    { role: "assistant", content: "Still investigating; will report back after further analysis." },
+  ]);
+  const r = orch({
+    transcript_path: tp,
+    lastAssistantMessage: "Final verdict: READY — the change is complete and ready to ship.\nudflow:delivery=shipped",
+  });
+  assert.ok(r && /none of the core review panel/.test(r.systemMessage),
+    "the camelCase lastAssistantMessage alias must also be honored");
+});
+
+test("orchestration-check P0.2: the finalIdx-bounded verdict/panel-provenance scan is unaffected by a last_assistant_message override (AC-P0.2-3)", () => {
+  // The transcript-bound verdict scan (bounded by finalIdx) must still read the REAL gatekeeper NOT READY
+  // verdict; only the claim-detection text (finalText) is swapped to the fresh last_assistant_message.
+  const tp = mkTranscript([
+    { role: "assistant", content: [{ type: "tool_use", id: "g", name: "Task", input: { subagent_type: "udflow:gatekeeper" } }] },
+    { role: "user", content: [{ type: "tool_result", tool_use_id: "g", content: "Final verdict: NOT READY — auth bypass unresolved." }] },
+    { role: "assistant", content: "Wrapping up." },
+  ]);
+  const r = orch({
+    transcript_path: tp,
+    last_assistant_message: "The change is complete and ready to ship.\nudflow:delivery=shipped",
+  });
+  assert.ok(r && /gatekeeper's last verdict was 'NOT READY'/.test(r.systemMessage),
+    "the transcript-bound verdict must still be read correctly while claim-detection follows the fresh field");
+});
+
+test("orchestration-check P0.2: a fresh last_assistant_message can also SUPPRESS a transcript tail that would trip an advisory alone (honest hold overrides a false-alarm-prone stale tail)", () => {
+  // Inverse of AC-P0.2-1: there, the fresh field ADDED a claim the stale/benign tail lacked, tripping a
+  // new advisory. Here the transcript tail alone (no override) claims READY with no panel run — the
+  // same shape as the AC-P0.2-2 transcript, which on its own trips the panel-missing advisory — but the
+  // FRESH last_assistant_message carries the real, honest final state (an explicit hold sentinel, no
+  // ready/shipped claim), and the hook must follow it and stay silent. Locks the "suppress" direction
+  // the existing P0.2 tests don't cover: a fresh field can silence a false-alarm-prone transcript, not
+  // just trigger new advisories.
+  const tp = mkTranscript([
+    { role: "user", content: "do the thing" },
+    { role: "assistant", content: "Final verdict: READY — the change is complete and ready to ship." },
+  ]);
+  const r = orch({
+    transcript_path: tp,
+    last_assistant_message: "Still investigating an edge case; holding for now.\nudflow:delivery=held",
+  });
+  assert.strictEqual(r, null,
+    "an honest last_assistant_message hold must suppress the advisory the stale transcript tail would have tripped alone");
+});

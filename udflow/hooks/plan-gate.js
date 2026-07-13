@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // udflow plan gate: while permission mode is "plan", deny structured edits
 // (Write/Edit/MultiEdit/NotebookEdit) except Claude Code's own plan files under
-// ~/.claude/plans/, and deny Bash commands that obviously write the working tree
-// (redirect-to-file, tee-to-file, sed -i, git apply). The Bash check is a narrow
+// ~/.claude/plans/, and deny Bash/PowerShell commands that obviously write the working tree
+// (redirect-to-file, tee-to-file, sed -i, git apply). The Bash/PowerShell check is a narrow
 // tripwire for the common cases — not full shell classification; it defaults to allow.
 // Cross-platform Node; fail-open (exit 0 = allow) on any error so it never breaks a session.
 const os = require("os");
@@ -57,13 +57,13 @@ function fsCaseInsensitiveNear(p) {
   } catch (e) { return null; }
 }
 
-// Narrow tripwire: does this Bash command obviously write the working tree? Conservative,
+// Narrow tripwire: does this Bash/PowerShell command obviously write the working tree? Conservative,
 // defaults to allow — false positives are worse than the documented miss list. It deliberately
 // does NOT catch: no-space redirects (echo x>f), `>|`, $VAR/~ targets, cp/mv, or interpreter
 // one-liners (node -e fs.writeFileSync / python -c open(...,'w') / xargs touch) — those are
 // unbounded to classify and tightening the redirect form would false-positive on arithmetic
 // like $((a>b)). git checkout/restore and read-only commands stay allowed. The covered set is a
-// safety net, not a guarantee — the workflow rule (no Bash tree-writes while planning) plus a
+// safety net, not a guarantee — the workflow rule (no Bash/PowerShell tree-writes while planning) plus a
 // default plan mode are the real guard; see SKILL.md and the README "Plan gate" section.
 function bashLooksLikePlanWrite(command) {
   const cmd = String(command || "");
@@ -148,7 +148,7 @@ process.stdin.on("end", () => {
     const mode = input.permission_mode || input.permissionMode || "";
     const ti = input.tool_input || {};
     const editBlocked = tool === "Write" || tool === "Edit" || tool === "MultiEdit" || tool === "NotebookEdit";
-    const bashBlocked = tool === "Bash" && bashLooksLikePlanWrite(ti.command);
+    const bashBlocked = (tool === "Bash" || tool === "PowerShell") && bashLooksLikePlanWrite(ti.command);
 
     const targetPath = ti.file_path || ti.path || ti.notebook_path || "";
     let isPlanFile = false; // only relevant for structured edits to ~/.claude/plans
@@ -191,7 +191,7 @@ process.stdin.on("end", () => {
           hookEventName: "PreToolUse",
           permissionDecision: "deny",
           permissionDecisionReason: bashBlocked
-            ? "udflow plan gate: this Bash command looks like a working-tree write (>, tee, sed -i, perl -i, truncate, dd of=, ln, git apply), so it is blocked while in plan mode. This is a best-effort heuristic — if the command is read-only, writes outside the working tree (e.g. to /tmp), or a dry run, present the plan via ExitPlanMode and run it after approval, or adjust it. Only obvious writes are caught, not all Bash (e.g. interpreter one-liners slip), so do not use Bash to modify the tree while planning regardless."
+            ? "udflow plan gate: this " + tool + " command looks like a working-tree write (>, tee, sed -i, perl -i, truncate, dd of=, ln, git apply), so it is blocked while in plan mode. This is a best-effort heuristic — if the command is read-only, writes outside the working tree (e.g. to /tmp), or a dry run, present the plan via ExitPlanMode and run it after approval, or adjust it. Only obvious writes are caught, not all " + tool + " calls (e.g. interpreter one-liners slip), so do not use " + tool + " to modify the tree while planning regardless."
             : "udflow plan gate: file modifications are blocked while in plan mode. Present the plan via ExitPlanMode and get approval before implementing."
         }
       };

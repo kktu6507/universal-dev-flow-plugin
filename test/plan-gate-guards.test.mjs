@@ -234,7 +234,7 @@ test("malformed stdin fails open (no deny, no crash)", () => {
 test("hooks.json PreToolUse matcher actually covers every gated tool", () => {
   const hj = JSON.parse(fs.readFileSync(path.join(HOOKS, "hooks.json"), "utf8"));
   const matcher = hj.hooks.PreToolUse[0].matcher;
-  for (const tool of ["Write", "Edit", "MultiEdit", "NotebookEdit", "Bash"]) {
+  for (const tool of ["Write", "Edit", "MultiEdit", "NotebookEdit", "Bash", "PowerShell"]) {
     assert.ok(new RegExp(`^(?:${matcher})$`).test(tool), `${tool} must be in the matcher (else the gate never fires for it)`);
   }
 });
@@ -553,6 +553,80 @@ test("destructive-guard A4: the '(' subshell anchor fires beyond rm (non-rm dest
   // destructive keyword inside a subshell too, so the anchor's coverage is not silently rm-only.
   assert.strictEqual(dguard({ tool_name: "Bash", permission_mode: "default", tool_input: { command: "(git reset --hard)" } }), "ASK", "a subshell git reset --hard must ask");
   assert.strictEqual(dguard({ tool_name: "Bash", permission_mode: "default", tool_input: { command: "(mkfs.ext4 /dev/sda1)" } }), "ASK", "a subshell mkfs must ask");
+});
+
+// --- P0.1: tool_name:"PowerShell" coverage (plan-gate + destructive-guard) ---
+// Distinct from the Copilot-CLI quirk above (tool_name:"Bash" + PowerShell-syntax command): this is
+// Claude Code's own PowerShell tool call, tool_name:"PowerShell" itself, which previously bypassed both
+// guards entirely (hooks.json never matched it, and each hook's own tool check exited early on anything
+// but "Bash"). bashLooksDestructive() / bashLooksLikePlanWrite() are reused verbatim against
+// tool_input.command, so both POSIX and PowerShell-syntax patterns must still match under this tool name.
+
+test("destructive-guard P0.1: tool_name:\"PowerShell\" + destructive command ASKS like Bash, and the reason names PowerShell (not hard-coded \"Bash\")", () => {
+  for (const command of [
+    "Remove-Item -Recurse -Force 'C:\\Temp\\x'",   // PowerShell-native destructive form
+    "Format-Volume -DriveLetter D",                // PowerShell-native destructive form
+    "git reset --hard HEAD~3",                     // shared POSIX pattern, reused verbatim
+  ]) {
+    assert.strictEqual(dguard({ tool_name: "PowerShell", permission_mode: "default", tool_input: { command } }), "ASK", `should ask: ${command}`);
+  }
+  const env = { ...process.env }; delete env.CLAUDE_PROJECT_DIR;
+  const out = runHook(DGUARD, { tool_name: "PowerShell", permission_mode: "default", tool_input: { command: "Remove-Item -Recurse -Force build" } }, env);
+  const reason = JSON.parse(out).hookSpecificOutput.permissionDecisionReason;
+  assert.match(reason, /this PowerShell command/i, "the ASK reason must describe the actual triggering tool, not hard-coded \"Bash\"");
+});
+
+test("destructive-guard P0.1: tool_name:\"PowerShell\" + benign command stays ALLOW (no FP)", () => {
+  for (const command of [
+    "Get-ChildItem -Recurse -Filter *.log",
+    "Remove-Item 'C:\\Temp\\one.txt'",  // single file, no -Recurse
+    "git status",
+  ]) {
+    assert.strictEqual(dguard({ tool_name: "PowerShell", permission_mode: "default", tool_input: { command } }), "ALLOW", `should allow: ${command}`);
+  }
+});
+
+test("plan-gate P0.1: tool_name:\"PowerShell\" write-looking commands are DENIED in plan mode like Bash, and the reason names PowerShell (not hard-coded \"Bash\")", () => {
+  for (const command of [
+    "echo hello > out.txt",
+    "printf x | tee notes.txt",
+    "sed -i 's/a/b/' src/app.ts",
+    "git apply fix.patch",
+  ]) {
+    assert.strictEqual(gate({ tool_name: "PowerShell", permission_mode: "plan", tool_input: { command } }), "DENY", `should block: ${command}`);
+  }
+  const out = runHook(GATE, { tool_name: "PowerShell", permission_mode: "plan", tool_input: { command: "echo x > out.txt" } });
+  assert.match(out, /"deny"/);
+  assert.match(out, /this PowerShell command/i, "the deny reason must describe the actual triggering tool, not hard-coded \"Bash\"");
+});
+
+test("plan-gate P0.1: tool_name:\"PowerShell\" benign/read-only commands stay ALLOW in plan mode (no FP)", () => {
+  for (const command of [
+    "git status",
+    "Get-ChildItem -Recurse -Filter *.log",
+    "node --check hooks/plan-gate.js",
+  ]) {
+    assert.strictEqual(gate({ tool_name: "PowerShell", permission_mode: "plan", tool_input: { command } }), "ALLOW", `should allow: ${command}`);
+  }
+});
+
+test("destructive-guard P0.1: the existing Copilot-quirk path (tool_name:\"Bash\" + PowerShell syntax) still ASKS unchanged (regression control)", () => {
+  // AC-P0.1-4 control: widening tool coverage to a real "PowerShell" tool_name must not disturb the
+  // pre-existing quirk path where PowerShell-syntax commands arrive under tool_name:"Bash".
+  assert.strictEqual(dguard({ tool_name: "Bash", permission_mode: "default", tool_input: { command: "Remove-Item -Recurse -Force 'C:\\Temp\\x' -ErrorAction SilentlyContinue" } }), "ASK");
+});
+
+test("destructive-guard P0.1: tool_name:\"Bash\" ASK reason still reads \"this Bash command\" (parity control: the reason is now built via string concatenation with the live tool value, not a static literal)", () => {
+  const env = { ...process.env }; delete env.CLAUDE_PROJECT_DIR;
+  const out = runHook(DGUARD, { tool_name: "Bash", permission_mode: "default", tool_input: { command: "git reset --hard" } }, env);
+  const reason = JSON.parse(out).hookSpecificOutput.permissionDecisionReason;
+  assert.match(reason, /this Bash command/i, "the ASK reason must still read \"this Bash command\" for tool_name:\"Bash\"");
+});
+
+test("plan-gate P0.1: tool_name:\"Bash\" deny reason still reads \"this Bash command\" (parity control: the reason is now built via string concatenation with the live tool value, not a static literal)", () => {
+  const out = runHook(GATE, { tool_name: "Bash", permission_mode: "plan", tool_input: { command: "echo x > out.txt" } });
+  assert.match(out, /"deny"/);
+  assert.match(out, /this Bash command/i, "the deny reason must still read \"this Bash command\" for tool_name:\"Bash\"");
 });
 
 // --- contract-guard: content-based Write/Edit/MultiEdit tripwire on contract.md + design.md (new hook) ---
