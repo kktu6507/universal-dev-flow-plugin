@@ -15,7 +15,7 @@ accepted ones into this file), or add a section directly via pull request. See [
   where the outcome was **verified over time** (its `READY` verdict held up, or a defect escaped and was
   recorded; plus any false alarm and the cost). This is the evidence that shows udflow *works in practice* —
   and it is what dropping "experimental" now hinges on. **It is no longer near-empty, but it is narrow**:
-  twelve runs are logged (eleven merged, one pending), yet all are maintainer runs concentrated on two
+  twelve runs are logged (all twelve merged), yet all are maintainer runs concentrated on two
   projects — volume is accumulating; breadth and independence are not yet.
 - **Capability validation (Type A) — controlled benchmarks.** Blind bug-catch experiments that characterize
   *what the reviewers can and cannot catch* and the precision profile. This is extensive (below), but it is a
@@ -62,7 +62,7 @@ breadth and the ≥1 non-maintainer requirement remain open.
 
 **Track 1 — Capability validation: MET.** ≥3 external repos ✓, ≥2 languages ✓, ≥20 qualifying Type-A points ✓,
 aggregate catch/false-positive rates computed ✓, and ≥half of the bugs not previously surfaced by a prior
-review ✓. This establishes the *profile* (near-zero false positives; recall that scales with intent specificity).
+review ✓. This establishes the *profile* (near-zero false positives on 2026-06 fresh, correct-code controls — not condition-independent: the current-build re-test on a stricter post-fix control set reads lone ~6–12%, panel ~25%, see Running tally below; recall that scales with intent specificity).
 Current-build re-run (2026-07-10): the committed fixture suite scored 5/5 hit recall + 2/2 clean precision on
 `claude-fable-5` — details and provenance in [`eval/baseline.md`](eval/baseline.md).
 
@@ -82,7 +82,7 @@ whether the **workflow + verdict** holds up in practice, which is the claim the 
 
 | Metric | Now | Track-1 target | Track-2 target |
 |---|---|---|---|
-| **Real-world verified runs (Type B)** | **12 logged** (11 merged; 1 pending — PR #86 open) | — | ≥ 10 |
+| **Real-world verified runs (Type B)** | **12 logged** (12 merged) | — | ≥ 10 |
 | — of which **publicly verifiable** (vs self-attested / private) | **3** (runs 7–12 carry public PR diffs, but their verdicts/outcomes are self-attested — counted self-attested) | — | — |
 | Distinct real projects (Type B) | **2 logged** (one private repo + udflow's own public repo — runs 7–12 add volume, not breadth) | — | ≥ 3 |
 | Independent (non-maintainer) runs | **0** | — | ≥ 1 |
@@ -96,11 +96,13 @@ whether the **workflow + verdict** holds up in practice, which is the claim the 
 benchmark) is **met** and pins the profile: at **~0 false positives** throughout, recall depends on the intent
 given to the reviewer — **~34% with no intent (diff only)**, **~84% only with very specific author-written
 contract-level intent** (an optimistic upper bound; a strict bug-blind native-doc-intent re-run scored far
-lower), and **~29% bug-blind at n=77**. The robust, condition-independent strength is the **near-zero
-false-positive rate**. Track 2 (**real-world runs**) is **not yet met** — that is now the honest reason
+lower), and **~29% bug-blind at n=77**. Precision is the strength, but it is **not condition-independent**:
+false positives sat near **~0** through 2026-06 on fresh, correct-code controls, while the current-build
+re-test on a **stricter post-fix control set** reads **lone ~6–12%, panel ~25%** (Running tally, above;
+detailed in the *Update — 2026-06-29* section below). Track 2 (**real-world runs**) is **not yet met** — that is now the honest reason
 "experimental" stays. The defensible relabel is a *characterized* "beta" ("near-zero FP; recall scales with the
 quality of the intent you give it; real-world track record still accumulating"), to be earned by the Type-B
-runs this log is built to collect — **twelve of which are now logged below** (11 merged + 1 pending), across **two
+runs this log is built to collect — **twelve of which are now logged below** (all twelve merged), across **two
 projects** (one private, plus udflow's own public repo) and including **three publicly-verifiable** entries. The
 ≥10 volume count is now reached on paper, but with the log's own weight caveat (runs 7–12 are same-week maintainer
 dogfood on udflow's own repo, backfilled from the CHANGELOG/PR record), so the **≥3-projects breadth and the
@@ -302,15 +304,16 @@ shape:
 - **Outcome after follow-up:** **merged** (PR #85) and auto-released as **`v0.38.0`**; not reverted.
 - **Cost:** not recorded per-run. · **Evidence:** public — PR https://github.com/kktu6507/universal-dev-flow-plugin/pull/85 · commit `27cc360` · release `v0.38.0`.
 
-### Live run 12 — 2026-07-10 · `universal-dev-flow-plugin` (udflow's own repo — Markdown / Node JS) · live task, outcome pending (PR open) · self-attested (public PR diff)
+### Live run 12 — 2026-07-10 · `universal-dev-flow-plugin` (udflow's own repo — Markdown / Node JS) · verified live task (merged) · self-attested (public PR diff)
 
 - **Task:** the 0.39.0 P0 audit-remediation run — close the six functional defects from the 2026-07-10 zero-based audit (shared-contract packet block, single-writer contradiction, `${CLAUDE_PLUGIN_ROOT}` prefixes, plan-gate `dd` anchor, CI syntax-check gap, artifact hygiene).
 - **Intent given:** contract-level — a no-omission audit fix list with per-item file:line targets, red→green requirements, and must-not-change guards; plan-gated with `planner-creator` grounding (the grounding scan added 4 out-of-list couplings to scope before approval).
 - **Reviewers:** full `udflow --deep` lifecycle — implementer; deterministic Workflow panel (spec / test / code) at Tier 1; Tier 2 adversarial verification of gating findings; gatekeeper on opus at maximum effort. · **Verdict: READY** — 0 blocker / 0 major / 3 minor durability findings, applied same-branch.
 - **Verification:** regression ratchet ran — **no regression**; red→green tests for the behavior change (the plan-gate `dd` anchor); full test suite + `validate-structure` green.
 - **Caught:** the 3 minor durability findings above (applied same-branch); no blocker/major survived adversarial verification.
-- **Missed / False alarms:** none known at the verdict — the PR is still open.
-- **Outcome after follow-up:** **pending — PR #86 is open**; outcome verification over time is not yet possible. This entry counts as *logged*, not yet outcome-verified (the tally marks it pending).
+- **Missed:** none recorded at the verdict.
+- **False alarms:** none recorded.
+- **Outcome after follow-up:** **merged** (PR #86) and auto-released as **`v0.39.0`**; not reverted.
 - **Cost:** not separately recorded. · **Evidence:** public — PR https://github.com/kktu6507/universal-dev-flow-plugin/pull/86 (branch `claude/audit-p0-functional`, commits `dc91109` + `c9b9716`).
 
 _More runs needed for Track 2 — especially at least one **not** by the maintainer, and breadth beyond the current

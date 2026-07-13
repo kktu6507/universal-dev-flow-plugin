@@ -173,9 +173,11 @@ function verifySentinel(text) {
 // (case/space tolerant), distinct stem from `delivery`/`verify` so the three regexes never cross-match:
 //   udflow:panel=full                                  → the full selected panel ran (pure disclosure)
 //   udflow:panel=substituted:<comma-separated-names>   → the named reviewers were evidence-substituted
-// The name list uses a BOUNDED charset ([a-z0-9,-]): finalText is stringified JSON, so a newline in the
-// final message is a literal "\n" — a greedy match would swallow the next sentinel line; the bound makes
-// the backslash terminate the list. NO synonym folds here, unlike the two decoders above: the value
+// The name list uses a BOUNDED charset ([a-z0-9,-]): a newline in the final message is either a
+// JSON-escaped literal "\n" (when finalText is stringified JSON) or a raw newline byte (when finalText
+// is the raw last_assistant_message string) — either way a greedy match would swallow the next
+// sentinel line; the bound excludes both the backslash and the raw newline byte, terminating the
+// list. NO synonym folds here, unlike the two decoders above: the value
 // gates an exemption (a weaker warning), so only the exact contract grammar may decode — an
 // unrecognized value or an empty name list yields null, failing toward warning, never toward a
 // silent exemption. The charset includes "," so a value like "substituted:," matches the regex yet
@@ -281,6 +283,20 @@ process.stdin.on("end", () => {
       if (!obj) continue;
       const role = obj.role || (obj.message && obj.message.role) || obj.type;
       if (role === "assistant") { finalText = JSON.stringify(obj); finalIdx = i; break; }
+    }
+
+    // P0.2: the Stop event itself can carry the orchestrator's actual final message separately from
+    // the transcript file (transcript_path/transcriptPath dual-key convention above; subagentTypeOf's
+    // subagent_type/agentType/agent_type fallback below) — prefer it for finalText when present, a
+    // string, and non-empty after trimming (a transcript-write race or a summary produced after the
+    // last transcript entry can leave the transcript-derived value stale). finalIdx is DELIBERATELY
+    // left untouched: it has no equivalent in last_assistant_message and still bounds the separate
+    // panel/verdict-provenance scans below (anyResultId / verdictParts), which read only the transcript.
+    const rawLastAssistantMessage = (input.last_assistant_message !== undefined)
+      ? input.last_assistant_message
+      : input.lastAssistantMessage;
+    if (typeof rawLastAssistantMessage === "string" && rawLastAssistantMessage.trim() !== "") {
+      finalText = rawLastAssistantMessage;
     }
 
     // The gatekeeper's verdict comes ONLY from a gatekeeper Task's tool_result, before the final

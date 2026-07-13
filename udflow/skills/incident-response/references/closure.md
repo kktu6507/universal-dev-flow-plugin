@@ -71,4 +71,4 @@ From the postmortem, PROPOSE a failure-memory entry — context, what broke, roo
 
 ## Lightweight comms
 
-The journal's timeline makes stakeholder status updates a copy-edit, not a writing task. Offer to draft one, matched to the audience (internal versus customer-facing). No status-page automation — publishing an update stays a human action.
+The journal's timeline makes stakeholder status updates a copy-edit, not a writing task. Offer to draft one, matched to the audience (internal versus customer-facing). No status-page automation — publishing an update stays a human action. For a breach or data-exposure incident, a legally-required notification is not a routine status update: the decision to notify, and the notification itself, escalate to the named legal/privacy owner (`ops-profile.md`, Breach readiness) — the agent may draft factual material for that owner's review, but it never decides or sends the notification itself.

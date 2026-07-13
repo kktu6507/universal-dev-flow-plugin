@@ -3,6 +3,41 @@
 All notable changes to this plugin are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/), and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [0.45.0] - 2026-07-13
+
+### Added
+- **`incident-response` ops-profile gains a legal/privacy escalation field**: a named legal/privacy/
+  regulatory owner and a notification-threshold placeholder in `references/ops-profile.md`'s Breach
+  readiness template; `wartime.md`'s intrusion branch and `closure.md`'s comms section now explicitly
+  escalate any breach/data-exposure notification decision to that named owner — the agent surfaces the
+  situation and evidence, it never decides or sends the notification itself.
+
+### Fixed
+- **`plan-gate.js` / `destructive-guard.js` now also cover `tool_name:"PowerShell"`** — previously only
+  `Bash` was matched in `hooks.json` and checked in each hook's own tool-name guard, so a PowerShell tool
+  call bypassed both the plan-mode write gate and the destructive-command ask entirely. The existing
+  Bash-tool-name + PowerShell-syntax Copilot CLI quirk path is unaffected. The ask/deny reason text now
+  names the actual triggering tool instead of hard-coding "Bash". `validate-structure.mjs`'s hook-wiring
+  guard now also requires `PowerShell` coverage for both hooks, so a regression to Bash-only fails CI.
+- **`orchestration-check.js` (Stop hook) now prefers `last_assistant_message`** (or `lastAssistantMessage`)
+  from the Stop event when Claude Code supplies it as a non-empty string, instead of relying solely on a
+  transcript scan that can read a stale tail (a transcript-write race, or a summary produced after the
+  last transcript entry); falls back to the existing transcript-derived value when the field is absent,
+  empty, or non-string. The panel/verdict-provenance scans stay bound to the transcript, unchanged.
+- `README.md` / `README.zh-TW.md` / `README.ja.md`: the plugin-update instructions were missing the
+  marketplace-catalog-refresh step — now document the full sequence (`/plugin marketplace update kktu`
+  → `/plugin update udflow@kktu` → `/reload-plugins`).
+- `EVIDENCE.md`: PR #86 (Live run 12) is confirmed merged and auto-released as `v0.39.0` — the "1
+  pending"/"PR open" wording (running tally, status prose, the run-12 entry) is corrected to reflect all
+  12 logged Type-B runs as merged. The false-positive-rate summary no longer asserts a
+  "condition-independent" near-zero rate that the document's own later, more current section already
+  qualifies (current build: lone ~6–12%, panel ~25% on a stricter post-fix control set);
+  `ARCHITECTURE.md`'s matching claim gains the same qualifier.
+- `udflow/skills/universal-dev-flow/references/external-capabilities.md` / `deep-mode.md`: the
+  `Workflow` capability is now documented as Claude Code's own native dynamic-workflow feature (GA since
+  v2.1.154), with a concrete tool-presence detection step, instead of the Detect signal being defined
+  self-referentially.
+
 ## [0.44.0] - 2026-07-13
 
 ### Added

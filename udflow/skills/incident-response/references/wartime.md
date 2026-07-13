@@ -16,6 +16,7 @@ The user likely cannot answer "is data corrupting?" — do not interrogate them.
    - preserve forensic evidence — do not wipe or restart what you would normally recycle;
    - avoid tipping off the attacker — no loud configuration changes on the compromised surface;
    - rotate exposed credentials — leaked API keys committed to git are common in AI-written repos; check history, not just the current tree;
+   - escalate any breach/data-exposure notification decision to the named legal/privacy owner (`ops-profile.md`'s Breach readiness) — the agent surfaces the situation and evidence, it never decides or sends a legally-required disclosure itself; that call belongs to the owner, never to the agent;
    - recommend professional incident-response support for anything beyond containment.
    Contain; do not play forensics lab (see Non-goals in `SKILL.md`).
 

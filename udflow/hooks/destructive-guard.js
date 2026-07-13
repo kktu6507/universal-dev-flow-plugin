@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 // udflow destructive-command guard (PreToolUse, ALL modes). A safety net distinct from the plan gate:
 // plan-gate.js blocks working-tree *writes* only while in plan mode and is fail-OPEN; this guard catches
-// a NARROW, HIGH-CONFIDENCE set of *unrecoverable* Bash commands (git reset --hard, git push --force,
-// rm -rf, mkfs, dd of=<device>, find -delete, shred) in EVERY mode, because after plan approval nothing
+// a NARROW, HIGH-CONFIDENCE set of *unrecoverable* Bash/PowerShell commands (git reset --hard, git push
+// --force, rm -rf, mkfs, dd of=<device>, find -delete, shred) in EVERY mode, because after plan approval nothing
 // else stops an implementer from running one on the wrong target. It surfaces a confirmation
 // (permissionDecision: "ask") — never a hard "deny" — so a false positive costs one keystroke, not a
 // wall (the pragmatism axiom: false positives are worse than the documented miss list). Risk posture:
@@ -127,7 +127,7 @@ process.stdin.on("end", () => {
   try {
     const input = JSON.parse(raw || "{}");
     const tool = input.tool_name || "";
-    if (tool !== "Bash") return process.exit(0); // only Bash commands can be destructive here
+    if (tool !== "Bash" && tool !== "PowerShell") return process.exit(0); // only Bash/PowerShell commands can be destructive here
     const ti = input.tool_input || {};
 
     if (!bashLooksDestructive(ti.command)) { debug("no destructive match; allowing"); return process.exit(0); }
@@ -143,7 +143,7 @@ process.stdin.on("end", () => {
         hookEventName: "PreToolUse",
         permissionDecision: "ask",
         permissionDecisionReason:
-          "udflow safety-net: this Bash command matches a high-confidence destructive pattern " +
+          "udflow safety-net: this " + tool + " command matches a high-confidence destructive pattern " +
           "(git reset --hard / git push --force / rm -rf / find -delete / dd of= / mkfs / shred; or the " +
           "PowerShell forms Remove-Item -Recurse / Format-Volume / Clear-Disk). These are unrecoverable — " +
           "confirm the target is intended before running. This is a best-effort net (only obvious forms are " +

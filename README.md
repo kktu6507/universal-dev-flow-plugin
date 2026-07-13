@@ -100,7 +100,7 @@ production is down — checkout returns 500s since the last deploy
 
 - **Install does not enable the plugin.** Until enabled, udflow's hooks and skills do nothing.
 - **Marketplace name is `kktu`.** The install id is `udflow@kktu`.
-- **Update:** `/plugin marketplace update kktu` then `/reload-plugins`.
+- **Update:** `/plugin marketplace update kktu` (refresh the catalog) → `/plugin update udflow@kktu` → `/reload-plugins`.
 - **Health check:** run `/udflow:doctor` when the gate never blocks, hooks seem silent, or Node may be missing.
 
 ## Good tasks
@@ -240,7 +240,7 @@ Real-world validation is tracked manually because udflow ships **no telemetry**.
 
 | Track-2 metric | Current status |
 |---|---|
-| Type-B verified live runs | 6 / 10 |
+| Type-B verified live runs | 12 / 10 |
 | Distinct real projects | 2 / 3 |
 | Non-maintainer runs | 0 / 1 |
 
@@ -252,7 +252,7 @@ Six dependency-free Node hooks run in every enabled session. They are local-only
 
 | Hook | Event | Purpose |
 |---|---|---|
-| `plan-gate.js` | `PreToolUse` | Denies edit tools and obvious Bash writes while in plan mode. |
+| `plan-gate.js` | `PreToolUse` | Denies edit tools and obvious Bash/PowerShell writes while in plan mode. |
 | `destructive-guard.js` | `PreToolUse` | Asks before narrow, unrecoverable destructive commands such as `rm -rf`, `git reset --hard`, `git push --force`, and PowerShell `Remove-Item -Recurse`. |
 | `contract-guard.js` | `PreToolUse` | Asks before a Write/Edit/MultiEdit would remove/loosen a previously recorded contract acceptance criterion, `mustNotChange` entry, or scope path, downgrade `risk`, or wholesale-delete a `design.md` section. Watches `udflowOp/output/contract.md` plus the legacy `output/udflow/contract.md`. Also asks before a Write/Edit/MultiEdit to `.claude/settings.json` or `.claude/settings.local.json` would flip any of the four guard flags below from enabled to disabled in their effective, precedence-resolved value — including via a brand-new settings file. |
 | `load-failure-memory.js` | `SessionStart` | Reads project `udflowOp/memory/FAILURE_MEMORY.md` (legacy `ai/FAILURE_MEMORY.md` as a read-only fallback), else global `~/.claude/FAILURE_MEMORY.md`, and injects a nonce-fenced, untrusted digest. |

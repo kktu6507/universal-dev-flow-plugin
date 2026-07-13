@@ -133,8 +133,11 @@ are the higher-risk, less-defended edges** — the rest of this section names th
   on these cases already comes from the existing *downrank-unconfirmed* + *command-evidence-authority*
   rules, not a special clause — adding redundant prose would be gold-plating.
 - **Recall scales with intent, not effort.** With no/weak intent the lone-reviewer floor is low
-  (~30% bug-blind); recall rises only when the Review Packet carries contract-level intent. The
-  near-zero false-positive rate is the robust strength; exhaustive recall is not the claim.
+  (~30% bug-blind); recall rises only when the Review Packet carries contract-level intent. Precision
+  is the robust strength; exhaustive recall is not the claim — but precision is not condition-independent
+  either: it sat near-zero on the 2026-06 fresh-correct-code controls, while a stricter current-build
+  post-fix control set reads lone ~6–12% / panel ~25% (`EVIDENCE.md`, Running tally + the
+  *Update — 2026-06-29* section).
 
 ## Where to start reading
 

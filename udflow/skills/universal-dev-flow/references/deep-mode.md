@@ -19,7 +19,8 @@ Signals (none a hard dependency):
 
 1. A session-level ultracode signal (e.g. a SessionStart `additionalContext` / system-reminder indicating ultracode is on).
 2. An explicit per-task opt-in: `/udflow:run` arguments beginning with `--deep`, `deep:`, or `ultra:` (this requests **Tier 2**).
-3. The Workflow capability actually exists for the running orchestrator.
+3. The concrete Workflow-tool-presence check (`references/external-capabilities.md`, Detect → Use →
+   Else-Disclose): a tool named `Workflow` is present in the current tool list.
 
 How the signals map to the tiers:
 

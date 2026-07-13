@@ -10,6 +10,7 @@ For any MCP tool, external skill, or external subagent:
    - MCP: confirm the relevant server is connected (the `mcp__<server>__*` tools are present; the user can check with `/mcp`).
    - External skill: confirm the skill is installed/available (e.g. `ui-ux-pro-max`).
    - External subagent: confirm the subagent type exists in `/agents`.
+   - Workflow: Claude Code's own native dynamic-workflow feature (GA since v2.1.154; official docs at `code.claude.com/docs/en/workflows`; available on all paid plans and every provider, including the Anthropic API, Bedrock, Vertex, and Foundry) — not an external/third-party capability. Confirm it concretely: a tool named `Workflow` is present in the current tool list.
 2. **Use** it if available.
 3. **Else**: do NOT call it and do NOT pretend it ran. Perform the best internal/local equivalent yourself, then **explicitly disclose to the user**:
    - which capability was unavailable,

@@ -347,6 +347,34 @@ test("validate-structure: a PreToolUse matcher that stops covering a gated tool 
   } finally { fs.rmSync(tree, { recursive: true, force: true }); }
 });
 
+// --- P0.1: the PowerShell wiring token is CI-locked (a regression to Bash-only must fail the build) ---
+
+test("validate-structure: a plan-gate.js matcher that drops PowerShell coverage FAILS (P0.1 wiring gate)", () => {
+  const tree = copyRepoTree();
+  try {
+    const hjPath = path.join(tree, "udflow", "hooks", "hooks.json");
+    const hj = JSON.parse(fs.readFileSync(hjPath, "utf8"));
+    hj.hooks.PreToolUse[0].matcher = "Write|Edit|MultiEdit|NotebookEdit|Bash"; // plan-gate entry: PowerShell dropped
+    fs.writeFileSync(hjPath, JSON.stringify(hj, null, 2), "utf8");
+    const { code, out } = runValidator(tree);
+    assert.notStrictEqual(code, 0, "narrowing the plan-gate matcher to drop PowerShell must fail the build");
+    assert.match(out, /PreToolUse matcher does not cover "PowerShell"/, "the failure must name the uncovered PowerShell token");
+  } finally { fs.rmSync(tree, { recursive: true, force: true }); }
+});
+
+test("validate-structure: a destructive-guard.js matcher that drops PowerShell coverage FAILS (P0.1 wiring gate)", () => {
+  const tree = copyRepoTree();
+  try {
+    const hjPath = path.join(tree, "udflow", "hooks", "hooks.json");
+    const hj = JSON.parse(fs.readFileSync(hjPath, "utf8"));
+    hj.hooks.PreToolUse[1].matcher = "Bash"; // destructive-guard entry: PowerShell dropped
+    fs.writeFileSync(hjPath, JSON.stringify(hj, null, 2), "utf8");
+    const { code, out } = runValidator(tree);
+    assert.notStrictEqual(code, 0, "narrowing the destructive-guard matcher to drop PowerShell must fail the build");
+    assert.match(out, /PreToolUse matcher does not cover "PowerShell"/, "the failure must name the uncovered PowerShell token");
+  } finally { fs.rmSync(tree, { recursive: true, force: true }); }
+});
+
 // --- 0.11.0 F4: matcher coverage is bound to the hook's own entry (cross-entry merge gap) ---
 
 test("validate-structure: a second event entry can no longer cover another hook's matcher gap (scoped wiring gate)", () => {
