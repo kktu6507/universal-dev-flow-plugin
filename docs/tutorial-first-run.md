@@ -18,7 +18,7 @@ That is all — no API keys, no services, no configuration.
 Inside Claude Code, in your project directory, run:
 
 ```text
-/plugin marketplace add kktu6507/universal-dev-flow-plugin
+/plugin marketplace add kktu6507/plugins
 /plugin install udflow@kktu
 # udflow ships DISABLED - enable it: /plugin -> Installed -> toggle udflow on
 #   or: claude plugin enable udflow@kktu

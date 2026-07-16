@@ -80,7 +80,7 @@ typo 修正、純粋なフォーマット、低リスクの小さな変更、単
 
 ```text
 # プロジェクトディレクトリで、Claude Code 内から：
-/plugin marketplace add kktu6507/universal-dev-flow-plugin
+/plugin marketplace add kktu6507/plugins
 /plugin install udflow@kktu
 # udflow は初期状態では無効です - /plugin -> Installed -> udflow を有効化
 #   または：claude plugin enable udflow@kktu

@@ -62,17 +62,14 @@ jobs:
       # Best-effort: the official validator. Linux-only and non-blocking because it
       # requires the Claude Code CLI, which may not run fully headless in CI.
       # --strict (treat warnings as errors) locally-verified 2026-07-10 on CLI 2.1.206: passes on
-      # both . and ./udflow, including the plugin.json $schema key.
+      # ./udflow, including the plugin.json $schema key. The marketplace listing this plugin
+      # lives in the separate kktu6507/plugins repo, so there is no root marketplace to check here.
       - name: claude plugin validate (best-effort)
         if: runner.os == 'Linux'
         continue-on-error: true
         shell: bash
         run: |
           npm install -g @anthropic-ai/claude-code || exit 0   # adhoc-packages exception is in .github/zizmor.yml (a run-block finding can't take an inline zizmor comment)
-          # Validate BOTH the marketplace (repo root) and the shipped plugin (./udflow).
-          # The plugin manifest is in udflow/.claude-plugin/plugin.json, so validating
-          # only the root would never check the plugin itself.
-          claude plugin validate --strict . || echo "marketplace validate could not run headless; the checks above are the gate."
           claude plugin validate --strict ./udflow || echo "plugin validate could not run headless; the checks above are the gate."
 
   # Auto-publish the release once Validate passes: the plugin manifest version is the

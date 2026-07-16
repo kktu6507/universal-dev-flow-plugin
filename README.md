@@ -80,7 +80,7 @@ Prerequisites: **Claude Code** + `node` on `PATH`. The hooks are Node scripts; w
 
 ```text
 # in your project directory, inside Claude Code:
-/plugin marketplace add kktu6507/universal-dev-flow-plugin
+/plugin marketplace add kktu6507/plugins
 /plugin install udflow@kktu
 # udflow ships DISABLED - enable it: /plugin -> Installed -> toggle udflow on
 #   or: claude plugin enable udflow@kktu

@@ -84,7 +84,7 @@ return to fail-closed verification.
 In a throwaway/clean Claude Code profile, from a scratch project directory:
 
 1. **Install + enable + reload**
-   - `/plugin marketplace add kktu6507/universal-dev-flow-plugin`
+   - `/plugin marketplace add kktu6507/plugins`
    - `/plugin install udflow@kktu`
    - `/plugin` → **Installed** → toggle **udflow** on (or `claude plugin enable udflow@kktu`)
    - `/reload-plugins`
