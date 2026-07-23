@@ -24,7 +24,7 @@ jobs:
         os: [ubuntu-latest, windows-latest, macos-latest]   # hooks have cross-platform path logic (incl. macOS/APFS case-folding)
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false   # this job only reads code + runs tests; no git push needs the token
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -98,7 +98,7 @@ jobs:
       # for an intentional repair of missing/mismatched release archive assets.
       UDFLOW_REPAIR_PUBLISHED_RELEASE_ASSETS: ${{ vars.UDFLOW_REPAIR_PUBLISHED_RELEASE_ASSETS == 'true' && 'true' || 'false' }}
     steps:
-      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0 # zizmor: ignore[artipacked] the release job's publish-release.mjs runs `git push origin <tag>` to push the (optionally signed) release tag, so this checkout must keep the token; the tree is never uploaded as an artifact
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.0 # zizmor: ignore[artipacked] the release job's publish-release.mjs runs `git push origin <tag>` to push the (optionally signed) release tag, so this checkout must keep the token; the tree is never uploaded as an artifact
         with:
           fetch-depth: 0   # need existing tags to detect whether this version is already released
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
